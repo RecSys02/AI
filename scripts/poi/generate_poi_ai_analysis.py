@@ -10,8 +10,8 @@ load_dotenv()
 client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
 
 # ⚙️ 파일 경로는 프로젝트에 맞게 수정해서 사용
-INPUT_PATH = "./data/poi_final_normalized.jsonl"      # poi_id/type/category/... 가 들어있는 최종 마스터
-OUTPUT_PATH = "./data/poi_analysis_ai_all.jsonl"      # type 상관 없이 ai 태그 모아서 저장
+INPUT_PATH = "../data/interim/poi_inter.jsonl"    
+OUTPUT_PATH = "../data/processed/poi_analysis.jsonl"      # type 상관 없이 ai 태그 모아서 저장
 
 MAX_ITEMS = None  # 테스트용으로 50 같은 숫자 주면 50개만 돌고 종료
 
