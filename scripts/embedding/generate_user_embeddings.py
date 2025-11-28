@@ -13,105 +13,50 @@ INPUT_PATH = "./data/user/user_profile.jsonl"
 OUTPUT_PATH = "./data/user_embeddings.jsonl"         # 임베딩 결과 저장 파일
 MODEL_NAME = "BAAI/bge-m3"            
 BATCH_SIZE = 16
+    
 
-
-def build_poi_profile_text(poi: dict) -> str:
+def build_user_profile_text(user: dict) -> str:
     """
-    raw + AI 태그가 합쳐진 POI 딕셔너리를 받아
-    BGE 임베딩용 한 덩어리 설명 텍스트로 변환한다.
+    user_profile.jsonl의 필드를 이용해
+    임베딩용 user_profile 한 문장을 만드는 함수.
     """
-
     parts = []
 
-    # 1) 기본 메타 정보
-    name = poi.get("name")
-    gu_name = poi.get("gu_name")
-    if name and gu_name:
-        parts.append(f"{gu_name}에 위치한 '{name}' 장소입니다.")
-    elif name:
-        parts.append(f"'{name}' 장소입니다.")
+    city = user.get("city")
+    if city:
+        parts.append(f"{city}에서 여행을 계획 중인 사용자입니다.")
 
-    # 카테고리 문자열
-    category = poi.get("category") or {}
-    cat1_name = category.get("cat1_name")
-    cat2_name = category.get("cat2_name")
-    cat3_name = category.get("cat3_name")
+    companion = user.get("companion_type") or []
+    if companion:
+        parts.append("동행 유형: " + ", ".join(companion))
 
-    cat_parts = [c for c in [cat1_name, cat2_name, cat3_name] if c]
-    if cat_parts:
-        parts.append("카테고리: " + " > ".join(cat_parts))
-
-    # 2) AI 한 줄 요약
-    summary = poi.get("summary_one_sentence")
-    if summary:
-        parts.append(summary)
-
-    # 3) AI 태그 기반 프로필
-    themes = poi.get("themes") or []
+    themes = user.get("preferred_themes") or []
     if themes:
-        parts.append("주요 테마: " + ", ".join(themes))
+        parts.append("선호 테마: " + ", ".join(themes))
 
-    moods = poi.get("mood") or []
+    moods = user.get("preferred_moods") or []
     if moods:
-        parts.append("분위기: " + ", ".join(moods))
+        parts.append("선호 분위기: " + ", ".join(moods))
 
-    vtypes = poi.get("visitor_type") or []
-    if vtypes:
-        parts.append("주 방문객 유형: " + ", ".join(vtypes))
+    budget = user.get("budget")
+    if budget:
+        parts.append(f"예산 수준: {budget}.")
 
-    best_time = poi.get("best_time") or []
-    if best_time:
-        parts.append("방문 추천 시간대: " + ", ".join(best_time))
+    avoid = user.get("avoid") or []
+    if avoid:
+        parts.append("피하고 싶은 것: " + ", ".join(avoid))
 
-    duration = poi.get("duration")
-    if duration:
-        parts.append(f"평균 체류 시간: {duration}")
+    activity = user.get("activity_level")
+    if activity:
+        parts.append(f"활동 강도 선호: {activity}.")
 
-    # activity: dict / string 둘 다 대응
-    activity = poi.get("activity") or poi.get("activity_level")
-    if isinstance(activity, dict):
-        label = activity.get("label")
-        level = activity.get("level")
-        if label and level:
-            parts.append(f"활동 강도: {label} (레벨 {level})")
-        elif label:
-            parts.append(f"활동 강도: {label}")
-    elif isinstance(activity, str):
-        parts.append(f"활동 강도: {activity}")
+    flow = user.get("schedule_flow")
+    if flow:
+        parts.append(f"전체 일정 흐름: {flow}를 선호합니다.")
 
-    indoor_outdoor = poi.get("indoor_outdoor")
-    if indoor_outdoor:
-        parts.append(f"실내/실외: {indoor_outdoor}")
-
-    photospot = poi.get("photospot")
-    if photospot is True:
-        parts.append("포토스팟이 있어 사진 찍기 좋은 장소입니다.")
-    elif photospot is False:
-        parts.append("특별한 포토스팟이 중심은 아닌 장소입니다.")
-
-    keywords = poi.get("keywords") or []
-    if keywords:
-        parts.append("키워드: " + ", ".join(keywords))
-
-    avoid_for = poi.get("avoid_for") or []
-    if avoid_for:
-        parts.append("다음과 같은 여행자에게는 비추천: " + ", ".join(avoid_for))
-
-    ideal_pos = poi.get("ideal_schedule_position")
-    if ideal_pos:
-        parts.append(f"일정 배치 추천: {ideal_pos}")
-
-    # 4) raw overview 일부도 살짝 포함 (선택)
-    overview = poi.get("overview")
-    if overview:
-        # 너무 길까 걱정되면 앞부분만 잘라써도 됨
-        short_ov = overview[:400]
-        parts.append("장소 설명: " + short_ov)
-
-    # 아무것도 없을 경우 fallback
+    # 아무 것도 없을 경우 fallback
     if not parts:
-        poi_id = poi.get("poi_id") or poi.get("id")
-        return f"ID {poi_id}인 관광지에 대한 정보가 거의 없습니다."
+        return "여행 취향 정보가 거의 없는 사용자입니다."
 
     return " ".join(parts)
 
