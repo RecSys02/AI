@@ -23,6 +23,7 @@ from sentence_transformers import SentenceTransformer
 INPUT_JSONL = "data/processed/poi_merged.jsonl"
 
 OUT_DIR = Path("data/embeddings")
+
 EMB_PATH = OUT_DIR / "poi_embeddings.npy"
 IDS_PATH = OUT_DIR / "poi_ids.npy"
 
@@ -155,6 +156,16 @@ def main():
         [p.get("poi_id") or p.get("id") for p in pois],
         dtype=object
     )
+    '''
+    # region, category, place_id 기준으로 고유 식별자 생성하기 위한 코드
+    '''
+    poi_keys = np.array(
+    [
+        (p["region"], p["category"], int(p["place_id"]))
+        for p in pois
+    ],
+    dtype=object
+)
 
     # device 선택
     if torch.cuda.is_available():
@@ -179,10 +190,10 @@ def main():
     ).astype("float32")
 
     np.save(EMB_PATH, embeddings)
-    np.save(IDS_PATH, poi_ids)
+    np.save(IDS_PATH, poi_keys)
 
     print(f"✅ Saved embeddings: {EMB_PATH} shape={embeddings.shape}")
-    print(f"✅ Saved poi_ids: {IDS_PATH} shape={poi_ids.shape}")
+    print(f"✅ Saved poi_keys: {IDS_PATH} shape={poi_keys.shape}")
 
 
 if __name__ == "__main__":

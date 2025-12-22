@@ -1,14 +1,37 @@
-# 환경 변수 파일
+# =========================
+# OS / IDE
+# =========================
+.DS_Store
+__pycache__/
+*.pyc
+
+# =========================
+# Environment
+# =========================
 .env
 *.env
-
-# 가상환경 폴더
 .venv/
 venv/
 env/
 
-__pycache__/
-*.pyc
-
+# =========================
+# Numpy / Embeddings
+# =========================
 *.npy
 embedding/
+data/embedding/
+data/embeddings/
+
+# =========================
+# EDA / Intermediate Data
+# =========================
+eda/notebook/*.json
+embedding_*.json
+poi_merged.json
+poi_with_id_region*.json
+*_poi_id.json
+
+# =========================
+# Jupyter
+# =========================
+.ipynb_checkpoints/
