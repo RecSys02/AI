@@ -2,8 +2,8 @@
 """
 POI analysis 데이터를 기반으로
 - 임베딩 텍스트 생성
-- poi_embeddings.npy
-- poi_ids.npy
+- poi_embeddings_tourspot.npy
+- poi_keys_tourspot.npy  (region, category, place_id)
 를 생성하는 스크립트
 """
 
@@ -19,14 +19,11 @@ from sentence_transformers import SentenceTransformer
 # =========================
 # Config
 # =========================
-# ===== 설정 =====
-INPUT_JSONL = "data/processed/poi_merged.jsonl"
+INPUT_JSONL = "../../data/embedding_json/embedding_tourspot.json"
 
-OUT_DIR = Path("data/embeddings")
-
-EMB_PATH = OUT_DIR / "poi_embeddings.npy"
-IDS_PATH = OUT_DIR / "poi_ids.npy"
-
+OUT_DIR = Path("../../data/embeddings")
+EMB_PATH = OUT_DIR / "poi_embeddings_tourspot.npy"
+KEYS_PATH = OUT_DIR / "poi_keys_tourspot.npy"
 
 MODEL_NAME = "BAAI/bge-m3"
 BATCH_SIZE = 16
@@ -48,15 +45,13 @@ def build_embedding_text(poi: Dict[str, Any]) -> str:
     """
     parts = []
 
-    # 1. 장소명 (강력한 시그널)
-    name = poi.get("name")
-    if name:
-        parts.append(f"장소명: {name}")
+    # 1. 장소명
+    if poi.get("name"):
+        parts.append(f"장소명: {poi['name']}")
 
-    # 2. 한 줄 요약 (최우선)
-    summary = poi.get("summary_one_sentence")
-    if summary:
-        parts.append(summary)
+    # 2. 한 줄 요약
+    if poi.get("summary_one_sentence"):
+        parts.append(poi["summary_one_sentence"])
 
     # 3. 테마
     themes = join_list(poi.get("themes", []))
@@ -79,27 +74,22 @@ def build_embedding_text(poi: Dict[str, Any]) -> str:
         parts.append(f"추천 방문 시간: {best_time}")
 
     # 7. 체류 시간
-    duration = poi.get("duration")
-    if duration:
-        parts.append(f"체류 시간: {duration}")
+    if poi.get("duration"):
+        parts.append(f"체류 시간: {poi['duration']}")
 
     # 8. 활동 강도
     activity = poi.get("activity") or {}
-    if isinstance(activity, dict):
-        level = activity.get("level")
-        if level is not None:
-            parts.append(f"활동 강도: {level}")
+    if isinstance(activity, dict) and activity.get("level") is not None:
+        parts.append(f"활동 강도: {activity['level']}")
 
     # 9. 실내/실외
-    indoor_outdoor = poi.get("indoor_outdoor")
-    if indoor_outdoor:
-        parts.append(f"실내/실외: {indoor_outdoor}")
+    if poi.get("indoor_outdoor"):
+        parts.append(f"실내/실외: {poi['indoor_outdoor']}")
 
     # 10. 포토스팟
-    photospot = poi.get("photospot")
-    if photospot is True:
+    if poi.get("photospot") is True:
         parts.append("포토스팟이 있는 장소")
-    elif photospot is False:
+    elif poi.get("photospot") is False:
         parts.append("포토스팟 위주의 장소는 아님")
 
     # 11. 키워드
@@ -113,32 +103,26 @@ def build_embedding_text(poi: Dict[str, Any]) -> str:
         parts.append(f"비추천 대상: {avoid_for}")
 
     # 13. 일정 배치 추천
-    ideal_pos = poi.get("ideal_schedule_position")
-    if ideal_pos:
-        parts.append(f"일정 추천 위치: {ideal_pos}")
+    if poi.get("ideal_schedule_position"):
+        parts.append(f"일정 추천 위치: {poi['ideal_schedule_position']}")
 
-    # 14. fallback: overview
-    if len(parts) < 2:
-        overview = poi.get("overview")
-        if overview:
-            parts.append(overview)
-
-    # 최종 fallback
+    # fallback
     if not parts:
-        pid = poi.get("poi_id") or poi.get("id") or "unknown"
+        pid = poi.get("poi_id", "unknown")
         return f"관광지 {pid}"
 
     return " ".join(parts)
 
 
-def load_jsonl(path: str) -> List[Dict[str, Any]]:
-    rows = []
+def load_json(path: str) -> List[Dict[str, Any]]:
     with open(path, "r", encoding="utf-8") as f:
-        for line in f:
-            line = line.strip()
-            if line:
-                rows.append(json.loads(line))
-    return rows
+        data = json.load(f)
+
+    if not isinstance(data, list):
+        raise ValueError("입력 JSON은 list 형태여야 합니다.")
+
+    return data
+
 
 
 # =========================
@@ -147,27 +131,22 @@ def load_jsonl(path: str) -> List[Dict[str, Any]]:
 def main():
     OUT_DIR.mkdir(parents=True, exist_ok=True)
 
-    pois = load_jsonl(INPUT_JSONL)
+    pois = load_json(INPUT_JSONL)
     print(f"[INFO] POI count: {len(pois)}")
 
+    # 1. 임베딩 텍스트 생성
     texts = [build_embedding_text(p) for p in pois]
 
-    poi_ids = np.array(
-        [p.get("poi_id") or p.get("id") for p in pois],
+    # 2. 임베딩 ↔ DB 매핑 키 (region, category, place_id)
+    poi_keys = np.array(
+        [
+            (p["region"], p["category"], int(p["place_id"]))
+            for p in pois
+        ],
         dtype=object
     )
-    '''
-    # region, category, place_id 기준으로 고유 식별자 생성하기 위한 코드
-    '''
-    poi_keys = np.array(
-    [
-        (p["region"], p["category"], int(p["place_id"]))
-        for p in pois
-    ],
-    dtype=object
-)
 
-    # device 선택
+    # 3. device 선택
     if torch.cuda.is_available():
         device = "cuda"
     elif hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
@@ -177,6 +156,7 @@ def main():
 
     print(f"[INFO] device={device}")
 
+    # 4. 임베딩 생성
     model = SentenceTransformer(MODEL_NAME, device=device)
     if device == "mps":
         model = model.half()
@@ -189,11 +169,12 @@ def main():
         show_progress_bar=True,
     ).astype("float32")
 
+    # 5. 저장
     np.save(EMB_PATH, embeddings)
-    np.save(IDS_PATH, poi_keys)
+    np.save(KEYS_PATH, poi_keys)
 
     print(f"✅ Saved embeddings: {EMB_PATH} shape={embeddings.shape}")
-    print(f"✅ Saved poi_keys: {IDS_PATH} shape={poi_keys.shape}")
+    print(f"✅ Saved poi_keys: {KEYS_PATH} shape={poi_keys.shape}")
 
 
 if __name__ == "__main__":
