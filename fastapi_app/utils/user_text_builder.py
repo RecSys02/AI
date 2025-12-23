@@ -25,3 +25,4 @@ def build_user_profile_text(user) -> str:
         parts.append("피하고 싶은 요소: " + ", ".join(user.avoid))
 
     return ". ".join(parts)
+
