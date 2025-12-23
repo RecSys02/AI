@@ -43,8 +43,10 @@ class RecommendService:
                 recent_place_ids.extend([poi.id for poi in user.visit_cafe])
             if scorer.name == "restaurant" and user.visit_restaurant:
                 recent_place_ids.extend([poi.id for poi in user.visit_restaurant])
-            if user.last_selected_poi and getattr(user.last_selected_poi, "category", None) == scorer.name:
-                recent_place_ids.append(user.last_selected_poi.id)
+            if user.last_selected_pois:
+                recent_place_ids.extend(
+                    [poi.id for poi in user.last_selected_pois if getattr(poi, "category", None) == scorer.name]
+                )
 
             per_category[scorer.name] = scorer.topk(
                 user_vec,

@@ -25,5 +25,5 @@ class UserInput(BaseModel):
     visit_restaurant: Optional[List[PoiRef]] = None
     visit_tourspot: Optional[List[PoiRef]] = None
 
-    # 마지막 선택된 장소
-    last_selected_poi: Optional[PoiRef] = None
+    # 마지막 선택된 장소들 (신호 강화)
+    last_selected_pois: Optional[List[PoiRef]] = None

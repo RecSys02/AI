@@ -21,8 +21,11 @@ def build_tourspot_text(user) -> str:
         parts.append("선호 분위기: " + ", ".join(user.preferred_moods))
     if user.visit_tourspot:
         parts.append(f"방문한 관광지 수: {len(user.visit_tourspot)}")
-    if user.last_selected_poi and getattr(user.last_selected_poi, "category", None) == "tourspot":
-        parts.append(f"마지막 선택 관광지: {user.last_selected_poi.region}-{user.last_selected_poi.id}")
+    if user.last_selected_pois:
+        last_ts = [p for p in user.last_selected_pois if getattr(p, "category", None) == "tourspot"]
+        if last_ts:
+            ids = [str(p.id) for p in last_ts]
+            parts.append("마지막 선택 관광지: " + ", ".join(ids))
     return ". ".join(parts)
 
 
@@ -34,8 +37,11 @@ def build_cafe_text(user) -> str:
         parts.append("카페 분위기: " + ", ".join(user.preferred_moods))
     if user.visit_cafe:
         parts.append(f"방문한 카페 수: {len(user.visit_cafe)}")
-    if user.last_selected_poi and getattr(user.last_selected_poi, "category", None) == "cafe":
-        parts.append(f"마지막 선택 카페: {user.last_selected_poi.region}-{user.last_selected_poi.id}")
+    if user.last_selected_pois:
+        last_cafe = [p for p in user.last_selected_pois if getattr(p, "category", None) == "cafe"]
+        if last_cafe:
+            ids = [str(p.id) for p in last_cafe]
+            parts.append("마지막 선택 카페: " + ", ".join(ids))
     return ". ".join(parts)
 
 
@@ -47,6 +53,9 @@ def build_restaurant_text(user) -> str:
         parts.append("식사 분위기: " + ", ".join(user.preferred_moods))
     if user.visit_restaurant:
         parts.append(f"방문한 음식점 수: {len(user.visit_restaurant)}")
-    if user.last_selected_poi and getattr(user.last_selected_poi, "category", None) == "restaurant":
-        parts.append(f"마지막 선택 음식점: {user.last_selected_poi.region}-{user.last_selected_poi.id}")
+    if user.last_selected_pois:
+        last_rest = [p for p in user.last_selected_pois if getattr(p, "category", None) == "restaurant"]
+        if last_rest:
+            ids = [str(p.id) for p in last_rest]
+            parts.append("마지막 선택 음식점: " + ", ".join(ids))
     return ". ".join(parts)

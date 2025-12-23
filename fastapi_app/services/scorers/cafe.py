@@ -1,5 +1,5 @@
 # fastapi_app/services/scorers/cafe.py
-from .base import EMBEDDINGS_DIR, EmbeddingScorer
+from .base import EMBEDDING_JSON_DIR, EMBEDDINGS_DIR, EmbeddingScorer
 
 
 def build_cafe_scorer():
@@ -7,4 +7,5 @@ def build_cafe_scorer():
         name="cafe",
         embedding_path=EMBEDDINGS_DIR / "poi_embeddings_cafe.npy",
         keys_path=EMBEDDINGS_DIR / "poi_keys_cafe.npy",
+        coords_path=EMBEDDING_JSON_DIR / "embedding_cafe.json",
     )

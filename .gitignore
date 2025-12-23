@@ -21,6 +21,7 @@ env/
 embedding/
 data/embedding/
 data/embeddings/
+!data/embeddings/**
 
 # =========================
 # EDA / Intermediate Data
