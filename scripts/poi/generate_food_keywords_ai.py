@@ -253,7 +253,8 @@ def main():
 
     results = []
     for idx, item in enumerate(data, start=1):
-        title = item.get("title") or ""
+        # 이름 필드는 title/name 어느 쪽이든 받아서 사용
+        title = item.get("title") or item.get("name") or ""
         description = item.get("description") or ""
         if idx % 10 == 1:
             print(f"[{idx}/{len(data)}] processing: {title}...")
@@ -261,9 +262,9 @@ def main():
         # 기존 keywords 파싱
         existing = _parse_existing_keywords(item.get("keywords"))
 
-        # 설명이 없으면 스킵
+        # 설명이 없으면 기존 키워드도 사용하지 않음
         if not description or not str(description).strip():
-            keywords = existing
+            keywords = []
         else:
             # 프랜차이즈 감지
             lower_title = title.lower()
@@ -274,14 +275,21 @@ def main():
             else:
                 keywords = call_openai(client, args.model, title=title, description=description, existing_keywords=existing)
 
-        # 기존 + 신규 병합 후 중복 제거, 최대 10개
-        merged = _filter_keywords(existing + keywords)
-        merged = merged[:10]
+        # AI 키워드만 사용, 최대 5개
+        merged = _filter_keywords(keywords)
+        merged = merged[:5]
 
         out_item = {
             "place_id": int(item.get("place_id")),
             "category": item.get("category"),
-            "region": item.get("region"),
+            "province": item.get("province"),
+            "name": item.get("title"),
+            "address": item.get("address"),
+            "duration": item.get("duration"),
+            "description": item.get("description"),
+            "images": item.get("imglinks"),
+            "latitude": item.get("latitude"),
+            "longitude": item.get("longitude"),
             "keywords": merged,
         }
         if args.verbose:
