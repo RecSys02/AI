@@ -48,13 +48,27 @@ class EmbeddingScorer:
     def _load_coords(self):
         if not self.coords_path:
             return
+        print(f"[SCORER] loading coords from {self.coords_path}")
         with self.coords_path.open("r", encoding="utf-8") as f:
             data = json.load(f)
-        self._coords_by_place_id = {
-            int(obj["place_id"]): (float(obj["lat"]), float(obj.get("lng") or obj.get("lon")))
-            for obj in data
-            if "place_id" in obj and "lat" in obj and ("lng" in obj or "lon" in obj)
-        }
+        self._coords_by_place_id = {}
+        for obj in data:
+            if "place_id" not in obj:
+                continue
+            lat = obj.get("lat") or obj.get("latitude")
+            lng = obj.get("lng") or obj.get("lon") or obj.get("longitude")
+            if lat is None or lng is None:
+                if __debug__:
+                    print(f"[SCORER] skip no coords place_id={obj.get('place_id')}")
+                continue
+            try:
+                lat_f = float(lat)
+                lng_f = float(lng)
+            except Exception:
+                if __debug__:
+                    print(f"[SCORER] skip invalid coords place_id={obj.get('place_id')} lat={lat} lng={lng}")
+                continue
+            self._coords_by_place_id[int(obj["place_id"])] = (lat_f, lng_f)
         lats = []
         lngs = []
         for k in self._keys:
@@ -68,6 +82,7 @@ class EmbeddingScorer:
                 lngs.append(math.nan)
         self._lat = np.array(lats)
         self._lng = np.array(lngs)
+        print(f"[SCORER] loaded coords: {len(self._coords_by_place_id)} / keys={len(self._keys)}")
 
     def _recent_vector(self, place_ids: list[int]) -> np.ndarray | None:
         if not place_ids:
@@ -111,30 +126,40 @@ class EmbeddingScorer:
         user_vec: np.ndarray,
         top_k: int = 10,
         recent_place_ids: list[int] | None = None,
+        distance_place_ids: list[int] | None = None,
         recent_weight: float = 0.3,
         distance_weight: float = 0.2,
         distance_scale_km: float = 5.0,
         distance_max_km: float | None = None,
+        debug: bool = False,
     ):
         self._load()
-        scores = np.dot(self._embeddings, user_vec)
+        base_scores = np.dot(self._embeddings, user_vec)
+        scores = base_scores.copy()
+        recent_component = np.zeros_like(scores)
+        distance_component = np.zeros_like(scores)
+        distance_km = None
 
         # recency by embedding
         recent_vec = self._recent_vector(recent_place_ids or [])
         if recent_vec is not None and recent_weight != 0:
-            scores += recent_weight * np.dot(self._embeddings, recent_vec)
+            recent_component = recent_weight * np.dot(self._embeddings, recent_vec)
+            scores += recent_component
 
         # distance bonus
-        dist = self._distance_from_recent_centroid(recent_place_ids or [])
+        dist_ids = distance_place_ids if distance_place_ids is not None else recent_place_ids
+        dist = self._distance_from_recent_centroid(dist_ids or [])
         if dist is not None:
+            distance_km = dist
             if distance_max_km is not None:
                 # 너무 먼 곳은 제외
-                far_mask = dist > distance_max_km
+                far_mask = (dist > distance_max_km) | np.isnan(dist)
                 scores[far_mask] = -np.inf
             if distance_weight != 0:
                 dist_bonus = np.exp(-dist / distance_scale_km)
                 dist_bonus = np.where(np.isnan(dist_bonus), 0.0, dist_bonus)
-                scores += distance_weight * dist_bonus
+                distance_component = distance_weight * dist_bonus
+                scores += distance_component
 
         idxs = scores.argsort()[::-1][:top_k]
         return [
@@ -143,6 +168,16 @@ class EmbeddingScorer:
                 "region": self._keys[i][0],
                 "place_id": int(self._keys[i][2]),
                 "score": float(scores[i]),
+                **(
+                    {
+                        "score_base": float(base_scores[i]),
+                        "score_recent": float(recent_component[i]),
+                        "score_distance": float(distance_component[i]),
+                        "distance_km": float(distance_km[i]) if distance_km is not None else None,
+                    }
+                    if debug
+                    else {}
+                ),
             }
             for i in idxs
         ]

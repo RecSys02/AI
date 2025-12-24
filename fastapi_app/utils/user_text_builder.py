@@ -29,7 +29,7 @@ def build_tourspot_text(user) -> str:
     if selected:
         last_ts = [p for p in selected if getattr(p, "category", None) == "tourspot"]
         if last_ts:
-            ids = [str(p.id) for p in last_ts]
+            ids = [str(p.place_id) for p in last_ts if getattr(p, "place_id", None) is not None]
             parts.append("마지막 선택 관광지: " + ", ".join(ids))
     return ". ".join(parts)
 
@@ -49,7 +49,7 @@ def build_cafe_text(user) -> str:
     if selected:
         last_cafe = [p for p in selected if getattr(p, "category", None) == "cafe"]
         if last_cafe:
-            ids = [str(p.id) for p in last_cafe]
+            ids = [str(p.place_id) for p in last_cafe if getattr(p, "place_id", None) is not None]
             parts.append("마지막 선택 카페: " + ", ".join(ids))
     return ". ".join(parts)
 
@@ -67,6 +67,6 @@ def build_restaurant_text(user) -> str:
     if selected:
         last_rest = [p for p in selected if getattr(p, "category", None) == "restaurant"]
         if last_rest:
-            ids = [str(p.id) for p in last_rest]
+            ids = [str(p.place_id) for p in last_rest if getattr(p, "place_id", None) is not None]
             parts.append("마지막 선택 음식점: " + ", ".join(ids))
     return ". ".join(parts)
