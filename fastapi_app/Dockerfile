@@ -12,6 +12,8 @@ RUN pip install --no-cache-dir --upgrade pip \
 
 # Copy application code
 COPY . /app
+# Ensure embeddings are present (mount or bake)
+VOLUME ["/app/data/embeddings", "/app/data/embedding_json"]
 
 EXPOSE 8000
 

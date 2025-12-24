@@ -2,6 +2,6 @@
 from pydantic import BaseModel
 
 class PoiRef(BaseModel):
-    id: int
+    place_id: int
     category: str      # "tourspot" | "restaurant" | "cafe"
-    region: str        # "seoul", "busan", ...
+    province: str        # "seoul", "busan", ...

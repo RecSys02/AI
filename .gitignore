@@ -22,6 +22,7 @@ embedding/
 data/embedding/
 data/embeddings/
 !data/embeddings/**
+!data/embedding_json/**
 
 # =========================
 # EDA / Intermediate Data

@@ -1,10 +1,18 @@
 # fastapi_app/main.py
 from fastapi import Depends, FastAPI, Query
+import time
 from models.user_input import UserInput
 from services.recommend_service import RecommendService
 
 app = FastAPI(title="POI Recommendation API")
 service = RecommendService()
+
+@app.middleware("http")
+async def add_process_time_header(request, call_next):
+    start = time.perf_counter()
+    response = await call_next(request)
+    response.headers["X-Process-Time-ms"] = f"{(time.perf_counter() - start) * 1000:.1f}"
+    return response
 
 @app.post("/recommend")
 def recommend(

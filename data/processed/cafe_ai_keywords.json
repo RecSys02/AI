@@ -1,0 +1,52 @@
+[
+  {
+    "place_id": 613,
+    "category": "restaurant",
+    "region": "seoul",
+    "keywords": [
+      "```json {\"keywords\": [\"건강한 먹거리\"",
+      "\"독립영화 상영\"",
+      "\"수제 맥주\"",
+      "\"디자이너 제품\"",
+      "\"도심의 활기\"]}  ```"
+    ]
+  },
+  {
+    "place_id": 616,
+    "category": "restaurant",
+    "region": "seoul",
+    "keywords": [
+      "풍미 깊은",
+      "예술적인",
+      "다양한 메뉴",
+      "편안한 분위기"
+    ]
+  },
+  {
+    "place_id": 3,
+    "category": "cafe",
+    "region": "seoul",
+    "keywords": [
+      "```json {\"keywords\": [\"디저트 중심\"",
+      "\"아늑한 분위기\"",
+      "\"수제 케이크\"",
+      "\"친절한 서비스\"",
+      "\"특별한 경험\"]} ```"
+    ]
+  },
+  {
+    "place_id": 4,
+    "category": "cafe",
+    "region": "seoul",
+    "keywords": [
+      "편안한",
+      "소통의 공간"
+    ]
+  },
+  {
+    "place_id": 5,
+    "category": "cafe",
+    "region": "seoul",
+    "keywords": []
+  }
+]

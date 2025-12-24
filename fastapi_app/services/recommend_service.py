@@ -37,15 +37,15 @@ class RecommendService:
                 normalize_embeddings=True,
             )[0]
             recent_place_ids = []
-            if scorer.name == "tourspot" and user.visit_tourspot:
-                recent_place_ids.extend([poi.id for poi in user.visit_tourspot])
-            if scorer.name == "cafe" and user.visit_cafe:
-                recent_place_ids.extend([poi.id for poi in user.visit_cafe])
-            if scorer.name == "restaurant" and user.visit_restaurant:
-                recent_place_ids.extend([poi.id for poi in user.visit_restaurant])
-            if user.last_selected_pois:
+            history = getattr(user, "historyPlaces", None)
+            if history:
                 recent_place_ids.extend(
-                    [poi.id for poi in user.last_selected_pois if getattr(poi, "category", None) == scorer.name]
+                    [poi.id for poi in history if getattr(poi, "category", None) == scorer.name]
+                )
+            selected = getattr(user, "selectedPlaces", None) or getattr(user, "last_selected_pois", None)
+            if selected:
+                recent_place_ids.extend(
+                    [poi.id for poi in selected if getattr(poi, "category", None) == scorer.name]
                 )
 
             per_category[scorer.name] = scorer.topk(
