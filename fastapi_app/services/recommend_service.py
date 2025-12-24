@@ -27,7 +27,7 @@ class RecommendService:
             "restaurant": build_restaurant_text,
         }
 
-    def recommend(self, user, top_k_per_category: int = 10) -> List[dict]:
+    def recommend(self, user, top_k_per_category: int = 10, distance_max_km: float = 3.0) -> List[dict]:
         per_category = {}
         for scorer in self.scorers:
             builder = self.text_builders.get(scorer.name)
@@ -36,23 +36,20 @@ class RecommendService:
                 [user_text],
                 normalize_embeddings=True,
             )[0]
-            recent_place_ids = []
-            history = getattr(user, "historyPlaces", None)
-            if history:
-                recent_place_ids.extend(
-                    [poi.id for poi in history if getattr(poi, "category", None) == scorer.name]
-                )
+            # 거리/recency 보너스는 selected(또는 last_selected_pois)가 있을 때만 사용
             selected = getattr(user, "selectedPlaces", None) or getattr(user, "last_selected_pois", None)
+            recent_place_ids = []
             if selected:
-                recent_place_ids.extend(
-                    [poi.id for poi in selected if getattr(poi, "category", None) == scorer.name]
-                )
+                recent_place_ids = [
+                    poi.id for poi in selected if getattr(poi, "category", None) == scorer.name
+                ]
 
             per_category[scorer.name] = scorer.topk(
                 user_vec,
                 top_k=top_k_per_category,
                 recent_place_ids=recent_place_ids,
                 recent_weight=0.3,
+                distance_max_km=distance_max_km,
             )
 
         # 결과를 카테고리별로 리스트로 묶어 반환

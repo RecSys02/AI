@@ -18,7 +18,14 @@ async def add_process_time_header(request, call_next):
 def recommend(
     user: UserInput,
     top_k_per_category: int = Query(10, ge=1),
+    distance_max_km: float = Query(3.0, ge=0.0, description="최근 선택 좌표 기준 최대 허용 거리(km). 0이면 필터 비활성."),
     svc: RecommendService = Depends(lambda: service),
 ):
-    recommendations = svc.recommend(user, top_k_per_category=top_k_per_category)
+    # distance_max_km=0 은 필터 비활성화
+    max_km = None if distance_max_km == 0 else distance_max_km
+    recommendations = svc.recommend(
+        user,
+        top_k_per_category=top_k_per_category,
+        distance_max_km=max_km,
+    )
     return {"recommendations": recommendations}

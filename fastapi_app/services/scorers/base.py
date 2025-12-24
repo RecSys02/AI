@@ -82,7 +82,7 @@ class EmbeddingScorer:
         norm = np.linalg.norm(avg)
         return avg / norm if norm > 0 else avg
 
-    def _distance_bonus(self, recent_place_ids: list[int], scale_km: float) -> Optional[np.ndarray]:
+    def _distance_from_recent_centroid(self, recent_place_ids: list[int]) -> Optional[np.ndarray]:
         if not recent_place_ids or self._lat is None or self._lng is None:
             return None
         rec_coords = []
@@ -104,10 +104,7 @@ class EmbeddingScorer:
         lat_rad = np.deg2rad(self._lat)
         lng_rad = np.deg2rad(self._lng)
         dist = _haversine_km(lat_rad, lng_rad, math.radians(centroid_lat), math.radians(centroid_lng))
-
-        bonus = np.exp(-dist / scale_km)
-        bonus = np.where(np.isnan(bonus), 0.0, bonus)
-        return bonus
+        return dist
 
     def topk(
         self,
@@ -117,6 +114,7 @@ class EmbeddingScorer:
         recent_weight: float = 0.3,
         distance_weight: float = 0.2,
         distance_scale_km: float = 5.0,
+        distance_max_km: float | None = None,
     ):
         self._load()
         scores = np.dot(self._embeddings, user_vec)
@@ -127,9 +125,16 @@ class EmbeddingScorer:
             scores += recent_weight * np.dot(self._embeddings, recent_vec)
 
         # distance bonus
-        dist_bonus = self._distance_bonus(recent_place_ids or [], scale_km=distance_scale_km)
-        if dist_bonus is not None and distance_weight != 0:
-            scores += distance_weight * dist_bonus
+        dist = self._distance_from_recent_centroid(recent_place_ids or [])
+        if dist is not None:
+            if distance_max_km is not None:
+                # 너무 먼 곳은 제외
+                far_mask = dist > distance_max_km
+                scores[far_mask] = -np.inf
+            if distance_weight != 0:
+                dist_bonus = np.exp(-dist / distance_scale_km)
+                dist_bonus = np.where(np.isnan(dist_bonus), 0.0, dist_bonus)
+                scores += distance_weight * dist_bonus
 
         idxs = scores.argsort()[::-1][:top_k]
         return [
