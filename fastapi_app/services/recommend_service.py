@@ -30,17 +30,17 @@ class RecommendService:
         self.category_weights = {
             "tourspot": {
                 "recent_weight": 0.3,
-                "distance_weight": 0.2,
+                "distance_weight": 0.1,
                 "distance_scale_km": 5.0,
             },
             "restaurant": {
                 "recent_weight": 0.3,
-                "distance_weight": 0.25,
-                "distance_scale_km": 4.0,
+                "distance_weight": 0.3, # 식당은 거리 영향↑
+                "distance_scale_km": 2.0, # 가까운 곳을 더 선호
             },
             "cafe": {
                 "recent_weight": 0.3,
-                "distance_weight": 1.0,  # 카페는 거리 영향↑
+                "distance_weight": 0.3,  # 카페는 거리 영향↑
                 "distance_scale_km": 2.0, # 가까운 곳을 더 선호
             },
         }
@@ -64,15 +64,12 @@ class RecommendService:
                 [user_text],
                 normalize_embeddings=True,
             )[0]
-            # 거리/recency 보너스는 selected(또는 last_selected_pois)가 있을 때만 사용
-            selected = selected_all
-            recent_place_ids = []
-            if selected:
-                recent_place_ids = [
-                    poi.place_id
-                    for poi in selected
-                    if getattr(poi, "category", None) == scorer.name and getattr(poi, "place_id", None) is not None
-                ]
+            # recency 보너스는 같은 카테고리의 방문 이력 기준
+            recent_place_ids = [
+                poi.place_id
+                for poi in history_all
+                if getattr(poi, "category", None) == scorer.name and getattr(poi, "place_id", None) is not None
+            ]
 
             weights = self.category_weights.get(scorer.name, {})
             per_category[scorer.name] = scorer.topk(
