@@ -19,14 +19,14 @@ jobs:
       - name: Install deps from pyproject (fastapi_app)
         run: |
           pip install --upgrade pip tomli
-          python - <<'PY' > deps.txt
-import tomli
-import pathlib
-p = pathlib.Path("fastapi_app/pyproject.toml")
-data = tomli.loads(p.read_text())
-for dep in data["project"]["dependencies"]:
-    print(dep)
-PY
+          cat > deps.txt <<'PY'
+          import tomli
+          import pathlib
+          p = pathlib.Path("fastapi_app/pyproject.toml")
+          data = tomli.loads(p.read_text())
+          for dep in data["project"]["dependencies"]:
+              print(dep)
+          PY
           pip install -r deps.txt
 
       - name: Lint (ruff optional)
