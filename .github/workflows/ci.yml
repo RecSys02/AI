@@ -41,11 +41,11 @@ jobs:
           deps = data.get("project", {}).get("dependencies", [])
           pathlib.Path("deps.txt").write_text("\n".join(deps))
           PY
-          uv pip install -r deps.txt
+          uv pip install --system -r deps.txt
 
       - name: Lint (ruff optional)
         run: |
-          uv pip install ruff
+          uv pip install --system ruff
           ruff check fastapi_app || true
 
       - name: Tests
