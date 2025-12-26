@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [ main,park_research ]
+    branches: [ main, park_research ]
     paths:
       - 'fastapi_app/**'
       - '.github/workflows/**'
@@ -27,14 +27,14 @@ jobs:
         run: |
           pip install --upgrade pip tomli
           python - <<'PY'
-import tomli
-import pathlib
+          import tomli
+          import pathlib
 
-p = pathlib.Path("fastapi_app/pyproject.toml")
-data = tomli.loads(p.read_text())
-deps = data.get("project", {}).get("dependencies", [])
-pathlib.Path("deps.txt").write_text("\n".join(deps))
-PY
+          p = pathlib.Path("fastapi_app/pyproject.toml")
+          data = tomli.loads(p.read_text())
+          deps = data.get("project", {}).get("dependencies", [])
+          pathlib.Path("deps.txt").write_text("\n".join(deps))
+          PY
           pip install -r deps.txt
 
       - name: Lint (ruff optional)
