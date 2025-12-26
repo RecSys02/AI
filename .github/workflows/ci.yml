@@ -28,7 +28,7 @@ jobs:
 
       - name: Install deps from pyproject (fastapi_app)
         run: |
-          uv pip install tomli
+          uv pip install --system tomli
           python - <<'PY' > deps.txt
           import pathlib
           try:
