@@ -24,16 +24,20 @@ jobs:
           python-version: "3.10"
 
       - name: Install uv
-        uses: astral-sh/uv-action@v2
+        uses: astral-sh/setup-uv@v2
 
       - name: Install deps from pyproject (fastapi_app)
         run: |
+          uv pip install tomli
           python - <<'PY' > deps.txt
-          import tomli
           import pathlib
+          try:
+              import tomllib  # py311+
+          except ModuleNotFoundError:
+              import tomli as tomllib
 
           p = pathlib.Path("fastapi_app/pyproject.toml")
-          data = tomli.loads(p.read_text())
+          data = tomllib.loads(p.read_text())
           deps = data.get("project", {}).get("dependencies", [])
           pathlib.Path("deps.txt").write_text("\n".join(deps))
           PY
