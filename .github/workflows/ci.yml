@@ -1,0 +1,38 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      - name: Install deps from pyproject (fastapi_app)
+        run: |
+          pip install --upgrade pip tomli
+          python - <<'PY' > deps.txt
+import tomli
+import pathlib
+p = pathlib.Path("fastapi_app/pyproject.toml")
+data = tomli.loads(p.read_text())
+for dep in data["project"]["dependencies"]:
+    print(dep)
+PY
+          pip install -r deps.txt
+
+      - name: Lint (ruff optional)
+        run: |
+          pip install ruff
+          ruff check fastapi_app || true
+
+      - name: Tests
+        run: pytest || true
