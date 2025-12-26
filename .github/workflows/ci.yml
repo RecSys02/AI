@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main,park_research ]
     paths:
       - 'fastapi_app/**'
       - '.github/workflows/**'
