@@ -78,7 +78,7 @@ def _base_user(**overrides):
         avoid=[],
         activity_level="적당히",
         region="seoul",
-        companion_type=[],
+        companion=[],
     )
     base.update(overrides)
     return UserInput(**base)

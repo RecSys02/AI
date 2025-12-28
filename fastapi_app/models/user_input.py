@@ -17,7 +17,7 @@ class UserInput(BaseModel):
 
     # 일정 생성 시 입력
     region: str
-    companion_type: List[str]
+    companion: List[str]
     budget: Optional[str] = None
 
     # ✅ 방문 이력 (object list)

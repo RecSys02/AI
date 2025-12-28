@@ -3,8 +3,8 @@ def _base_profile_lines(user) -> list[str]:
     city_or_region = getattr(user, "city", None) or getattr(user, "region", None)
     if city_or_region:
         lines.append(f"도시: {city_or_region}")
-    if user.companion_type:
-        lines.append("동행: " + ", ".join(user.companion_type))
+    if user.companion:
+        lines.append("동행: " + ", ".join(user.companion))
     if user.activity_level:
         lines.append(f"활동강도: {user.activity_level}")
     if user.budget:

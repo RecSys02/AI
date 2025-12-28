@@ -165,7 +165,7 @@ class EmbeddingScorer:
         return [
             {
                 "category": self.name,
-                "region": self._keys[i][0],
+                "province": self._keys[i][0],
                 "place_id": int(self._keys[i][2]),
                 "score": float(scores[i]),
                 **(
