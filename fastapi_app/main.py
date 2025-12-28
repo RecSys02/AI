@@ -1,12 +1,24 @@
 # fastapi_app/main.py
 # Run (dev): uvicorn main:app --reload --port 8000
-from fastapi import Depends, FastAPI, Query
+import logging
 import time
+from fastapi import Depends, FastAPI, Query
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
 from models.user_input import UserInput
 from services.recommend_service import RecommendService
 
 app = FastAPI(title="POI Recommendation API")
 service = RecommendService()
+logger = logging.getLogger("uvicorn.error")
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request, exc):
+    body = await request.body()
+    logger.warning("422 validation error path=%s body=%s errors=%s", request.url.path, body, exc.errors())
+    return JSONResponse(status_code=422, content={"detail": exc.errors()})
+
 
 @app.middleware("http")
 async def add_process_time_header(request, call_next):
@@ -14,6 +26,7 @@ async def add_process_time_header(request, call_next):
     response = await call_next(request)
     response.headers["X-Process-Time-ms"] = f"{(time.perf_counter() - start) * 1000:.1f}"
     return response
+
 
 @app.post("/recommend")
 def recommend(

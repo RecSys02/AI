@@ -20,12 +20,12 @@ def build_tourspot_text(user) -> str:
         parts.append("선호 테마: " + ", ".join(user.preferred_themes))
     if user.preferred_moods:
         parts.append("선호 분위기: " + ", ".join(user.preferred_moods))
-    history = getattr(user, "historyPlaces", None) or getattr(user, "visit_tourspot", None)
+    history = getattr(user, "history_places", None) or getattr(user, "visit_tourspot", None)
     if history:
         ts = [p for p in history if getattr(p, "category", None) == "tourspot"]
         if ts:
             parts.append(f"방문한 관광지 수: {len(ts)}")
-    selected = getattr(user, "selectedPlaces", None) or getattr(user, "last_selected_pois", None)
+    selected = getattr(user, "selected_places", None) or getattr(user, "last_selected_pois", None)
     if selected:
         last_ts = [p for p in selected if getattr(p, "category", None) == "tourspot"]
         if last_ts:
@@ -40,12 +40,12 @@ def build_cafe_text(user) -> str:
         parts.append("선호 카페 타입: " + ", ".join(user.preferred_cafe_types))
     if user.preferred_moods:
         parts.append("카페 분위기: " + ", ".join(user.preferred_moods))
-    history = getattr(user, "historyPlaces", None) or getattr(user, "visit_cafe", None)
+    history = getattr(user, "history_places", None) or getattr(user, "visit_cafe", None)
     if history:
         cafes = [p for p in history if getattr(p, "category", None) == "cafe"]
         if cafes:
             parts.append(f"방문한 카페 수: {len(cafes)}")
-    selected = getattr(user, "selectedPlaces", None) or getattr(user, "last_selected_pois", None)
+    selected = getattr(user, "selected_places", None) or getattr(user, "last_selected_pois", None)
     if selected:
         last_cafe = [p for p in selected if getattr(p, "category", None) == "cafe"]
         if last_cafe:
@@ -58,12 +58,12 @@ def build_restaurant_text(user) -> str:
     parts = _base_profile_lines(user)
     if user.preferred_restaurant_types:
         parts.append("선호 음식점 타입: " + ", ".join(user.preferred_restaurant_types))
-    history = getattr(user, "historyPlaces", None) or getattr(user, "visit_restaurant", None)
+    history = getattr(user, "history_places", None) or getattr(user, "visit_restaurant", None)
     if history:
         rests = [p for p in history if getattr(p, "category", None) == "restaurant"]
         if rests:
             parts.append(f"방문한 음식점 수: {len(rests)}")
-    selected = getattr(user, "selectedPlaces", None) or getattr(user, "last_selected_pois", None)
+    selected = getattr(user, "selected_places", None) or getattr(user, "last_selected_pois", None)
     if selected:
         last_rest = [p for p in selected if getattr(p, "category", None) == "restaurant"]
         if last_rest:

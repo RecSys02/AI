@@ -47,8 +47,8 @@ class RecommendService:
 
     def recommend(self, user, top_k_per_category: int = 10, distance_max_km: float = 3.0, debug: bool = False) -> List[dict]:
         per_category = {}
-        selected_all = getattr(user, "selectedPlaces", None) or getattr(user, "last_selected_pois", None) or []
-        history_all = getattr(user, "historyPlaces", None) or []
+        selected_all = getattr(user, "selected_places", None) or getattr(user, "last_selected_pois", None) or []
+        history_all = getattr(user, "history_places", None) or []
         history_ids = {p.place_id for p in history_all if getattr(p, "place_id", None) is not None}
         # 거리 계산은 마지막 선택 장소 1개 기준(카테고리 무관)
         distance_place_ids = []

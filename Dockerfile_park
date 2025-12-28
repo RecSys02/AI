@@ -1,5 +1,7 @@
 FROM python:3.10-slim
 WORKDIR /app
+#docker build -f Dockerfile_park -t myapp-park-test .
+
 
 # 의존성은 fastapi_app/pyproject.toml 기준 설치
 COPY fastapi_app/pyproject.toml fastapi_app/README.md /app/fastapi_app/

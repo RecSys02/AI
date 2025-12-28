@@ -21,7 +21,7 @@ class UserInput(BaseModel):
     budget: Optional[str] = None
 
     # ✅ 방문 이력 (object list)
-    historyPlaces: Optional[List[PoiRef]] = None
+    history_places: Optional[List[PoiRef]] = None
 
     # 마지막 선택된 장소들 (신호 강화)
-    selectedPlaces: Optional[List[PoiRef]] = None
+    selected_places: Optional[List[PoiRef]] = None

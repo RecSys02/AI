@@ -95,7 +95,7 @@ def test_history_filtered_topk_and_debug(make_service):
     }
     svc = make_service(scored)
     user = _base_user(
-        historyPlaces=[PoiRef(place_id=2, category="tourspot", province="seoul")]
+        history_places=[PoiRef(place_id=2, category="tourspot", province="seoul")]
     )
 
     result = svc.recommend(user, top_k_per_category=1, distance_max_km=5.0, debug=True)
