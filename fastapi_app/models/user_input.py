@@ -35,3 +35,4 @@ class UserInput(BaseModel):
 
     # 마지막 선택된 장소들 (신호 강화)
     selected_places: Optional[List[PoiRef]] = Field(default=None, alias="selectedPlaces")
+    

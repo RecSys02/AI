@@ -51,38 +51,48 @@ class EmbeddingScorer:
         print(f"[SCORER] loading coords from {self.coords_path}")
         with self.coords_path.open("r", encoding="utf-8") as f:
             data = json.load(f)
-        self._coords_by_place_id = {}
-        for obj in data:
-            if "place_id" not in obj:
-                continue
-            lat = obj.get("lat") or obj.get("latitude")
-            lng = obj.get("lng") or obj.get("lon") or obj.get("longitude")
-            if lat is None or lng is None:
-                if __debug__:
-                    print(f"[SCORER] skip no coords place_id={obj.get('place_id')}")
-                continue
-            try:
-                lat_f = float(lat)
-                lng_f = float(lng)
-            except Exception:
-                if __debug__:
-                    print(f"[SCORER] skip invalid coords place_id={obj.get('place_id')} lat={lat} lng={lng}")
-                continue
-            self._coords_by_place_id[int(obj["place_id"])] = (lat_f, lng_f)
-        lats = []
-        lngs = []
-        for k in self._keys:
-            pid = int(k[2])
-            coord = self._coords_by_place_id.get(pid)
-            if coord:
-                lats.append(coord[0])
-                lngs.append(coord[1])
-            else:
-                lats.append(math.nan)
-                lngs.append(math.nan)
-        self._lat = np.array(lats)
-        self._lng = np.array(lngs)
-        print(f"[SCORER] loaded coords: {len(self._coords_by_place_id)} / keys={len(self._keys)}")
+            self._coords_by_place_id = {}
+
+            def _get_lat_lng(obj: dict):
+                # support top-level lat/lng and nested location.lat/lng
+                lat = obj.get("lat") or obj.get("latitude")
+                lng = obj.get("lng") or obj.get("lon") or obj.get("longitude")
+                if (lat is None or lng is None) and isinstance(obj.get("location"), dict):
+                    loc = obj["location"]
+                    lat = loc.get("lat") or loc.get("latitude") or lat
+                    lng = loc.get("lng") or loc.get("lon") or loc.get("longitude") or lng
+                return lat, lng
+
+            for obj in data:
+                if "place_id" not in obj:
+                    continue
+                lat, lng = _get_lat_lng(obj)
+                if lat is None or lng is None:
+                    if __debug__:
+                        print(f"[SCORER] skip no coords place_id={obj.get('place_id')}")
+                    continue
+                try:
+                    lat_f = float(lat)
+                    lng_f = float(lng)
+                except Exception:
+                    if __debug__:
+                        print(f"[SCORER] skip invalid coords place_id={obj.get('place_id')} lat={lat} lng={lng}")
+                    continue
+                self._coords_by_place_id[int(obj["place_id"])] = (lat_f, lng_f)
+            lats = []
+            lngs = []
+            for k in self._keys:
+                pid = int(k[2])
+                coord = self._coords_by_place_id.get(pid)
+                if coord:
+                    lats.append(coord[0])
+                    lngs.append(coord[1])
+                else:
+                    lats.append(math.nan)
+                    lngs.append(math.nan)
+            self._lat = np.array(lats)
+            self._lng = np.array(lngs)
+            print(f"[SCORER] loaded coords: {len(self._coords_by_place_id)} / keys={len(self._keys)}")
 
     def _recent_vector(self, place_ids: list[int]) -> np.ndarray | None:
         if not place_ids:

@@ -53,4 +53,12 @@ def recommend(
         distance_max_km=max_km,
         debug=debug,
     )
+    # 성공 요청 요약 로그
+    logger.info(
+        "200 /recommend user=%s top_k=%s distance_max_km=%s debug=%s",
+        user.user_id,
+        top_k_per_category,
+        max_km,
+        debug,
+    )
     return {"recommendations": recommendations}
