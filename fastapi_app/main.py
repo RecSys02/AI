@@ -16,7 +16,16 @@ logger = logging.getLogger("uvicorn.error")
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request, exc):
     body = await request.body()
-    logger.warning("422 validation error path=%s body=%s errors=%s", request.url.path, body, exc.errors())
+    # 과도한 본문은 자르되 내용과 오류를 남김
+    body_preview = body[:2000] + (b"...(truncated)" if len(body) > 2000 else b"")
+    logger.warning(
+        "422 validation error method=%s path=%s query=%s body=%s errors=%s",
+        request.method,
+        request.url.path,
+        request.url.query,
+        body_preview,
+        exc.errors(),
+    )
     return JSONResponse(status_code=422, content={"detail": exc.errors()})
 
 
