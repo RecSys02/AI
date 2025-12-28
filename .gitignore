@@ -23,7 +23,7 @@ data/embedding/
 data/embeddings/
 !data/embeddings/**
 !data/embedding_json/**
-
+data_2
 # =========================
 # EDA / Intermediate Data
 # =========================
@@ -37,3 +37,4 @@ poi_with_id_region*.json
 # Jupyter
 # =========================
 .ipynb_checkpoints/
+
