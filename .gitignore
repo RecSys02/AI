@@ -19,8 +19,7 @@ env/
 # =========================
 *.npy
 embedding/
-data/embedding/
-data/embeddings/
+
 !data/embeddings/**
 !data/embedding_json/**
 data_2
