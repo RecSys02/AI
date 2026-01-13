@@ -78,10 +78,34 @@ async def chat_stream(
     config = {"configurable": {"thread_id": session_id}} if session_id else {}
 
     async def event_gen():
-        async for update in chat_app.astream(initial_state, config=config):
-            delta = update.get("answer")
-            if delta:
-                yield {"event": "token", "data": delta}
+        any_event = False
+        final_sent = False
+        async for event in chat_app.astream_events(initial_state, config=config, version="v2"):
+            kind = event.get("event")
+            if kind == "on_chat_model_stream":
+                content = getattr(event["data"].get("chunk"), "content", None)
+                if content:
+                    any_event = True
+                    yield {"event": "token", "data": str(content)}
+            elif kind == "on_chain_stream":
+                data = event["data"].get("chunk") or {}
+                if "token" in data:
+                    any_event = True
+                    yield {"event": "token", "data": str(data["token"])}
+                if "final" in data and not final_sent:
+                    any_event = True
+                    final_sent = True
+                    yield {"event": "final", "data": str(data["final"])}
+        if not any_event:
+            final_state = chat_app.invoke(initial_state, config=config)
+            final_text = None
+            if isinstance(final_state, dict):
+                final_text = final_state.get("final") or final_state.get("answer")
+            if final_text and not final_sent:
+                final_sent = True
+                yield {"event": "token", "data": str(final_text)}
+                yield {"event": "final", "data": str(final_text)}
         yield {"event": "done", "data": "ok"}
+
 
     return EventSourceResponse(event_gen(), media_type="text/event-stream")

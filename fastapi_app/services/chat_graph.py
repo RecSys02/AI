@@ -1,73 +1,101 @@
 import os
-from typing import Dict, List
-
+from typing import Annotated, Dict, List, TypedDict
 from langchain_openai import ChatOpenAI
-from langgraph.graph import StateGraph, END
-
+from langgraph.graph import END, StateGraph
 from services.retriever import retrieve
 
-CHAT_MODEL = os.getenv("CHAT_MODEL", "gpt-4o-mini")
+# 상태 정의를 명확히 하여 데이터 유실 방지
+class GraphState(TypedDict):
+    query: str
+    mode: str
+    top_k: int
+    history_place_ids: List[int]
+    intent: str
+    retrievals: List[dict]
+    final: str
+    messages: List[dict]
 
-# LLM은 스트리밍 모드로 사용
+CHAT_MODEL = os.getenv("CHAT_MODEL", "gpt-4o-mini")
 llm = ChatOpenAI(model=CHAT_MODEL, streaming=True, temperature=0.0)
 
+def _detect_intent(query: str) -> str:
+    q = query.lower()
+    recommend_terms = ["추천", "어디", "가볼", "뭐가 있어", "top", "best", "3개", "5곳"]
+    return "recommend" if any(t in q for t in recommend_terms) else "general"
 
-def retrieve_node(state: Dict) -> Dict:
+async def route_node(state: GraphState) -> Dict:
+    intent = _detect_intent(state.get("query", ""))
+    return {"intent": intent} # 변경된 부분만 반환
+
+async def retrieve_node(state: GraphState) -> Dict:
     query = state.get("query", "")
     mode = state.get("mode", "tourspot")
-    top_k = state.get("top_k", 5)
-    history_place_ids: List[int] = state.get("history_place_ids") or []
-    hits = retrieve(query=query, mode=mode, top_k=top_k, history_place_ids=history_place_ids)
-    return {**state, "retrievals": hits}
+    requested_k = state.get("top_k", 1)
+    history_ids = state.get("history_place_ids") or []
+    # 후보를 넉넉히 가져옴
+    hits = retrieve(query=query, mode=mode, top_k=max(requested_k, 20), history_place_ids=history_ids)
+    return {"retrievals": hits}
 
-
-def answer_node(state: Dict):
+async def answer_node(state: GraphState):
     retrievals = state.get("retrievals", [])
     if not retrievals:
-        msg = "관련 후보를 찾지 못했습니다. 다른 요청이나 조건을 알려주세요."
-        yield {**state, "answer": msg, "messages": state.get("messages", []) + [{"role": "assistant", "content": msg}]}
+        yield {"final": "검색된 결과가 없습니다."}
         return
 
-    top_k = state.get("top_k", 1)
-    context_lines = []
-    for r in retrievals:
-        meta = r.get("meta") or {}
-        name = meta.get("name") or meta.get("title") or "장소"
-        summary = meta.get("summary_one_sentence") or meta.get("description") or ""
-        context_lines.append(f"- {name}: {summary}")
-    context = "\n".join(context_lines)
-
+    context = "\n".join([f"- {r['meta'].get('name')}: {r['meta'].get('summary_one_sentence')}" for r in retrievals])
     messages = [
-        (
-            "system",
-            "너는 서울 여행지/맛집/카페를 추천하는 챗봇이다. "
-            "반드시 아래 후보 목록에서만 선택해 최대 N개 추천해라. "
-            "후보에 없는 장소는 절대 제시하지 말고, 부족하면 없는대로 알려라. "
-            "불필요한 서론 없이 바로 추천을 제공해라.",
-        ),
+        ("system", "너는 서울 여행 가이드다. 후보 리스트 내에서 골라 한 줄 요약과 함께 추천해라."),
+        ("system", f"추천 개수: {state.get('top_k', 1)}\n후보:\n{context}"),
+        ("user", state.get("query", "")),
     ]
-    if context:
-        messages.append(("system", f"N={top_k}\n후보 목록:\n{context}"))
-    messages.append(("user", state.get("query", "")))
 
-    full = []
-    for chunk in llm.stream(messages):
+    parts: List[str] = []
+    async for chunk in llm.astream(messages):
         content = chunk.content
         if not content:
             continue
-        full.append(content)
-        yield {"answer": content}
+        parts.append(content)
+        yield {"token": content}
 
-    final_answer = "".join(full)
-    yield {**state, "answer": final_answer, "messages": state.get("messages", []) + [{"role": "assistant", "content": final_answer}]}
+    final_text = "".join(parts)
+    yield {"final": final_text}
 
 
-# LangGraph 구성
-graph = StateGraph(dict)
-graph.add_node("retrieve", retrieve_node)
-graph.add_node("answer", answer_node)
-graph.add_edge("retrieve", "answer")
-graph.add_edge("answer", END)
-graph.set_entry_point("retrieve")
+async def general_answer_node(state: GraphState):
+    messages = [
+        ("system", "서울 여행 관련 질문에 간결하게 답해라."),
+        ("user", state.get("query", "")),
+    ]
+    parts: List[str] = []
+    async for chunk in llm.astream(messages):
+        content = chunk.content
+        if not content:
+            continue
+        parts.append(content)
+        yield {"token": content}
 
-chat_app = graph.compile()
+    final_text = "".join(parts)
+    yield {"final": final_text}
+
+# 그래프 구성
+workflow = StateGraph(GraphState)
+
+workflow.add_node("route", route_node)
+workflow.add_node("retrieve", retrieve_node)
+workflow.add_node("answer", answer_node)
+workflow.add_node("general_answer", general_answer_node)
+
+workflow.set_entry_point("route")
+
+# 조건부 엣지
+workflow.add_conditional_edges(
+    "route",
+    lambda state: "retrieve" if state["intent"] == "recommend" else "general_answer",
+    {"retrieve": "retrieve", "general_answer": "general_answer"}
+)
+
+workflow.add_edge("retrieve", "answer")
+workflow.add_edge("answer", END)
+workflow.add_edge("general_answer", END)
+
+chat_app = workflow.compile()
