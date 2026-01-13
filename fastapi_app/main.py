@@ -2,15 +2,25 @@
 # Run (dev): uvicorn main:app --reload --port 8000
 import logging
 import time
+from pathlib import Path
+
+from dotenv import load_dotenv
+
+# 루트 .env 로드 (OPENAI_API_KEY, CHAT_MODEL 등)
+load_dotenv(dotenv_path=Path(__file__).resolve().parents[1] / ".env")
+
 from fastapi import Depends, FastAPI, Query
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from models.user_input import UserInput
+from routers.chat import router as chat_router
 from services.recommend_service import RecommendService
 
 app = FastAPI(title="POI Recommendation API")
 service = RecommendService()
 logger = logging.getLogger("uvicorn.error")
+
+app.include_router(chat_router)
 
 
 @app.exception_handler(RequestValidationError)
