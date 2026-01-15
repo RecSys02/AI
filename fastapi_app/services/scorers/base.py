@@ -1,7 +1,7 @@
 import json
 import math
 from pathlib import Path
-from typing import Optional
+from typing import Optional, List
 
 import numpy as np
 
@@ -9,6 +9,31 @@ import numpy as np
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 EMBEDDINGS_DIR = PROJECT_ROOT / "data" / "embeddings"
 EMBEDDING_JSON_DIR = PROJECT_ROOT / "data" / "embedding_json"
+
+
+def _extract_cuisine_from_user_text(user_text: str) -> Optional[List[str]]:
+    """사용자 텍스트에서 음식 카테고리를 추출합니다."""
+    text_lower = user_text.lower()
+
+    # 음식 카테고리 매핑
+    cuisine_map = {
+        "한식": ["한국음식", "한식", "korean"],
+        "중식": ["중국음식", "중식", "chinese"],
+        "일식": ["일본음식", "일식", "japanese"],
+        "양식": ["서양음식", "양식", "western"],
+        "이탈리안": ["이탈리아", "italian"],
+        "프렌치": ["프랑스", "french"],
+        "멕시칸": ["멕시코", "mexican"],
+        "태국": ["태국", "thai"],
+        "베트남": ["베트남", "vietnam"],
+        "인도": ["인도", "india"],
+    }
+
+    for key, patterns in cuisine_map.items():
+        if key in text_lower:
+            return patterns
+
+    return None
 
 
 def _haversine_km(lat1, lon1, lat2, lon2):
@@ -25,15 +50,18 @@ class EmbeddingScorer:
         name: str,
         embedding_path: str,
         keys_path: str,
+        json_path: str,
         coords_path: Optional[str] = None,
     ):
         self.name = name
         self.embedding_path = Path(embedding_path)
         self.keys_path = Path(keys_path)
+        self.json_path = Path(json_path)
         self.coords_path = Path(coords_path) if coords_path else None
         self._embeddings = None
         self._keys = None
         self._idx_by_place_id = None
+        self._poi_by_place_id = None
         self._lat = None
         self._lng = None
         self._coords_by_place_id = None
@@ -43,7 +71,19 @@ class EmbeddingScorer:
             self._embeddings = np.load(self.embedding_path)
             self._keys = np.load(self.keys_path, allow_pickle=True)
             self._idx_by_place_id = {int(k[2]): i for i, k in enumerate(self._keys)}
+            self._load_poi_data()
             self._load_coords()
+
+    def _load_poi_data(self):
+        if not self.json_path.exists():
+            print(f"[SCORER] POI json not found at {self.json_path}")
+            return
+        with self.json_path.open("r", encoding="utf-8") as f:
+            pois = json.load(f)
+            self._poi_by_place_id = {p["place_id"]: p for p in pois}
+        print(
+            f"[SCORER] loaded POI data from {self.json_path}: {len(self._poi_by_place_id)} items"
+        )
 
     def _load_coords(self):
         if not self.coords_path:
@@ -142,6 +182,7 @@ class EmbeddingScorer:
         distance_scale_km: float = 5.0,
         distance_max_km: float | None = None,
         debug: bool = False,
+        user_text: str | None = None,  # 음식 카테고리 필터링을 위한 사용자 텍스트
     ):
         self._load()
         base_scores = np.dot(self._embeddings, user_vec)
@@ -171,23 +212,53 @@ class EmbeddingScorer:
                 distance_component = distance_weight * dist_bonus
                 scores += distance_component
 
-        idxs = scores.argsort()[::-1][:top_k]
-        return [
-            {
-                "category": self.name,
-                "province": self._keys[i][0],
-                "place_id": int(self._keys[i][2]),
+        # 음식 카테고리 필터링 (restaurant/cafe만 해당)
+        cuisine_patterns = None
+        if self.name in ["restaurant", "cafe"] and user_text:
+            cuisine_patterns = _extract_cuisine_from_user_text(user_text)
+
+        # 점수 순으로 정렬
+        idxs_all = scores.argsort()[::-1]
+
+        # 음식 카테고리 필터가 있으면 적용
+        if cuisine_patterns:
+            filtered_idxs = []
+            for i in idxs_all:
+                place_id = int(self._keys[i][2])
+                poi_data = self._poi_by_place_id.get(place_id, {}) if self._poi_by_place_id else {}
+                content = poi_data.get("content", "").lower()
+                # content 필드에 cuisine_patterns 중 하나라도 포함되면 통과
+                if any(pattern.lower() in content for pattern in cuisine_patterns):
+                    filtered_idxs.append(i)
+                if len(filtered_idxs) >= top_k * 2:  # 넉넉하게 가져옴 (reranking 대비)
+                    break
+            idxs = filtered_idxs[:top_k] if filtered_idxs else idxs_all[:top_k]
+        else:
+            idxs = idxs_all[:top_k]
+
+        results = []
+        for i in idxs:
+            place_id = int(self._keys[i][2])
+            # self._poi_by_place_id가 로드되었는지 확인하고 데이터를 가져옵니다.
+            poi_data = self._poi_by_place_id.get(place_id, {}) if self._poi_by_place_id else {}
+
+            item = {
+                # POI의 모든 정보를 결과에 포함시킵니다.
+                **poi_data,
                 "score": float(scores[i]),
-                **(
-                    {
-                        "score_base": float(base_scores[i]),
-                        "score_recent": float(recent_component[i]),
-                        "score_distance": float(distance_component[i]),
-                        "distance_km": float(distance_km[i]) if distance_km is not None else None,
-                    }
-                    if debug
-                    else {}
-                ),
+                "place_id": place_id, # place_id를 명시적으로 보장합니다.
+                "category": self.name, # 카테고리를 명시적으로 보장합니다.
+                # [수정] Reranker를 위해 항상 debug 정보 포함
+                "debug": {
+                    "score_base": float(base_scores[i]),
+                    "score_recent": float(recent_component[i]),
+                    "score_distance": float(distance_component[i]),
+                }
             }
-            for i in idxs
-        ]
+
+            # [수정] 거리 정보도 항상 포함 (Reranker에서 사용)
+            item["distance_km"] = float(distance_km[i]) if distance_km is not None and not np.isnan(distance_km[i]) else None
+
+            results.append(item)
+
+        return results

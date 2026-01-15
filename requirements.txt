@@ -98,3 +98,11 @@ webdriver-manager==4.0.2
 websocket-client==1.9.0
 wsproto==1.2.0
 zipp==3.23.0
+sse-starlette
+fastapi
+uvicorn
+langchain-openai
+langgraph
+catboost
+rank_bm25
+pytest

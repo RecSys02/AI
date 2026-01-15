@@ -129,6 +129,31 @@ def _needs_keyword_filter(query_text: str) -> Tuple[bool, List[str]]:
     return (len(hit) > 0, keywords)
 
 
+def _extract_cuisine_filter(query_text: str) -> Optional[List[str]]:
+    """사용자 쿼리에서 음식 카테고리 필터를 추출합니다."""
+    q_lower = query_text.lower()
+
+    # 음식 카테고리 매핑 (쿼리 키워드 -> content 필드의 실제 문자열)
+    cuisine_map = {
+        "한식": ["한국음식", "한식", "korean"],
+        "중식": ["중국음식", "중식", "chinese"],
+        "일식": ["일본음식", "일식", "japanese"],
+        "양식": ["서양음식", "양식", "western"],
+        "이탈리안": ["이탈리아", "italian"],
+        "프렌치": ["프랑스", "french"],
+        "멕시칸": ["멕시코", "mexican"],
+        "태국": ["태국", "thai"],
+        "베트남": ["베트남", "vietnam"],
+        "인도": ["인도", "india"],
+    }
+
+    for key, patterns in cuisine_map.items():
+        if key in q_lower:
+            return patterns
+
+    return None
+
+
 def _has_any_keyword(meta: Dict, terms: List[str]) -> bool:
     target_parts = []
     for key in ["name", "title", "summary_one_sentence", "description", "overview", "keywords"]:
@@ -203,6 +228,27 @@ def retrieve(
                 filtered_idxs.append(i)
             if len(filtered_idxs) >= top_k:
                 break
+
+    # 음식 카테고리 필터 (restaurant/cafe 모드에서만)
+    cuisine_patterns = None
+    if mode in ["restaurant", "cafe"]:
+        cuisine_patterns = _extract_cuisine_filter(qtext)
+
+    if cuisine_patterns:
+        # Content 필드에서 음식 카테고리 매칭
+        cuisine_filtered = []
+        for i in idxs_all:
+            pid = int(keys[i][2])
+            meta = id_to_meta.get(pid, {})
+            content = meta.get("content", "").lower()
+            # content 필드에 cuisine_patterns 중 하나라도 포함되면 통과
+            if any(pattern.lower() in content for pattern in cuisine_patterns):
+                cuisine_filtered.append(i)
+            if len(cuisine_filtered) >= top_k * 3:  # 넉넉하게 가져옴 (reranking 대비)
+                break
+        if cuisine_filtered:
+            filtered_idxs = cuisine_filtered
+
     # 필터 결과가 없으면 전체 점수 순으로 fallback
     if filtered_idxs:
         idxs = filtered_idxs[:top_k]
