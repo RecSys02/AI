@@ -9,7 +9,7 @@ class GraphState(TypedDict):
     mode: str | None
     mode_detected: str | None
     mode_unknown: bool | None
-    top_k: int
+    top_k: int | None
     history_place_ids: List[int]
     intent: str
     retrievals: List[dict]
@@ -100,7 +100,7 @@ async def retrieve_node(state: GraphState) -> Dict:
         mode_raw = await _llm_detect_mode(query)
     mode_unknown = mode_raw == "unknown"
     mode_used = "tourspot" if mode_unknown else mode_raw
-    requested_k = state.get("top_k", 1)
+    requested_k = state.get("top_k")
     # 이전 방문 기록 아직 없음. 어떻게 뽑아올지 정해야함(기존 추천시스템에서 방문한 이력들 DB에서 뽑아오도록 해야할듯?)
     history_ids = state.get("history_place_ids") or []
 
@@ -109,7 +109,7 @@ async def retrieve_node(state: GraphState) -> Dict:
     hits = retrieve(
         query=query,
         mode=mode_used,
-        top_k=max(requested_k, 20),
+        top_k=max(requested_k, 20) if requested_k is not None else 20,
         history_place_ids=history_ids,
         debug=debug_flag,
     )
@@ -160,18 +160,16 @@ async def answer_node(state: GraphState):
             parts.append(f"인기: {pop_str}")
         if rating_str:
             parts.append(rating_str)
-        print(parts)
         return " ".join([p for p in parts if p])
 
     context = "\n".join([f"- {_build_ctx(r)}" for r in retrievals])
-    print(context)
     messages = [
         (
             "system",
             "너는 서울 여행 가이드다. 아래 후보 목록에서만 선택해 한 줄 요약과 함께 추천해라. "
             "후보에 없는 장소는 절대 언급하지 말고, 후보 정보(이름/설명/키워드)를 활용해 답하라.",
         ),
-        ("system", f"추천 개수: {state.get('top_k', 1)}\n후보:\n{context}"),
+        ("system", f"추천 개수: {state['top_k']}\n후보:\n{context}") if state.get("top_k") else ("system", f"후보:\n{context}"),
     ]
     if state.get("mode_unknown"):
         messages.append(
@@ -208,10 +206,11 @@ async def general_answer_node(state: GraphState):
         pass
 
     # 일반 질의도 데이터 기반으로 답하도록 간단히 검색 사용
+    req_k = state.get("top_k")
     hits = retrieve(
         query=query,
         mode=mode_used,
-        top_k=max(state.get("top_k", 1), 5),
+        top_k=max(req_k, 5) if req_k is not None else 5,
         history_place_ids=history_place_ids,
     )
     if not hits:
