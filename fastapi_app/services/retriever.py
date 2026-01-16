@@ -15,6 +15,57 @@ EMBEDDING_JSON_DIR = PROJECT_ROOT / "data" / "embedding_json"
 MODEL_NAME = "BAAI/bge-m3"
 ALPHA_DENSE = 0.6  # dense vs BM25 가중치
 
+SYNONYMS = {
+    # 수족관/해양
+    "aquarium": ["수족관", "아쿠아리움", "aquarium"],
+    # 일식/스시
+    "sushi": ["스시", "초밥", "오마카세", "사시미", "스시야", "초밥집", "카이센동", "텐동"],
+    # 이탈리안/파스타/피자
+    "pasta": ["파스타", "이탈리안", "스파게티", "리조또", "알리오올리오", "까르보나라", "토마토파스타", "크림파스타"],
+    "pizza": ["피자", "pizzeria", "나폴리피자", "화덕피자"],
+    # 카페/디저트
+    "coffee": ["카페", "커피", "디저트", "브런치", "라떼", "티룸", "tea", "커피숍", "카페거리", "로스터리", "핸드드립", "스페셜티", "브런치카페"],
+    "dessert": ["디저트", "케이크", "빙수", "도넛", "마카롱", "수제 디저트", "타르트", "쿠키", "젤라또", "아이스크림", "초콜릿", "수제 아이스크림", "수제 쿠키"],
+    # 버거/브런치류
+    "burger": ["버거", "햄버거", "버거집"],
+    # 스테이크/양식 고기
+    "steak": ["스테이크", "티본", "안심", "등심", "립아이"],
+    # 한식 고기류
+    "korean_bbq": ["삼겹살", "꽃등심", "소갈비", "차돌박이", "한우", "고기", "육회", "돼지갈비", "소고기구이", "숯불구이"],
+    "gopchang": ["곱창", "막창", "대창", "양대창", "양곱창", "곱창구이"],
+    # 면류
+    "noodle": ["칼국수", "국수", "냉면", "라면", "라멘", "우동", "막국수", "쌀국수", "쫄면", "메밀", "비빔국수"],
+    # 치킨류
+    "chicken": ["치킨", "통닭", "닭갈비", "닭도리탕", "양념치킨", "후라이드"],
+    # 분식/간편식
+    "bunsik": ["분식", "떡볶이", "김밥", "라볶이", "순대", "튀김"],
+    # 주류/바
+    "izakaya": ["이자카야", "사케", "오뎅", "타코야끼", "덴뿌라"],
+    "beer": ["맥주", "브루어리", "펍", "호프", "수제맥주", "바", "비어"],
+    "wine": ["와인", "와인바", "와인 바"],
+    "nightlife": ["바", "포차", "술집", "칵테일", "나이트", "라운지"],
+    # 중식/기타
+    "chinese": ["중식", "짜장면", "짬뽕", "탕수육", "중국집", "만두", "딤섬"],
+    # 한정식/한식 세트
+    "korean_set": ["한정식", "한식", "궁중", "백반", "정식"],
+    # 해산물/회
+    "seafood": ["해물", "회", "횟집", "참치", "오징어", "조개", "조개구이", "해산물"],
+    # 프렌치/양식
+    "french": ["프렌치", "프랑스", "비스토로", "비스트로"],
+    # 기타 이국/퓨전
+    "fusion": ["퓨전", "남미", "브라질", "스페인", "남미요리"],
+    # 관광/여행지(투어스팟)
+    "tourspot": [
+        "관광지", "명소", "핫플", "여행지", "공원", "산책", "산책로", "둘레길", "숲길",
+        "한강", "강변", "호수", "계곡", "폭포", "전망대", "야경",
+        "박물관", "미술관", "전시장", "전시", "아트센터",
+        "사찰", "절", "성당", "교회", "성지", "한옥", "전통마을",
+        "캠핑", "캠핑장", "글램핑", "피크닉", "도보코스", "트레킹", "등산", "산",
+    ],
+    # 카페 세부(베이커리 등)
+    "bakery": ["베이커리", "빵집", "파티세리", "크루아상", "바게트"],
+}
+
 
 def _join_list(values: List) -> str:
     if not values:
@@ -81,13 +132,11 @@ def build_embedding_text_food(poi: Dict) -> str:
         parts.append(f"키워드: {kws}")
     return " ".join(parts) or (title or "음식/카페")
 
-
 MODE_CONFIG: Dict[str, Tuple[Callable[[Dict], str], str]] = {
     "tourspot": (build_embedding_text_tourspot, "tourspot"),
     "cafe": (build_embedding_text_food, "cafe"),
     "restaurant": (build_embedding_text_food, "restaurant"),
 }
-
 
 def _select_device() -> str:
     try:
@@ -123,10 +172,12 @@ def _tokenize(text: str) -> List[str]:
 
 
 def _needs_keyword_filter(query_text: str) -> Tuple[bool, List[str]]:
-    keywords = ["수족관", "아쿠아리움", "aquarium"]
     q_lower = query_text.lower()
-    hit = [k for k in keywords if k in q_lower]
-    return (len(hit) > 0, keywords)
+    matched_terms: List[str] = []
+    for group in SYNONYMS.values():
+        if any(term.lower() in q_lower for term in group):
+            matched_terms.extend(group)
+    return (len(matched_terms) > 0, matched_terms if matched_terms else [])
 
 
 def _has_any_keyword(meta: Dict, terms: List[str]) -> bool:

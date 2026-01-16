@@ -1,13 +1,13 @@
 import re
 from typing import List, Optional
 
+import json
 from fastapi import APIRouter, Query
 from sse_starlette.sse import EventSourceResponse
 
 from services.chat_graph import chat_app
 
 router = APIRouter()
-
 
 def _parse_history(raw: Optional[str]) -> List[int]:
     if not raw:
@@ -54,17 +54,17 @@ def _infer_top_k(query_text: str, top_k_param: Optional[int]) -> int:
     for k, v in mapping.items():
         if k in query_text:
             return v
-
     return 1
 
 
 @router.get("/chat/stream")
 async def chat_stream(
     q: str = Query(..., description="사용자 질문"),
-    mode: str = Query("tourspot", pattern="^(tourspot|cafe|restaurant)$"),
+    mode: Optional[str] = Query(None, description="카테고리(tourspot/cafe/restaurant). 미지정 시 기본값 사용"),
     top_k: Optional[int] = Query(None, ge=1, le=10),
     history_place_ids: Optional[str] = Query(None, description="CSV 형태의 place_id 목록"),
     session_id: Optional[str] = Query(None, description="대화 스레드/세션 식별자"),
+    debug: Optional[bool] = Query(False, description="디버그(점수) 포함 여부"),
 ):
     history_ids = _parse_history(history_place_ids)
     resolved_top_k = _infer_top_k(q, top_k)
@@ -74,6 +74,7 @@ async def chat_stream(
         "top_k": resolved_top_k,
         "history_place_ids": history_ids,
         "messages": [],
+        "debug": bool(debug),
     }
     config = {"configurable": {"thread_id": session_id}} if session_id else {}
 
@@ -89,6 +90,8 @@ async def chat_stream(
                     yield {"event": "token", "data": str(content)}
             elif kind == "on_chain_stream":
                 data = event["data"].get("chunk") or {}
+                if "debug" in data:
+                    yield {"event": "debug", "data": json.dumps(data["debug"], ensure_ascii=False)}
                 if "token" in data:
                     any_event = True
                     yield {"event": "token", "data": str(data["token"])}

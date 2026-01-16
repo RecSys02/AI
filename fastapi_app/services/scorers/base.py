@@ -170,7 +170,7 @@ class EmbeddingScorer:
                 dist_bonus = np.where(np.isnan(dist_bonus), 0.0, dist_bonus)
                 distance_component = distance_weight * dist_bonus
                 scores += distance_component
-
+        
         idxs = scores.argsort()[::-1][:top_k]
         return [
             {
