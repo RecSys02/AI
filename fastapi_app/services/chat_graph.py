@@ -1,4 +1,5 @@
 import os
+import json
 from typing import Annotated, Dict, List, TypedDict
 from langchain_openai import ChatOpenAI
 from langgraph.graph import END, StateGraph
@@ -20,7 +21,7 @@ class GraphState(TypedDict):
 CHAT_MODEL = os.getenv("CHAT_MODEL", "gpt-4o-mini")
 DETECT_MODEL = os.getenv("DETECT_MODEL", CHAT_MODEL)
 llm = ChatOpenAI(model=CHAT_MODEL, streaming=True, temperature=0.0)
-# 모드 감지용은 스트리밍 없이 호출
+# 모드 감지/리랭크용은 스트리밍 없이 호출
 detect_llm = ChatOpenAI(model=DETECT_MODEL, streaming=False, temperature=0.0)
 
 def _detect_intent(query: str) -> str:
@@ -122,6 +123,7 @@ async def retrieve_node(state: GraphState) -> Dict:
 
 async def answer_node(state: GraphState):
     retrievals = state.get("retrievals", [])
+    print("answer node : ",retrievals)
     if not retrievals:
         yield {"final": "검색된 결과가 없습니다."}
         return
@@ -191,6 +193,81 @@ async def answer_node(state: GraphState):
 
     final_text = "".join(parts)
     yield {"final": final_text}
+
+
+async def rerank_node(state: GraphState) -> Dict:
+    """LLM으로 상위 후보를 재선택한다."""
+    retrievals = state.get("retrievals") or []
+    if not retrievals:
+        return {"retrievals": []}
+
+    desired_k = state.get("top_k") or 5
+    desired_k = max(1, min(desired_k, len(retrievals)))
+
+    def _build_ctx(r: dict) -> str:
+        meta = r.get("meta") or {}
+        name = meta.get("name") or meta.get("title") or "장소"
+        summary = meta.get("summary_one_sentence") or meta.get("description") or meta.get("content") or ""
+        addr = meta.get("address") or meta.get("location", {}).get("addr1") or ""
+        kw = meta.get("keywords") or []
+        kw_str = ", ".join([str(k) for k in kw]) if kw else ""
+        pop_dict = {}
+        if meta.get("views") is not None:
+            pop_dict["views"] = meta["views"]
+        if meta.get("likes") is not None:
+            pop_dict["likes"] = meta["likes"]
+        if meta.get("bookmarks") is not None:
+            pop_dict["bookmarks"] = meta["bookmarks"]
+        if meta.get("starts"):
+            pop_dict["rating"] = meta["starts"]
+        if meta.get("counts"):
+            pop_dict["reviews"] = meta["counts"]
+        parts = [name, summary]
+        if addr:
+            parts.append(f"주소: {addr}")
+        if kw_str:
+            parts.append(f"키워드: {kw_str}")
+        if pop_dict:
+            parts.append(f"인기도: {json.dumps(pop_dict, ensure_ascii=False)}")
+        return " ".join([p for p in parts if p])
+
+    candidates_txt = "\n".join(
+        [f"[id={i}] {_build_ctx(r)}" for i, r in enumerate(retrievals)]
+    )
+    messages = [
+        (
+            "system",
+            f"사용자 질문과 아래 후보를 보고 가장 관련 높은 상위 {desired_k}개를 고르고, "
+            "관련도가 비슷하면 인기도(popularity) 딕셔너리(views/likes/bookmarks/rating/reviews)가 큰 후보를 우선 선택해. "
+            "반드시 서로 다른 후보 id만 JSON 배열로 반환해. 예: [0,2]. 다른 텍스트는 넣지 말 것.",
+        ),
+        ("system", f"후보:\n{candidates_txt}"),
+        ("user", state.get("query", "")),
+    ]
+
+    raw = None
+    try:
+        resp = await detect_llm.ainvoke(messages, max_tokens=50)
+        raw = resp.content or ""
+        parsed = json.loads(raw)
+        if isinstance(parsed, list):
+            idxs = []
+            for v in parsed:
+                try:
+                    iv = int(v)
+                except Exception:
+                    continue
+                if 0 <= iv < len(retrievals) and iv not in idxs:
+                    idxs.append(iv)
+            if idxs:
+                selected = [retrievals[i] for i in idxs[:desired_k]]
+                return {"retrievals": selected}
+    except Exception:
+        pass
+
+    # 파싱 실패 시 fallback: 상위 desired_k 사용
+    selected = retrievals[:desired_k]
+    return {"retrievals": selected}
 
 
 async def general_answer_node(state: GraphState):
@@ -286,6 +363,7 @@ async def general_answer_node(state: GraphState):
 workflow = StateGraph(GraphState)
 workflow.add_node("route", route_node)
 workflow.add_node("retrieve", retrieve_node)
+workflow.add_node("rerank", rerank_node)
 workflow.add_node("answer", answer_node)
 workflow.add_node("general_answer", general_answer_node)
 workflow.set_entry_point("route")
@@ -309,7 +387,8 @@ workflow.add_conditional_edges(
 '''
 
 
-workflow.add_edge("retrieve", "answer")
+workflow.add_edge("retrieve", "rerank")
+workflow.add_edge("rerank", "answer")
 workflow.add_edge("answer", END)
 workflow.add_edge("general_answer", END)
 chat_app = workflow.compile()
