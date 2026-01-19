@@ -23,7 +23,7 @@ class UserInput(BaseModel):
     avoid: List[str] = Field(default_factory=list)
     activity_level: Optional[str] = None  # "거의 안걷기" | "적당히" | "오래 걸어도" | "오래 걷는것 선호"
 
-    # 일정 생성 시 입력
+    # 일정 생성 시 입력 
     region: str
     companion: Optional[List[str]] = None
     budget: Optional[str] = None

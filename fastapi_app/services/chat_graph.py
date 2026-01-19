@@ -1,5 +1,6 @@
 import os
 import json
+import re
 from typing import Annotated, Dict, List, TypedDict
 from langchain_openai import ChatOpenAI
 from langgraph.graph import END, StateGraph
@@ -10,6 +11,7 @@ class GraphState(TypedDict):
     mode: str | None
     mode_detected: str | None
     mode_unknown: bool | None
+    location_terms: Dict[str, List[str]] | None
     top_k: int | None
     history_place_ids: List[int]
     intent: str
@@ -23,6 +25,41 @@ DETECT_MODEL = os.getenv("DETECT_MODEL", CHAT_MODEL)
 llm = ChatOpenAI(model=CHAT_MODEL, streaming=True, temperature=0.0)
 # 모드 감지/리랭크용은 스트리밍 없이 호출
 detect_llm = ChatOpenAI(model=DETECT_MODEL, streaming=False, temperature=0.0)
+
+ALIASES_LOC = {
+    "강남": "강남구",
+    "홍대": "마포구",
+    "여의도": "영등포구",
+    "건대": "광진구",
+    "서초": "서초구",
+}
+LOC_PATTERN = re.compile(r"[가-힣0-9]+(?:구|동|로|길|대로|시)")
+
+def _extract_locations(query: str) -> Dict[str, List[str]]:
+    q_lower = query.lower()
+    terms: List[str] = []
+    for k, v in ALIASES_LOC.items():
+        if k in q_lower:
+            terms.append(v)
+    terms += LOC_PATTERN.findall(query)
+    seen = set()
+    normalized: List[str] = []
+    for t in terms:
+        t_norm = t.lower()
+        if t_norm not in seen:
+            seen.add(t_norm)
+            normalized.append(t_norm)
+    result: Dict[str, List[str]] = {"city": [], "district": [], "dong": [], "road": []}
+    for t in normalized:
+        if t.endswith("시"):
+            result["city"].append(t)
+        elif t.endswith("구"):
+            result["district"].append(t)
+        elif t.endswith("동") or t.endswith("가"):
+            result["dong"].append(t)
+        elif t.endswith("로") or t.endswith("길") or t.endswith("대로"):
+            result["road"].append(t)
+    return {k: v for k, v in result.items() if v}
 
 def _detect_intent(query: str) -> str:
     q = query.lower()
@@ -94,6 +131,11 @@ async def route_node(state: GraphState) -> Dict:
     intent = _detect_intent(state.get("query", ""))
     return {"intent": intent} # 변경된 부분만 반환
 
+async def extract_location_node(state: GraphState) -> Dict:
+    query = state.get("query", "")
+    locations = _extract_locations(query)
+    return {"location_terms": locations}
+
 async def retrieve_node(state: GraphState) -> Dict:
     query = state.get("query", "")
     mode_raw = _detect_mode(state.get("mode"), query)
@@ -120,6 +162,30 @@ async def retrieve_node(state: GraphState) -> Dict:
         "mode_detected": mode_raw,
         "mode_unknown": mode_unknown,
     }
+
+async def filter_location_node(state: GraphState) -> Dict:
+    retrievals = state.get("retrievals") or []
+    loc_terms = state.get("location_terms") or {}
+    if not retrievals or not loc_terms:
+        return {}
+
+    # address blob을 만들어 필터링
+    filtered = []
+    for r in retrievals:
+        meta = r.get("meta") or {}
+        addr_parts = [
+            str(meta.get("city") or ""),
+            str(meta.get("district") or ""),
+            str(meta.get("dong") or ""),
+            str(meta.get("road") or ""),
+            str(meta.get("address") or meta.get("location", {}).get("addr1") or ""),
+        ]
+        addr_blob = " ".join(addr_parts).lower()
+        # any match across city/district/dong/road/address
+        if any(t in addr_blob for terms in loc_terms.values() for t in terms):
+            filtered.append(r)
+    # 필터 결과 없으면 하드필터: 빈 리스트 반환
+    return {"retrievals": filtered if filtered else []}
 
 async def answer_node(state: GraphState):
     retrievals = state.get("retrievals", [])
@@ -366,7 +432,9 @@ async def general_answer_node(state: GraphState):
 # 그래프 구성
 workflow = StateGraph(GraphState)
 workflow.add_node("route", route_node)
+workflow.add_node("extract_location", extract_location_node)
 workflow.add_node("retrieve", retrieve_node)
+workflow.add_node("filter_location", filter_location_node)
 workflow.add_node("rerank", rerank_node)
 workflow.add_node("answer", answer_node)
 workflow.add_node("general_answer", general_answer_node)
@@ -377,21 +445,9 @@ workflow.add_conditional_edges(
     lambda state: "retrieve" if state["intent"] == "recommend" else "general_answer",
     {"retrieve": "retrieve", "general_answer": "general_answer"}
 )
-# lambda 안쓰는 조건부 엣지
-'''
-def decide_next(state):
-    intent = state.get("intent")
-    return "retrieve" if intent == "recommend" else "general_answer"
 
-workflow.add_conditional_edges(
-    "route",
-    decide_next,  # lambda 대신 함수
-    {"retrieve": "retrieve", "general_answer": "general_answer"},
-)
-'''
-
-
-workflow.add_edge("retrieve", "rerank")
+workflow.add_edge("retrieve", "filter_location")
+workflow.add_edge("filter_location", "rerank")
 workflow.add_edge("rerank", "answer")
 workflow.add_edge("answer", END)
 workflow.add_edge("general_answer", END)
