@@ -1,0 +1,39 @@
+# =========================
+# OS / IDE
+# =========================
+.DS_Store
+__pycache__/
+*.pyc
+
+# =========================
+# Environment
+# =========================
+.env
+*.env
+.venv/
+venv/
+env/
+
+# =========================
+# Numpy / Embeddings
+# =========================
+*.npy
+embedding/
+
+!data/embeddings/**
+!data/embedding_json/**
+data_2
+# =========================
+# EDA / Intermediate Data
+# =========================
+eda/notebook/*.json
+embedding_*.json
+poi_merged.json
+poi_with_id_region*.json
+*_poi_id.json
+
+# =========================
+# Jupyter
+# =========================
+.ipynb_checkpoints/
+

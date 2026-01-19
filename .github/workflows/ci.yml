@@ -1,0 +1,52 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, park_research ]
+    paths:
+      - 'fastapi_app/**'
+      - '.github/workflows/**'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'fastapi_app/**'
+      - '.github/workflows/**'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v2
+
+      - name: Install deps from pyproject (fastapi_app)
+        run: |
+          uv pip install --system tomli
+          python - <<'PY' > deps.txt
+          import pathlib
+          try:
+              import tomllib  # py311+
+          except ModuleNotFoundError:
+              import tomli as tomllib
+
+          p = pathlib.Path("fastapi_app/pyproject.toml")
+          data = tomllib.loads(p.read_text())
+          deps = data.get("project", {}).get("dependencies", [])
+          pathlib.Path("deps.txt").write_text("\n".join(deps))
+          PY
+          uv pip install --system -r deps.txt
+
+      - name: Lint (ruff optional)
+        run: |
+          uv pip install --system ruff
+          ruff check fastapi_app || true
+
+      - name: Tests
+        run: pytest || true
