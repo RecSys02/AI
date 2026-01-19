@@ -1,0 +1,7 @@
+data/
+data_2/
+fastapi_app/.pytest_cache/
+fastapi_app/__pycache__/
+*.pyc
+.env
+.DS_Store
