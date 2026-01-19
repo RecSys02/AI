@@ -211,24 +211,29 @@ async def rerank_node(state: GraphState) -> Dict:
         addr = meta.get("address") or meta.get("location", {}).get("addr1") or ""
         kw = meta.get("keywords") or []
         kw_str = ", ".join([str(k) for k in kw]) if kw else ""
-        pop_dict = {}
+        popularity = []
         if meta.get("views") is not None:
-            pop_dict["views"] = meta["views"]
+            popularity.append(f"조회수 {meta['views']}")
         if meta.get("likes") is not None:
-            pop_dict["likes"] = meta["likes"]
+            popularity.append(f"좋아요 {meta['likes']}")
         if meta.get("bookmarks") is not None:
-            pop_dict["bookmarks"] = meta["bookmarks"]
+            popularity.append(f"북마크 {meta['bookmarks']}")
+        rating_parts = []
         if meta.get("starts"):
-            pop_dict["rating"] = meta["starts"]
+            rating_parts.append(f"평점 {meta['starts']}")
         if meta.get("counts"):
-            pop_dict["reviews"] = meta["counts"]
+            rating_parts.append(f"리뷰 {meta['counts']}")
+        rating_str = ", ".join(rating_parts)
+        pop_str = ", ".join(popularity)
         parts = [name, summary]
         if addr:
             parts.append(f"주소: {addr}")
         if kw_str:
             parts.append(f"키워드: {kw_str}")
-        if pop_dict:
-            parts.append(f"인기도: {json.dumps(pop_dict, ensure_ascii=False)}")
+        if pop_str:
+            parts.append(f"인기: {pop_str}")
+        if rating_str:
+            parts.append(rating_str)
         return " ".join([p for p in parts if p])
 
     candidates_txt = "\n".join(
@@ -238,8 +243,7 @@ async def rerank_node(state: GraphState) -> Dict:
         (
             "system",
             f"사용자 질문과 아래 후보를 보고 가장 관련 높은 상위 {desired_k}개를 고르고, "
-            "관련도가 비슷하면 인기도(popularity) 딕셔너리(views/likes/bookmarks/rating/reviews)가 큰 후보를 우선 선택해. "
-            "반드시 서로 다른 후보 id만 JSON 배열로 반환해. 예: [0,2]. 다른 텍스트는 넣지 말 것.",
+            "id만 JSON 배열로 반환해. 예: [0,2]. 다른 텍스트는 넣지 말 것.",
         ),
         ("system", f"후보:\n{candidates_txt}"),
         ("user", state.get("query", "")),
@@ -261,7 +265,7 @@ async def rerank_node(state: GraphState) -> Dict:
                     idxs.append(iv)
             if idxs:
                 selected = [retrievals[i] for i in idxs[:desired_k]]
-                return {"retrievals": selected}
+                return {"retrievals": selected} 
     except Exception:
         pass
 
@@ -342,7 +346,7 @@ async def general_answer_node(state: GraphState):
         messages.append(
             (
                 "system",
-                "모드를 정확히 인식하지 못했다면 관광지 기준으로 임시로 답하고, "
+                "모드를 정확히 인식하지 못했다면 관광지 기준으로 임시로 답하고,"
                 "사용자에게 식당/카페/관광지 중 원하는 카테고리를 물어본다.",
             )
         )
