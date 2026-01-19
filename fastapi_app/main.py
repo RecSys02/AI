@@ -8,7 +8,7 @@ from dotenv import load_dotenv
 
 # 루트 .env 로드 (OPENAI_API_KEY, CHAT_MODEL 등)
 load_dotenv(dotenv_path=Path(__file__).resolve().parents[1] / ".env")
-
+##
 from fastapi import Depends, FastAPI, Query
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
