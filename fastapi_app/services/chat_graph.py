@@ -16,6 +16,7 @@ from utils.geo import (
     normalize_text,
     resolve_alias,
     save_admin_aliases,
+    save_keyword_aliases,
     save_anchor_cache,
     append_place_debug,
     append_node_trace_result,
@@ -30,6 +31,7 @@ class GraphState(TypedDict):
     mode_detected: str | None
     mode_unknown: bool | None
     place: Dict | None
+    place_original: Dict | None
     anchor: Dict | None
     admin_term: str | None
     input_place: str | None
@@ -147,6 +149,35 @@ async def _llm_extract_place(query: str) -> Dict | None:
     except Exception:
         return None
 
+async def _llm_correct_place(query: str, area: str | None, point: str | None) -> Dict | None:
+    messages = [
+        (
+            "system",
+            "너는 지명 오타 보정 전문가야.\n"
+            "입력된 area/point에서 오타로 보이는 부분만 표준 지명으로 고쳐라.\n"
+            "오타가 아니면 원문을 그대로 유지하고, 변경이 없으면 changed=false로 표시하라.\n"
+            "JSON 형식만 반환: {\"area\": \"...\", \"point\": \"...\", \"changed\": true/false}",
+        ),
+        (
+            "user",
+            f"문장: {query}\narea: {area}\npoint: {point}\n보정 결과:",
+        ),
+    ]
+    try:
+        resp = await detect_llm.ainvoke(messages, max_tokens=60)
+        raw = (resp.content or "").strip()
+        data = json.loads(raw)
+        if not isinstance(data, dict):
+            return None
+        changed = bool(data.get("changed"))
+        area_val = data.get("area")
+        point_val = data.get("point")
+        area_out = area_val.strip() if isinstance(area_val, str) and area_val.strip() else None
+        point_out = point_val.strip() if isinstance(point_val, str) and point_val.strip() else None
+        return {"area": area_out, "point": point_out, "changed": changed}
+    except Exception:
+        return None
+
 async def route_node(state: GraphState) -> Dict:
     intent = _detect_intent(state.get("query", ""))
     result = {"intent": intent}
@@ -206,6 +237,75 @@ async def extract_place_node(state: GraphState) -> Dict:
     )
     result = {"place": place}
     append_node_trace_result(query, "extract_place", result)
+    return result
+
+async def correct_place_node(state: GraphState) -> Dict:
+    query = state.get("normalized_query") or state.get("query", "")
+    place = state.get("place") or {}
+    area = place.get("area")
+    point = place.get("point")
+    if not area and not point:
+        result = {}
+        append_node_trace_result(query, "correct_place", result)
+        return result
+
+    corrected = await _llm_correct_place(query, area, point)
+    if not corrected or not corrected.get("changed"):
+        result = {}
+        append_node_trace_result(query, "correct_place", result)
+        return result
+
+    new_area = corrected.get("area") or area
+    new_point = corrected.get("point") or point
+
+    def _valid_autocomplete(value: str, types: str | None = "(regions)") -> bool:
+        if not value:
+            return False
+        types_param = "" if types is None else types
+        return bool(autocomplete_places(value, limit=1, types=types_param))
+
+    # validate point correction first
+    if new_point and new_point != point and not _valid_autocomplete(new_point, None):
+        new_point = point
+
+    # validate area correction
+    if new_area and new_area != area:
+        admin_suffixes = ("시", "구", "동", "가", "로", "길", "대로")
+        if new_area.endswith(admin_suffixes):
+            if not _valid_autocomplete(new_area, "(regions)"):
+                new_area = area
+        else:
+            if not _valid_autocomplete(new_area, None):
+                new_area = area
+
+    if new_area == area and new_point == point:
+        result = {}
+        append_node_trace_result(query, "correct_place", result)
+        return result
+
+    # cache alias if correction is meaningful
+    if area and new_area and area != new_area:
+        if new_area.endswith(("시", "구", "동", "가", "로", "길", "대로")):
+            admin_aliases = load_admin_aliases()
+            if add_alias(admin_aliases, new_area, area):
+                save_admin_aliases(admin_aliases)
+        else:
+            keyword_aliases = load_keyword_aliases()
+            if add_alias(keyword_aliases, new_area, area):
+                save_keyword_aliases(keyword_aliases)
+
+    if point and new_point and point != new_point:
+        keyword_aliases = load_keyword_aliases()
+        if add_alias(keyword_aliases, new_point, point):
+            save_keyword_aliases(keyword_aliases)
+
+    updated_place = {"area": new_area, "point": new_point}
+    result = {"place": updated_place, "place_original": place}
+    append_node_trace_result(
+        query,
+        "correct_place",
+        {"before": place, "after": updated_place},
+    )
     return result
 
 async def resolve_anchor_node(state: GraphState) -> Dict:
@@ -454,7 +554,7 @@ async def apply_location_filter_node(state: GraphState) -> Dict:
     if anchor:
         centers = anchor.get("centers") or []
         radius_by_intent = anchor.get("radius_by_intent") or {}
-        radius_km = float(radius_by_intent.get(mode_used, 1.5))
+        radius_km = float(radius_by_intent.get(mode_used, 2.0))
         filtered = []
         for r in retrievals:
             meta = r.get("meta") or {}
@@ -503,7 +603,25 @@ async def answer_node(state: GraphState):
     retrievals = state.get("retrievals", [])
     print("answer node : ",retrievals)
     if not retrievals:
-        yield {"final": "검색된 결과가 없습니다."}
+        filter_applied = bool(state.get("anchor") or state.get("admin_term"))
+        if filter_applied:
+            resolved_name = state.get("resolved_name")
+            input_place = state.get("input_place")
+            location_name = resolved_name or input_place or "해당 지역"
+            mode_used = state.get("mode") or "tourspot"
+            category_label = {
+                "tourspot": "놀거리",
+                "restaurant": "맛집",
+                "cafe": "카페",
+            }.get(mode_used, "추천")
+            yield {
+                "final": (
+                    f"{location_name} 근처에는 조건에 맞는 결과가 없어요. "
+                    f"반경을 넓혀서 다시 찾아볼까요, 아니면 {location_name}의 다른 {category_label}로 추천해드릴까요?"
+                )
+            }
+        else:
+            yield {"final": "검색된 결과가 없습니다."}
         return
     # retrieval 디버그 정보 포함해서 뭔지 확인하고 싶을때!
     if state.get("debug"):
@@ -551,7 +669,8 @@ async def answer_node(state: GraphState):
         ),
         ("system", f"추천 개수: {state['top_k']}\n후보:\n{context}") if state.get("top_k") else ("system", f"후보:\n{context}"),
     ]
-    resolved_name = state.get("resolved_name")
+    filter_applied = bool(state.get("anchor") or state.get("admin_term"))
+    resolved_name = state.get("resolved_name") if filter_applied else None
     if resolved_name:
         messages.append(
             (
@@ -778,6 +897,7 @@ workflow = StateGraph(GraphState)
 workflow.add_node("route", route_node)
 workflow.add_node("normalize_query", normalize_query_node)
 workflow.add_node("extract_place", extract_place_node)
+workflow.add_node("correct_place", correct_place_node)
 workflow.add_node("resolve_anchor", resolve_anchor_node)
 workflow.add_node("retrieve", retrieve_node)
 workflow.add_node("apply_location_filter", apply_location_filter_node)
@@ -793,7 +913,8 @@ workflow.add_conditional_edges(
 )
 
 workflow.add_edge("normalize_query", "extract_place")
-workflow.add_edge("extract_place", "resolve_anchor")
+workflow.add_edge("extract_place", "correct_place")
+workflow.add_edge("correct_place", "resolve_anchor")
 workflow.add_edge("resolve_anchor", "retrieve")
 workflow.add_edge("retrieve", "apply_location_filter")
 workflow.add_edge("apply_location_filter", "rerank")

@@ -1,0 +1,31 @@
+---
+config:
+  flowchart:
+    curve: linear
+---
+graph TD;
+	__start__([<p>__start__</p>]):::first
+	route(route)
+	normalize_query(normalize_query)
+	extract_place(extract_place)
+	resolve_anchor(resolve_anchor)
+	retrieve(retrieve)
+	apply_location_filter(apply_location_filter)
+	rerank(rerank)
+	answer(answer)
+	general_answer(general_answer)
+	__end__([<p>__end__</p>]):::last
+	__start__ --> route;
+	apply_location_filter --> rerank;
+	extract_place --> resolve_anchor;
+	normalize_query --> extract_place;
+	rerank --> answer;
+	resolve_anchor --> retrieve;
+	retrieve --> apply_location_filter;
+	route -.-> general_answer;
+	route -.-> normalize_query;
+	answer --> __end__;
+	general_answer --> __end__;
+	classDef default fill:#f2f0ff,line-height:1.2
+	classDef first fill-opacity:0
+	classDef last fill:#bfb6fc

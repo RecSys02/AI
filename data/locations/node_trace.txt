@@ -486,3 +486,279 @@ query=어의도 더현대 맛집 추천해줘	node=apply_location_filter
 query=어의도 더현대 맛집 추천해줘	node=rerank
 query=어의도 더현대 맛집 추천해줘	node=answer
 query=어의도 더현대 맛집 추천해줘	node=answer
+query=고척돔 근처 수족관 추천해줘	node=LangGraph
+query=고척돔 근처 수족관 추천해줘	node=route
+query=고척돔 근처 수족관 추천해줘	node=Unnamed
+query=고척돔 근처 수족관 추천해줘	node=normalize_query
+query=고척돔 근처 수족관 추천해줘	node=extract_place
+query=고척돔 근처 수족관 추천해줘	node=resolve_anchor
+query=고척돔 근처 수족관 추천해줘	node=retrieve
+query=고척돔 근처 수족관 추천해줘	node=apply_location_filter
+query=고척돔 근처 수족관 추천해줘	node=rerank
+query=고척돔 근처 수족관 추천해줘	node=answer
+query=고척돔 근처 수족관 추천해줘	node=answer
+query=신림 주공아파트 근처 파스타집 추천해줘	node=LangGraph
+query=신림 주공아파트 근처 파스타집 추천해줘	node=route
+query=신림 주공아파트 근처 파스타집 추천해줘	node=Unnamed
+query=신림 주공아파트 근처 파스타집 추천해줘	node=normalize_query
+query=신림 주공아파트 근처 파스타집 추천해줘	node=extract_place
+query=신림 주공아파트 근처 파스타집 추천해줘	node=resolve_anchor
+query=신림 주공아파트 근처 파스타집 추천해줘	node=retrieve
+query=신림 주공아파트 근처 파스타집 추천해줘	node=apply_location_filter
+query=신림 주공아파트 근처 파스타집 추천해줘	node=rerank
+query=신림 주공아파트 근처 파스타집 추천해줘	node=answer
+query=신림 주공아파트 근처 파스타집 추천해줘	node=answer
+query=신림 주공아파트 근처 파스타집 추천해줘	node=LangGraph
+query=신림 주공아파트 근처 파스타집 추천해줘	node=route
+query=신림 주공아파트 근처 파스타집 추천해줘	node=Unnamed
+query=신림 주공아파트 근처 파스타집 추천해줘	node=normalize_query
+query=신림 주공아파트 근처 파스타집 추천해줘	node=extract_place
+query=신림 주공아파트 근처 파스타집 추천해줘	node=resolve_anchor
+query=신림 주공아파트 근처 파스타집 추천해줘	node=retrieve
+query=신림 주공아파트 근처 파스타집 추천해줘	node=apply_location_filter
+query=신림 주공아파트 근처 파스타집 추천해줘	node=rerank
+query=신림 주공아파트 근처 파스타집 추천해줘	node=answer
+query=신림 주공아파트 근처 파스타집 추천해줘	node=answer
+query=여위도 더현대 근처 놀거리 추천해줘	node=LangGraph
+query=여위도 더현대 근처 놀거리 추천해줘	node=route
+query=여위도 더현대 근처 놀거리 추천해줘	node=Unnamed
+query=여위도 더현대 근처 놀거리 추천해줘	node=normalize_query
+query=여위도 더현대 근처 놀거리 추천해줘	node=extract_place
+query=여위도 더현대 근처 놀거리 추천해줘	node=resolve_anchor
+query=여위도 더현대 근처 놀거리 추천해줘	node=retrieve
+query=여위도 더현대 근처 놀거리 추천해줘	node=apply_location_filter
+query=여위도 더현대 근처 놀거리 추천해줘	node=rerank
+query=여위도 더현대 근처 놀거리 추천해줘	node=answer
+query=여위도 더현대 근처 놀거리 추천해줘	node=answer
+query=여위도 더현대 근처 놀거리 추천해줘	node=LangGraph
+query=여위도 더현대 근처 놀거리 추천해줘	node=route
+query=여위도 더현대 근처 놀거리 추천해줘	node=Unnamed
+query=여위도 더현대 근처 놀거리 추천해줘	node=normalize_query
+query=여위도 더현대 근처 놀거리 추천해줘	node=extract_place
+query=여위도 더현대 근처 놀거리 추천해줘	node=resolve_anchor
+query=여위도 더현대 근처 놀거리 추천해줘	node=retrieve
+query=여위도 더현대 근처 놀거리 추천해줘	node=apply_location_filter
+query=여위도 더현대 근처 놀거리 추천해줘	node=rerank
+query=여위도 더현대 근처 놀거리 추천해줘	node=answer
+query=여위도 더현대 근처 놀거리 추천해줘	node=answer
+query=여위도 더현대 근처 놀거리 추천해줘	node=LangGraph
+query=여위도 더현대 근처 놀거리 추천해줘	node=route
+query=여위도 더현대 근처 놀거리 추천해줘	node=Unnamed
+query=여위도 더현대 근처 놀거리 추천해줘	node=normalize_query
+query=여위도 더현대 근처 놀거리 추천해줘	node=extract_place
+query=여위도 더현대 근처 놀거리 추천해줘	node=resolve_anchor
+query=여위도 더현대 근처 놀거리 추천해줘	node=retrieve
+query=여위도 더현대 근처 놀거리 추천해줘	node=apply_location_filter
+query=여위도 더현대 근처 놀거리 추천해줘	node=rerank
+query=여위도 더현대 근처 놀거리 추천해줘	node=answer
+query=여위도 더현대 근처 놀거리 추천해줘	node=answer
+query=여위도 더현대 근처 놀거리 추천해줘	node=LangGraph
+query=여위도 더현대 근처 놀거리 추천해줘	node=route
+query=여위도 더현대 근처 놀거리 추천해줘	node=Unnamed
+query=여위도 더현대 근처 놀거리 추천해줘	node=normalize_query
+query=여위도 더현대 근처 놀거리 추천해줘	node=extract_place
+query=여위도 더현대 근처 놀거리 추천해줘	node=resolve_anchor
+query=여위도 더현대 근처 놀거리 추천해줘	node=retrieve
+query=여위도 더현대 근처 놀거리 추천해줘	node=apply_location_filter
+query=여위도 더현대 근처 놀거리 추천해줘	node=rerank
+query=여위도 더현대 근처 놀거리 추천해줘	node=answer
+query=여위도 더현대 근처 놀거리 추천해줘	node=answer
+query=어의도 근처 맛집 추천해줘	node=LangGraph
+query=어의도 근처 맛집 추천해줘	node=route
+query=어의도 근처 맛집 추천해줘	node=Unnamed
+query=어의도 근처 맛집 추천해줘	node=normalize_query
+query=어의도 근처 맛집 추천해줘	node=extract_place
+query=어의도 근처 맛집 추천해줘	node=resolve_anchor
+query=어의도 근처 맛집 추천해줘	node=retrieve
+query=어의도 근처 맛집 추천해줘	node=apply_location_filter
+query=어의도 근처 맛집 추천해줘	node=rerank
+query=어의도 근처 맛집 추천해줘	node=answer
+query=어의도 근처 맛집 추천해줘	node=answer
+query=어의도 근처 놀거리 추천해줘	node=LangGraph
+query=어의도 근처 놀거리 추천해줘	node=route
+query=어의도 근처 놀거리 추천해줘	node=Unnamed
+query=어의도 근처 놀거리 추천해줘	node=normalize_query
+query=어의도 근처 놀거리 추천해줘	node=extract_place
+query=어의도 근처 놀거리 추천해줘	node=resolve_anchor
+query=어의도 근처 놀거리 추천해줘	node=retrieve
+query=어의도 근처 놀거리 추천해줘	node=apply_location_filter
+query=어의도 근처 놀거리 추천해줘	node=rerank
+query=어의도 근처 놀거리 추천해줘	node=answer
+query=어의도 근처 놀거리 추천해줘	node=answer
+query=어의도 근처 카페 추천해줘	node=LangGraph
+query=어의도 근처 카페 추천해줘	node=route
+query=어의도 근처 카페 추천해줘	node=Unnamed
+query=어의도 근처 카페 추천해줘	node=normalize_query
+query=어의도 근처 카페 추천해줘	node=extract_place
+query=어의도 근처 카페 추천해줘	node=resolve_anchor
+query=어의도 근처 카페 추천해줘	node=retrieve
+query=어의도 근처 카페 추천해줘	node=apply_location_filter
+query=어의도 근처 카페 추천해줘	node=rerank
+query=어의도 근처 카페 추천해줘	node=answer
+query=어의도 근처 카페 추천해줘	node=answer
+query=어의도 근처 카페 추천해줘	node=LangGraph
+query=어의도 근처 카페 추천해줘	node=route
+query=어의도 근처 카페 추천해줘	node=Unnamed
+query=어의도 근처 카페 추천해줘	node=normalize_query
+query=어의도 근처 카페 추천해줘	node=extract_place
+query=어의도 근처 카페 추천해줘	node=correct_place
+query=어의도 근처 카페 추천해줘	node=resolve_anchor
+query=어의도 근처 카페 추천해줘	node=retrieve
+query=어의도 근처 카페 추천해줘	node=apply_location_filter
+query=어의도 근처 카페 추천해줘	node=rerank
+query=어의도 근처 카페 추천해줘	node=answer
+query=어의도 근처 카페 추천해줘	node=answer
+query=여이도 근처 맛집 추천해줘	node=LangGraph
+query=여이도 근처 맛집 추천해줘	node=route
+query=여이도 근처 맛집 추천해줘	node=Unnamed
+query=여이도 근처 맛집 추천해줘	node=normalize_query
+query=여이도 근처 맛집 추천해줘	node=extract_place
+query=여이도 근처 맛집 추천해줘	node=correct_place
+query=여이도 근처 맛집 추천해줘	node=resolve_anchor
+query=여이도 근처 맛집 추천해줘	node=retrieve
+query=여이도 근처 맛집 추천해줘	node=apply_location_filter
+query=여이도 근처 맛집 추천해줘	node=rerank
+query=여이도 근처 맛집 추천해줘	node=answer
+query=여이도 근처 맛집 추천해줘	node=answer
+query=강남구처 근처 맛집 추천해줘	node=LangGraph
+query=강남구처 근처 맛집 추천해줘	node=route
+query=강남구처 근처 맛집 추천해줘	node=Unnamed
+query=강남구처 근처 맛집 추천해줘	node=normalize_query
+query=강남구처 근처 맛집 추천해줘	node=extract_place
+query=강남구처 근처 맛집 추천해줘	node=correct_place
+query=강남구처 근처 맛집 추천해줘	node=resolve_anchor
+query=강남구처 근처 맛집 추천해줘	node=retrieve
+query=강남구처 근처 맛집 추천해줘	node=apply_location_filter
+query=강남구처 근처 맛집 추천해줘	node=rerank
+query=강남구처 근처 맛집 추천해줘	node=answer
+query=강남구처 근처 맛집 추천해줘	node=answer
+query=강남구 역산동 근처 맛집 추천해줘	node=LangGraph
+query=강남구 역산동 근처 맛집 추천해줘	node=route
+query=강남구 역산동 근처 맛집 추천해줘	node=Unnamed
+query=강남구 역산동 근처 맛집 추천해줘	node=normalize_query
+query=강남구 역산동 근처 맛집 추천해줘	node=extract_place
+query=강남구 역산동 근처 맛집 추천해줘	node=correct_place
+query=강남구 역산동 근처 맛집 추천해줘	node=resolve_anchor
+query=강남구 역산동 근처 맛집 추천해줘	node=retrieve
+query=강남구 역산동 근처 맛집 추천해줘	node=apply_location_filter
+query=강남구 역산동 근처 맛집 추천해줘	node=rerank
+query=강남구 역산동 근처 맛집 추천해줘	node=answer
+query=강남구 역산동 근처 맛집 추천해줘	node=answer
+query=구로구에 수족관 있어?	node=LangGraph
+query=구로구에 수족관 있어?	node=route
+query=구로구에 수족관 있어?	node=Unnamed
+query=구로구에 수족관 있어?	node=general_answer
+query=구로구에 수족관 있어?	node=general_answer
+query=코엑스 아쿠아리움근처 맛집 추천해줘	node=LangGraph
+query=코엑스 아쿠아리움근처 맛집 추천해줘	node=route
+query=코엑스 아쿠아리움근처 맛집 추천해줘	node=Unnamed
+query=코엑스 아쿠아리움근처 맛집 추천해줘	node=normalize_query
+query=코엑스 아쿠아리움근처 맛집 추천해줘	node=extract_place
+query=코엑스 아쿠아리움근처 맛집 추천해줘	node=correct_place
+query=코엑스 아쿠아리움근처 맛집 추천해줘	node=resolve_anchor
+query=코엑스 아쿠아리움근처 맛집 추천해줘	node=retrieve
+query=코엑스 아쿠아리움근처 맛집 추천해줘	node=apply_location_filter
+query=코엑스 아쿠아리움근처 맛집 추천해줘	node=rerank
+query=코엑스 아쿠아리움근처 맛집 추천해줘	node=answer
+query=코엑스 아쿠아리움근처 맛집 추천해줘	node=answer
+query=코엑스 아쿠아리움근처 맛집 추천해줘	node=LangGraph
+query=코엑스 아쿠아리움근처 맛집 추천해줘	node=route
+query=코엑스 아쿠아리움근처 맛집 추천해줘	node=Unnamed
+query=코엑스 아쿠아리움근처 맛집 추천해줘	node=normalize_query
+query=코엑스 아쿠아리움근처 맛집 추천해줘	node=extract_place
+query=코엑스 아쿠아리움근처 맛집 추천해줘	node=correct_place
+query=코엑스 아쿠아리움근처 맛집 추천해줘	node=resolve_anchor
+query=코엑스 아쿠아리움근처 맛집 추천해줘	node=retrieve
+query=코엑스 아쿠아리움근처 맛집 추천해줘	node=apply_location_filter
+query=코엑스 아쿠아리움근처 맛집 추천해줘	node=rerank
+query=코엑스 아쿠아리움근처 맛집 추천해줘	node=answer
+query=코엑스 아쿠아리움근처 맛집 추천해줘	node=answer
+query=코옉스 아크아리움 근처 파스타집 추천해줘	node=LangGraph
+query=코옉스 아크아리움 근처 파스타집 추천해줘	node=route
+query=코옉스 아크아리움 근처 파스타집 추천해줘	node=Unnamed
+query=코옉스 아크아리움 근처 파스타집 추천해줘	node=normalize_query
+query=코옉스 아크아리움 근처 파스타집 추천해줘	node=extract_place
+query=코옉스 아크아리움 근처 파스타집 추천해줘	node=correct_place
+query=코옉스 아크아리움 근처 파스타집 추천해줘	node=resolve_anchor
+query=코옉스 아크아리움 근처 파스타집 추천해줘	node=retrieve
+query=코옉스 아크아리움 근처 파스타집 추천해줘	node=apply_location_filter
+query=코옉스 아크아리움 근처 파스타집 추천해줘	node=rerank
+query=코옉스 아크아리움 근처 파스타집 추천해줘	node=answer
+query=코옉스 아크아리움 근처 파스타집 추천해줘	node=answer
+query=코옉스 아크아리움 근처 오리구이 식당 추천해줘	node=LangGraph
+query=코옉스 아크아리움 근처 오리구이 식당 추천해줘	node=route
+query=코옉스 아크아리움 근처 오리구이 식당 추천해줘	node=Unnamed
+query=코옉스 아크아리움 근처 오리구이 식당 추천해줘	node=normalize_query
+query=코옉스 아크아리움 근처 오리구이 식당 추천해줘	node=extract_place
+query=코옉스 아크아리움 근처 오리구이 식당 추천해줘	node=correct_place
+query=코옉스 아크아리움 근처 오리구이 식당 추천해줘	node=resolve_anchor
+query=코옉스 아크아리움 근처 오리구이 식당 추천해줘	node=retrieve
+query=코옉스 아크아리움 근처 오리구이 식당 추천해줘	node=apply_location_filter
+query=코옉스 아크아리움 근처 오리구이 식당 추천해줘	node=rerank
+query=코옉스 아크아리움 근처 오리구이 식당 추천해줘	node=answer
+query=코옉스 아크아리움 근처 오리구이 식당 추천해줘	node=answer
+query=여의도 오리구이 맛집 추천해줘	node=LangGraph
+query=여의도 오리구이 맛집 추천해줘	node=route
+query=여의도 오리구이 맛집 추천해줘	node=Unnamed
+query=여의도 오리구이 맛집 추천해줘	node=normalize_query
+query=여의도 오리구이 맛집 추천해줘	node=extract_place
+query=여의도 오리구이 맛집 추천해줘	node=correct_place
+query=여의도 오리구이 맛집 추천해줘	node=resolve_anchor
+query=여의도 오리구이 맛집 추천해줘	node=retrieve
+query=여의도 오리구이 맛집 추천해줘	node=apply_location_filter
+query=여의도 오리구이 맛집 추천해줘	node=rerank
+query=여의도 오리구이 맛집 추천해줘	node=answer
+query=여의도 오리구이 맛집 추천해줘	node=answer
+query=여의도 오리구이 맛집 추천해줘	node=LangGraph
+query=여의도 오리구이 맛집 추천해줘	node=route
+query=여의도 오리구이 맛집 추천해줘	node=Unnamed
+query=여의도 오리구이 맛집 추천해줘	node=normalize_query
+query=여의도 오리구이 맛집 추천해줘	node=extract_place
+query=여의도 오리구이 맛집 추천해줘	node=correct_place
+query=여의도 오리구이 맛집 추천해줘	node=resolve_anchor
+query=여의도 오리구이 맛집 추천해줘	node=retrieve
+query=여의도 오리구이 맛집 추천해줘	node=apply_location_filter
+query=여의도 오리구이 맛집 추천해줘	node=rerank
+query=여의도 오리구이 맛집 추천해줘	node=answer
+query=여의도 오리구이 맛집 추천해줘	node=answer
+query=남영동 데이트장소 추천해줘	node=LangGraph
+query=남영동 데이트장소 추천해줘	node=route
+query=남영동 데이트장소 추천해줘	node=Unnamed
+query=남영동 데이트장소 추천해줘	node=normalize_query
+query=남영동 데이트장소 추천해줘	node=extract_place
+query=남영동 데이트장소 추천해줘	node=correct_place
+query=남영동 데이트장소 추천해줘	node=resolve_anchor
+query=남영동 데이트장소 추천해줘	node=retrieve
+query=남영동 데이트장소 추천해줘	node=apply_location_filter
+query=남영동 데이트장소 추천해줘	node=rerank
+query=남영동 데이트장소 추천해줘	node=answer
+query=남영동 데이트장소 추천해줘	node=answer
+query=개구리 고기 맛집 추천해줘	node=LangGraph
+query=개구리 고기 맛집 추천해줘	node=route
+query=개구리 고기 맛집 추천해줘	node=Unnamed
+query=개구리 고기 맛집 추천해줘	node=normalize_query
+query=개구리 고기 맛집 추천해줘	node=extract_place
+query=개구리 고기 맛집 추천해줘	node=correct_place
+query=개구리 고기 맛집 추천해줘	node=resolve_anchor
+query=개구리 고기 맛집 추천해줘	node=retrieve
+query=개구리 고기 맛집 추천해줘	node=apply_location_filter
+query=개구리 고기 맛집 추천해줘	node=rerank
+query=개구리 고기 맛집 추천해줘	node=answer
+query=개구리 고기 맛집 추천해줘	node=answer
+query=염소고기 먹고싶어	node=LangGraph
+query=염소고기 먹고싶어	node=route
+query=염소고기 먹고싶어	node=Unnamed
+query=염소고기 먹고싶어	node=general_answer
+query=염소고기 먹고싶어	node=general_answer
+query=데이트 장소 추천해줘	node=LangGraph
+query=데이트 장소 추천해줘	node=route
+query=데이트 장소 추천해줘	node=Unnamed
+query=데이트 장소 추천해줘	node=normalize_query
+query=데이트 장소 추천해줘	node=extract_place
+query=데이트 장소 추천해줘	node=correct_place
+query=데이트 장소 추천해줘	node=resolve_anchor
+query=데이트 장소 추천해줘	node=retrieve
+query=데이트 장소 추천해줘	node=apply_location_filter
+query=데이트 장소 추천해줘	node=rerank
+query=데이트 장소 추천해줘	node=answer
+query=데이트 장소 추천해줘	node=answer

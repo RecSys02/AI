@@ -86,6 +86,10 @@ def save_admin_aliases(data: Dict[str, list]) -> None:
     save_json(ADMIN_ALIASES_PATH, data)
 
 
+def save_keyword_aliases(data: Dict[str, list]) -> None:
+    save_json(KEYWORD_ALIASES_PATH, data)
+
+
 def save_anchor_cache(data: Dict[str, dict]) -> None:
     save_json(ANCHOR_CACHE_PATH, data)
 

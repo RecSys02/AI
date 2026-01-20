@@ -188,5 +188,55 @@
     "place_id": "ChIJWSd9_dKlfDUREf10HHfyN_4",
     "radius_by_intent": {},
     "source": "google_autocomplete+geocode"
+  },
+  "고척동고척돔": {
+    "lat": 37.4980629,
+    "lng": 126.8670625,
+    "address": "대한민국 서울특별시 구로구 경인로 430",
+    "query": "고척동 고척돔",
+    "resolved_name": "대한민국 서울특별시 구로구 경인로 고척스카이돔",
+    "place_id": "ChIJA0lgSWWdfDURJfzQjsAphsI",
+    "radius_by_intent": {},
+    "source": "google_autocomplete+geocode"
+  },
+  "신림동주공아파트": {
+    "lat": 37.462507,
+    "lng": 126.9261294,
+    "address": "대한민국 서울특별시 관악구 호암로 399",
+    "query": "신림동 주공아파트",
+    "resolved_name": "대한민국 서울특별시 관악구 호암로 삼성산주공뜨란채3단지아파트",
+    "place_id": "ChIJDZ8zwyZgezURD0WitzweUvU",
+    "radius_by_intent": {},
+    "source": "google_autocomplete+geocode"
+  },
+  "더현대": {
+    "lat": 37.5259162,
+    "lng": 126.9284926,
+    "address": "대한민국 서울특별시 영등포구 여의대로 108 1F",
+    "query": "더현대",
+    "resolved_name": "대한민국 서울특별시 영등포구 여의대로 더현대 서울",
+    "place_id": "ChIJz4OjfACffDURdhog9kiXBus",
+    "radius_by_intent": {},
+    "source": "google_autocomplete+geocode"
+  },
+  "강남구역삼동none": {
+    "lat": 37.5000776,
+    "lng": 127.0385419,
+    "address": "대한민국 서울특별시 강남구 역삼동",
+    "query": "강남구 역삼동 None",
+    "resolved_name": "대한민국 서울특별시 강남구 역삼동",
+    "place_id": "ChIJIb2Eov-jfDUR1dWZkSfKRN0",
+    "radius_by_intent": {},
+    "source": "google_autocomplete+geocode"
+  },
+  "코엑스아쿠아리움": {
+    "lat": 37.513131,
+    "lng": 127.0582827,
+    "address": "대한민국 서울특별시 강남구 영동대로 513",
+    "query": "코엑스 아쿠아리움",
+    "resolved_name": "대한민국 서울특별시 강남구 영동대로 씨라이프 코엑스 아쿠아리움",
+    "place_id": "ChIJ72K1TGqkfDURa_ENqoUeeXs",
+    "radius_by_intent": {},
+    "source": "google_autocomplete+geocode"
   }
 }

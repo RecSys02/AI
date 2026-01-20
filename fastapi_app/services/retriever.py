@@ -50,6 +50,7 @@ SYNONYMS = {
     "korean_set": ["한정식", "한식", "궁중", "백반", "정식"],
     # 해산물/회
     "seafood": ["해물", "회", "횟집", "참치", "오징어", "조개", "조개구이", "해산물"],
+    "duck": ["오리", "오리구이", "오리 로스", "오리로스", "훈제오리", "유황오리", "오리백숙", "오리탕"],
     # 프렌치/양식
     "french": ["프렌치", "프랑스", "비스토로", "비스트로"],
     # 기타 이국/퓨전
@@ -64,6 +65,33 @@ SYNONYMS = {
     ],
     # 카페 세부(베이커리 등)
     "bakery": ["베이커리", "빵집", "파티세리", "크루아상", "바게트"],
+}
+
+KEYWORD_GROUPS_BY_MODE = {
+    "restaurant": [
+        "sushi",
+        "pasta",
+        "pizza",
+        "burger",
+        "steak",
+        "korean_bbq",
+        "gopchang",
+        "noodle",
+        "chicken",
+        "bunsik",
+        "izakaya",
+        "beer",
+        "wine",
+        "nightlife",
+        "chinese",
+        "korean_set",
+        "seafood",
+        "duck",
+        "french",
+        "fusion",
+    ],
+    "cafe": ["coffee", "dessert", "bakery"],
+    "tourspot": ["tourspot", "aquarium"],
 }
 
 
@@ -208,10 +236,12 @@ def _distance_to_centers_km(lat: float, lng: float, centers: List[List[float]]) 
     return min_km
 
 
-def _needs_keyword_filter(query_text: str) -> Tuple[bool, List[str]]:
+def _needs_keyword_filter(query_text: str, mode: str) -> Tuple[bool, List[str]]:
     q_lower = query_text.lower()
     matched_terms: List[str] = []
-    for group in SYNONYMS.values():
+    group_keys = KEYWORD_GROUPS_BY_MODE.get(mode, [])
+    for key in group_keys:
+        group = SYNONYMS.get(key, [])
         if any(term.lower() in q_lower for term in group):
             matched_terms.extend(group)
     return (len(matched_terms) > 0, matched_terms if matched_terms else [])
@@ -269,7 +299,9 @@ def retrieve(
     # pre-filter by anchor/admin before scoring
     candidate_idxs = list(range(len(keys)))
     filtered_pids = None
+    filter_applied = False
     if anchor_centers and anchor_radius_km is not None:
+        filter_applied = True
         filtered_pids = []
         for pid, meta in id_to_meta.items():
             lat, lng = _get_lat_lng(meta)
@@ -279,6 +311,7 @@ def retrieve(
             if dist is not None and dist <= anchor_radius_km:
                 filtered_pids.append(pid)
     elif admin_term:
+        filter_applied = True
         term = str(admin_term).lower()
         filtered_pids = []
         for pid, meta in id_to_meta.items():
@@ -292,10 +325,12 @@ def retrieve(
             addr_blob = " ".join(addr_parts).lower()
             if term in addr_blob:
                 filtered_pids.append(pid)
-    if filtered_pids:
+    if filter_applied:
+        if not filtered_pids:
+            return []
         candidate_idxs = [id_to_idx[pid] for pid in filtered_pids if pid in id_to_idx]
-    if not candidate_idxs:
-        candidate_idxs = list(range(len(keys)))
+        if not candidate_idxs:
+            return []
     model = _load_model()
 
     # 쿼리 텍스트를 history 정보로 강화
@@ -317,7 +352,7 @@ def retrieve(
     idxs_all = scores.argsort()[::-1]
 
     # 키워드 기반 필터 (수족관 등 특정 도메인 키워드가 있을 때만)
-    use_filter, terms = _needs_keyword_filter(qtext)
+    use_filter, terms = _needs_keyword_filter(qtext, mode)
     filtered_idxs = []
     if use_filter:
         for i in idxs_all:
@@ -327,6 +362,8 @@ def retrieve(
                 filtered_idxs.append(i)
             if len(filtered_idxs) >= top_k:
                 break
+        if not filtered_idxs:
+            return []
     # 필터 결과가 없으면 전체 점수 순으로 fallback
     if filtered_idxs:
         idxs = filtered_idxs[:top_k]
