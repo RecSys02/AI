@@ -1,6 +1,7 @@
 # fastapi_app/services/scorers/cafe.py
 from .base import EMBEDDING_JSON_DIR, EMBEDDINGS_DIR, EmbeddingScorer
 
+
 def build_cafe_scorer():
     return EmbeddingScorer(
         name="cafe",

@@ -8,3 +8,4 @@ def build_tourspot_scorer():
         keys_path=EMBEDDINGS_DIR / "keys_tourspot.npy",
         coords_path=EMBEDDING_JSON_DIR / "embedding_tourspot.json",
     )
+3
