@@ -1,17 +1,38 @@
 import os
 import json
-import re
-from typing import Annotated, Dict, List, TypedDict
+from typing import Dict, List, TypedDict
 from langchain_openai import ChatOpenAI
 from langgraph.graph import END, StateGraph
 from services.retriever import retrieve
+from utils.geo import (
+    add_alias,
+    build_alias_map,
+    distance_to_centers_km,
+    get_lat_lng,
+    load_admin_aliases,
+    load_anchor_cache,
+    load_geo_centers,
+    load_keyword_aliases,
+    normalize_text,
+    resolve_alias,
+    save_admin_aliases,
+    save_anchor_cache,
+    append_place_debug,
+    append_node_trace_result,
+)
+from utils.google_geocode import geocode_place_id
+from utils.google_place_autocomplete import autocomplete_places
 
 class GraphState(TypedDict):
     query: str
     mode: str | None
     mode_detected: str | None
     mode_unknown: bool | None
-    location_terms: Dict[str, List[str]] | None
+    place: Dict | None
+    anchor: Dict | None
+    admin_term: str | None
+    input_place: str | None
+    resolved_name: str | None
     top_k: int | None
     history_place_ids: List[int]
     intent: str
@@ -26,40 +47,6 @@ llm = ChatOpenAI(model=CHAT_MODEL, streaming=True, temperature=0.0)
 # 모드 감지/리랭크용은 스트리밍 없이 호출
 detect_llm = ChatOpenAI(model=DETECT_MODEL, streaming=False, temperature=0.0)
 
-ALIASES_LOC = {
-    "강남": "강남구",
-    "홍대": "마포구",
-    "여의도": "영등포구",
-    "건대": "광진구",
-    "서초": "서초구",
-}
-LOC_PATTERN = re.compile(r"[가-힣0-9]+(?:구|동|로|길|대로|시)")
-
-def _extract_locations(query: str) -> Dict[str, List[str]]:
-    q_lower = query.lower()
-    terms: List[str] = []
-    for k, v in ALIASES_LOC.items():
-        if k in q_lower:
-            terms.append(v)
-    terms += LOC_PATTERN.findall(query)
-    seen = set()
-    normalized: List[str] = []
-    for t in terms:
-        t_norm = t.lower()
-        if t_norm not in seen:
-            seen.add(t_norm)
-            normalized.append(t_norm)
-    result: Dict[str, List[str]] = {"city": [], "district": [], "dong": [], "road": []}
-    for t in normalized:
-        if t.endswith("시"):
-            result["city"].append(t)
-        elif t.endswith("구"):
-            result["district"].append(t)
-        elif t.endswith("동") or t.endswith("가"):
-            result["dong"].append(t)
-        elif t.endswith("로") or t.endswith("길") or t.endswith("대로"):
-            result["road"].append(t)
-    return {k: v for k, v in result.items() if v}
 
 def _detect_intent(query: str) -> str:
     q = query.lower()
@@ -127,14 +114,251 @@ async def _llm_detect_mode(query: str) -> str:
     except Exception:
         return "unknown"
 
+async def _llm_extract_place(query: str) -> Dict | None:
+    """LLM으로 장소 후보 키워드를 최대한 너그럽게 추출한다."""
+    messages = [
+        (
+            "system",
+            "사용자 쿼리에서 '맛집', '추천' 등의 요청 대상이 되는 '장소 키워드'를 하나만 추출하세요.\n"
+            "규칙:\n"
+            "1. 표준 지명이 아니거나(예: 강님, 걍남) 오타가 있어도 장소를 나타내는 문맥이면 그대로 추출하세요.\n"
+            "2. '역'이나 '동'이 빠진 경우(예: 강남, 홍대)에도 장소명만 추출하세요.\n"
+            "3. 보정이나 설명을 하지 말고, 사용자가 입력한 형태와 유사하게 반경 키워드만 뽑으세요.\n"
+            "4. 반환 형식: JSON {\"place\": \"...\"}. 찾지 못하면 {\"place\": null}."
+        ),
+        ("user", f"쿼리: {query}"),
+    ]
+    try:
+        resp = await detect_llm.ainvoke(messages, max_tokens=40)
+        raw = (resp.content or "").strip()
+        data = json.loads(raw)
+        if not isinstance(data, dict):
+            return None
+        place = data.get("place")
+        if not place or not isinstance(place, str):
+            return None
+        return {"place": place.strip()}
+    except Exception:
+        return None
+
 async def route_node(state: GraphState) -> Dict:
     intent = _detect_intent(state.get("query", ""))
-    return {"intent": intent} # 변경된 부분만 반환
+    result = {"intent": intent}
+    append_node_trace_result(state.get("query", ""), "route", result)
+    return result # 변경된 부분만 반환
 
-async def extract_location_node(state: GraphState) -> Dict:
+def _slim_retrievals(items: List[dict]) -> List[dict]:
+    slim = []
+    for r in items:
+        meta = r.get("meta") or {}
+        slim.append(
+            {
+                "place_id": r.get("place_id"),
+                "category": r.get("category"),
+                "province": meta.get("province"),
+                "name": meta.get("name") or meta.get("title"),
+                "score": r.get("score"),
+            }
+        )
+    return slim
+
+async def extract_place_node(state: GraphState) -> Dict:
     query = state.get("query", "")
-    locations = _extract_locations(query)
-    return {"location_terms": locations}
+    place = await _llm_extract_place(query)
+    append_place_debug(
+        {
+            "query": query,
+            "place": place,
+        }
+    )
+    result = {"place": place}
+    append_node_trace_result(query, "extract_place", result)
+    return result
+
+async def resolve_anchor_node(state: GraphState) -> Dict:
+    place = state.get("place") or {}
+    raw_place = (place.get("place") or "").strip()
+    if not raw_place:
+        result = {}
+        append_node_trace_result(state.get("query", ""), "resolve_anchor", result)
+        return result
+
+    # Admin 판단은 suffix 규칙으로만
+    lowered = raw_place.lower()
+    admin_suffixes = ("시", "구", "동", "가", "로", "길", "대로")
+    if lowered.endswith(admin_suffixes):
+        admin_aliases = load_admin_aliases()
+        alias_map = build_alias_map(admin_aliases)
+        canonical = resolve_alias(raw_place, alias_map)
+        if canonical != raw_place:
+            if add_alias(admin_aliases, canonical, raw_place):
+                save_admin_aliases(admin_aliases)
+        result = {
+            "admin_term": canonical,
+            "place": {"place": canonical},
+            "input_place": raw_place,
+            "resolved_name": canonical,
+        }
+        append_node_trace_result(state.get("query", ""), "resolve_anchor", result)
+        return result
+
+    # Keyword 경로: alias -> geo_centers -> cache -> local search -> geocode
+    keyword_aliases = load_keyword_aliases()
+    alias_map = build_alias_map(keyword_aliases)
+    canonical = resolve_alias(raw_place, alias_map)
+
+    geo_centers = load_geo_centers()
+    if canonical in geo_centers:
+        entry = geo_centers[canonical] or {}
+        centers = entry.get("centers") or []
+        if centers:
+            anchor = {
+                "centers": centers,
+                "radius_by_intent": entry.get("radius_by_intent") or {},
+                "source": "geo_centers",
+            }
+            result = {
+                "anchor": anchor,
+                "place": {"place": canonical},
+                "input_place": raw_place,
+                "resolved_name": canonical,
+            }
+            append_node_trace_result(state.get("query", ""), "resolve_anchor", result)
+            return result
+
+    cache = load_anchor_cache()
+    cache_key = normalize_text(canonical)
+    cached = cache.get(cache_key)
+    if cached and cached.get("lat") is not None and cached.get("lng") is not None:
+        anchor = {
+            "centers": [[cached["lat"], cached["lng"]]],
+            "radius_by_intent": cached.get("radius_by_intent") or {},
+            "source": "anchor_cache",
+        }
+        result = {
+            "anchor": anchor,
+            "place": {"place": canonical},
+            "input_place": raw_place,
+            "resolved_name": cached.get("resolved_name") or canonical,
+        }
+        append_node_trace_result(state.get("query", ""), "resolve_anchor", result)
+        return result
+
+    candidates = autocomplete_places(canonical, limit=5)
+    selected = None
+    food_types = {"restaurant", "cafe", "bar", "bakery", "food", "meal_takeaway", "meal_delivery"}
+    priority1 = {"subway_station", "transit_station", "intersection"}
+    priority2 = {"political", "sublocality", "locality"}
+    priority3 = {
+        "university",
+        "school",
+        "park",
+        "tourist_attraction",
+        "museum",
+        "library",
+        "shopping_mall",
+        "stadium",
+        "lodging",
+        "point_of_interest",
+        "establishment",
+    }
+    normalized_query = normalize_text(canonical)
+    non_food_candidates = []
+    anchor_candidates = []
+    for item in candidates:
+        types = set([t for t in item.get("types") or []])
+        if types & food_types:
+            continue
+        non_food_candidates.append(item)
+        if types & (priority1 | priority2 | priority3):
+            anchor_candidates.append(item)
+
+    def _select_by_priority(items: List[dict]) -> List[dict]:
+        if not items:
+            return []
+        p1 = [c for c in items if set(c.get("types") or []) & priority1]
+        if p1:
+            return p1
+        p2 = [c for c in items if set(c.get("types") or []) & priority2]
+        if p2:
+            return p2
+        p3 = []
+        for c in items:
+            types = set(c.get("types") or [])
+            if not (types & priority3):
+                continue
+            desc = normalize_text(c.get("description") or "")
+            if normalized_query and normalized_query in desc:
+                p3.append(c)
+        return p3 if p3 else items
+
+    selected_pool = _select_by_priority(anchor_candidates or non_food_candidates)
+    geocode_attempts = []
+    for item in selected_pool:
+        place_id = item.get("place_id") or ""
+        if not place_id:
+            continue
+        geo = geocode_place_id(place_id)
+        geocode_attempts.append(
+            {
+                "place_id": place_id,
+                "geocode": geo,
+            }
+        )
+        if geo:
+            lat = geo.get("lat")
+            lng = geo.get("lng")
+            if isinstance(lat, (int, float)) and isinstance(lng, (int, float)):
+                if 37.4 <= lat <= 37.7 and 126.7 <= lng <= 127.2:
+                    selected = {
+                        "geo": geo,
+                        "place_id": place_id,
+                        "title": item.get("description") or "",
+                    }
+                    break
+
+    append_place_debug(
+        {
+            "query": state.get("query", ""),
+            "normalized": canonical,
+            "autocomplete_candidates": candidates,
+            "anchor_candidates": anchor_candidates,
+            "geocode_attempts": geocode_attempts,
+            "selected": selected,
+        }
+    )
+
+    if selected:
+        lat = selected["geo"].get("lat")
+        lng = selected["geo"].get("lng")
+        cache[cache_key] = {
+            "lat": lat,
+            "lng": lng,
+            "address": selected["geo"].get("address") or "",
+            "query": canonical,
+            "resolved_name": selected.get("title") or "",
+            "place_id": selected.get("place_id") or "",
+            "radius_by_intent": {},
+            "source": "google_autocomplete+geocode",
+        }
+        save_anchor_cache(cache)
+        anchor = {
+            "centers": [[lat, lng]],
+            "radius_by_intent": {},
+            "source": "google_autocomplete+geocode",
+        }
+        result = {
+            "anchor": anchor,
+            "place": {"place": canonical},
+            "input_place": raw_place,
+            "resolved_name": selected.get("title") or canonical,
+        }
+        append_node_trace_result(state.get("query", ""), "resolve_anchor", result)
+        return result
+
+    result = {"place": {"place": canonical}, "input_place": raw_place, "resolved_name": canonical}
+    append_node_trace_result(state.get("query", ""), "resolve_anchor", result)
+    return result
 
 async def retrieve_node(state: GraphState) -> Dict:
     query = state.get("query", "")
@@ -149,43 +373,92 @@ async def retrieve_node(state: GraphState) -> Dict:
 
     debug_flag = bool(state.get("debug"))
     # 후보를 retrieve 함수를 사용해 뽑아옴
+    anchor = state.get("anchor") or {}
+    admin_term = state.get("admin_term")
+    centers = anchor.get("centers") or []
+    radius_by_intent = anchor.get("radius_by_intent") or {}
+    radius_km = float(radius_by_intent.get(mode_used, 1.5)) if centers else None
     hits = retrieve(
         query=query,
         mode=mode_used,
         top_k=max(requested_k, 20) if requested_k is not None else 20,
         history_place_ids=history_ids,
         debug=debug_flag,
+        anchor_centers=centers or None,
+        anchor_radius_km=radius_km,
+        admin_term=admin_term,
     )
-    return {
+    result = {
         "retrievals": hits,
         "mode": mode_used,
         "mode_detected": mode_raw,
         "mode_unknown": mode_unknown,
     }
+    append_node_trace_result(
+        state.get("query", ""),
+        "retrieve",
+        {**result, "retrievals": _slim_retrievals(result["retrievals"])},
+    )
+    return result
 
-async def filter_location_node(state: GraphState) -> Dict:
+async def apply_location_filter_node(state: GraphState) -> Dict:
     retrievals = state.get("retrievals") or []
-    loc_terms = state.get("location_terms") or {}
-    if not retrievals or not loc_terms:
-        return {}
+    if not retrievals:
+        result = {}
+        append_node_trace_result(state.get("query", ""), "apply_location_filter", result)
+        return result
 
-    # address blob을 만들어 필터링
-    filtered = []
-    for r in retrievals:
-        meta = r.get("meta") or {}
-        addr_parts = [
-            str(meta.get("city") or ""),
-            str(meta.get("district") or ""),
-            str(meta.get("dong") or ""),
-            str(meta.get("road") or ""),
-            str(meta.get("address") or meta.get("location", {}).get("addr1") or ""),
-        ]
-        addr_blob = " ".join(addr_parts).lower()
-        # any match across city/district/dong/road/address
-        if any(t in addr_blob for terms in loc_terms.values() for t in terms):
-            filtered.append(r)
-    # 필터 결과 없으면 하드필터: 빈 리스트 반환
-    return {"retrievals": filtered if filtered else []}
+    anchor = state.get("anchor") or {}
+    admin_term = state.get("admin_term")
+    mode_used = state.get("mode") or "tourspot"
+
+    if anchor:
+        centers = anchor.get("centers") or []
+        radius_by_intent = anchor.get("radius_by_intent") or {}
+        radius_km = float(radius_by_intent.get(mode_used, 1.5))
+        filtered = []
+        for r in retrievals:
+            meta = r.get("meta") or {}
+            lat, lng = get_lat_lng(meta)
+            if lat is None or lng is None:
+                continue
+            dist_km = distance_to_centers_km(lat, lng, centers)
+            if dist_km is not None and dist_km <= radius_km:
+                filtered.append(r)
+        result = {"retrievals": filtered}
+        append_node_trace_result(
+            state.get("query", ""),
+            "apply_location_filter",
+            {"retrievals": _slim_retrievals(result["retrievals"])},
+        )
+        return result
+
+    if admin_term:
+        term = str(admin_term).lower()
+        filtered = []
+        for r in retrievals:
+            meta = r.get("meta") or {}
+            addr_parts = [
+                str(meta.get("city") or ""),
+                str(meta.get("district") or ""),
+                str(meta.get("dong") or ""),
+                str(meta.get("road") or ""),
+                str(meta.get("address") or meta.get("location", {}).get("addr1") or ""),
+            ]
+            addr_blob = " ".join(addr_parts).lower()
+            if term in addr_blob:
+                filtered.append(r)
+        result = {"retrievals": filtered}
+        append_node_trace_result(
+            state.get("query", ""),
+            "apply_location_filter",
+            {"retrievals": _slim_retrievals(result["retrievals"])},
+        )
+        return result
+
+    result = {}
+    append_node_trace_result(state.get("query", ""), "apply_location_filter", result)
+    return result
 
 async def answer_node(state: GraphState):
     retrievals = state.get("retrievals", [])
@@ -239,6 +512,16 @@ async def answer_node(state: GraphState):
         ),
         ("system", f"추천 개수: {state['top_k']}\n후보:\n{context}") if state.get("top_k") else ("system", f"후보:\n{context}"),
     ]
+    input_place = state.get("input_place")
+    resolved_name = state.get("resolved_name")
+    if input_place and resolved_name and input_place != resolved_name:
+        messages.append(
+            (
+                "system",
+                f"사용자 입력 지명은 '{input_place}'이며, 보정된 기준 지명은 '{resolved_name}'이다. "
+                "답변 서두에 두 지명을 모두 언급하고, 보정된 기준으로 추천한다고 알려라.",
+            )
+        )
     if state.get("mode_unknown"):
         messages.append(
             (
@@ -258,6 +541,7 @@ async def answer_node(state: GraphState):
         yield {"token": content}
 
     final_text = "".join(parts)
+    append_node_trace_result(state.get("query", ""), "answer", {"final": final_text})
     yield {"final": final_text}
 
 
@@ -265,7 +549,9 @@ async def rerank_node(state: GraphState) -> Dict:
     """LLM으로 상위 후보를 재선택한다."""
     retrievals = state.get("retrievals") or []
     if not retrievals:
-        return {"retrievals": []}
+        result = {"retrievals": []}
+        append_node_trace_result(state.get("query", ""), "rerank", result)
+        return result
 
     desired_k = state.get("top_k") or 5
     desired_k = max(1, min(desired_k, len(retrievals)))
@@ -331,13 +617,33 @@ async def rerank_node(state: GraphState) -> Dict:
                     idxs.append(iv)
             if idxs:
                 selected = [retrievals[i] for i in idxs[:desired_k]]
-                return {"retrievals": selected} 
+                result = {"retrievals": selected}
+                append_node_trace_result(
+                    state.get("query", ""),
+                    "rerank",
+                    {
+                        "raw": raw,
+                        "idxs": idxs,
+                        "retrievals": _slim_retrievals(result["retrievals"]),
+                    },
+                )
+                return result
     except Exception:
         pass
 
     # 파싱 실패 시 fallback: 상위 desired_k 사용
     selected = retrievals[:desired_k]
-    return {"retrievals": selected}
+    result = {"retrievals": selected}
+    append_node_trace_result(
+        state.get("query", ""),
+        "rerank",
+        {
+            "raw": raw,
+            "idxs": None,
+            "retrievals": _slim_retrievals(result["retrievals"]),
+        },
+    )
+    return result
 
 
 async def general_answer_node(state: GraphState):
@@ -427,14 +733,16 @@ async def general_answer_node(state: GraphState):
         yield {"token": content}
 
     final_text = "".join(parts)
+    append_node_trace_result(state.get("query", ""), "general_answer", {"final": final_text})
     yield {"final": final_text}
 
 # 그래프 구성
 workflow = StateGraph(GraphState)
 workflow.add_node("route", route_node)
-workflow.add_node("extract_location", extract_location_node)
+workflow.add_node("extract_place", extract_place_node)
+workflow.add_node("resolve_anchor", resolve_anchor_node)
 workflow.add_node("retrieve", retrieve_node)
-workflow.add_node("filter_location", filter_location_node)
+workflow.add_node("apply_location_filter", apply_location_filter_node)
 workflow.add_node("rerank", rerank_node)
 workflow.add_node("answer", answer_node)
 workflow.add_node("general_answer", general_answer_node)
@@ -442,12 +750,14 @@ workflow.set_entry_point("route")
 # 조건부 엣지
 workflow.add_conditional_edges(
     "route",
-    lambda state: "retrieve" if state["intent"] == "recommend" else "general_answer",
-    {"retrieve": "retrieve", "general_answer": "general_answer"}
+    lambda state: "extract_place" if state["intent"] == "recommend" else "general_answer",
+    {"extract_place": "extract_place", "general_answer": "general_answer"}
 )
 
-workflow.add_edge("retrieve", "filter_location")
-workflow.add_edge("filter_location", "rerank")
+workflow.add_edge("extract_place", "resolve_anchor")
+workflow.add_edge("resolve_anchor", "retrieve")
+workflow.add_edge("retrieve", "apply_location_filter")
+workflow.add_edge("apply_location_filter", "rerank")
 workflow.add_edge("rerank", "answer")
 workflow.add_edge("answer", END)
 workflow.add_edge("general_answer", END)

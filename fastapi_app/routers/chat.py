@@ -5,6 +5,7 @@ from fastapi import APIRouter, Query
 from sse_starlette.sse import EventSourceResponse
 
 from services.chat_graph import chat_app
+from utils.geo import append_node_trace
 from models.chat_request import ChatRequest
 
 router = APIRouter()
@@ -49,6 +50,11 @@ async def chat_stream(
         final_sent = False
         async for event in chat_app.astream_events(initial_state, config=config, version="v2"):
             kind = event.get("event")
+            if kind == "on_chain_start":
+                node = event.get("name")
+                if node:
+                    append_node_trace(q, str(node))
+                    yield {"event": "node", "data": str(node)}
             if kind == "on_chat_model_stream":
                 content = getattr(event["data"].get("chunk"), "content", None)
                 if content:
@@ -104,6 +110,11 @@ async def chat_stream_post(req: ChatRequest):
         final_sent = False
         async for event in chat_app.astream_events(initial_state, version="v2"):
             kind = event.get("event")
+            if kind == "on_chain_start":
+                node = event.get("name")
+                if node:
+                    append_node_trace(req.query, str(node))
+                    yield {"event": "node", "data": str(node)}
             if kind == "on_chat_model_stream":
                 content = getattr(event["data"].get("chunk"), "content", None)
                 if content:

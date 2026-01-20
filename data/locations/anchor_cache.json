@@ -1,0 +1,82 @@
+{
+  "강남": {
+    "lat": 37.4979052,
+    "lng": 127.0275777,
+    "address": "서울특별시 강남역사거리",
+    "query": "강남",
+    "resolved_name": "서울특별시 강남역사거리",
+    "place_id": "ChIJUZmyjlmhfDUR3uBrSYR4FUU",
+    "radius_by_intent": {},
+    "source": "google_autocomplete+geocode"
+  },
+  "63빌딩": {
+    "lat": 37.5198332,
+    "lng": 126.9400724,
+    "address": "대한민국 서울특별시 영등포구 63로 50",
+    "query": "63빌딩",
+    "resolved_name": "대한민국 서울특별시 영등포구 63로 63빌딩",
+    "place_id": "ChIJn_UiGDyffDURWfZBRKwb5YE",
+    "radius_by_intent": {},
+    "source": "google_autocomplete+geocode"
+  },
+  "홍대": {
+    "lat": 37.5551463,
+    "lng": 126.9215309,
+    "address": "서울특별시 홍대입구역앞",
+    "query": "홍대",
+    "resolved_name": "서울특별시 홍대입구역앞",
+    "place_id": "ChIJ_6jfrdyYfDURoW0uA4Mfulw",
+    "radius_by_intent": {},
+    "source": "google_autocomplete+geocode"
+  },
+  "청담": {
+    "lat": 37.5241801,
+    "lng": 127.0473251,
+    "address": "서울특별시 청담사거리",
+    "query": "청담",
+    "resolved_name": "서울특별시 청담사거리",
+    "place_id": "ChIJY3KfRHqkfDURSRe3b1oDGCE",
+    "radius_by_intent": {},
+    "source": "google_autocomplete+geocode"
+  },
+  "걍남": {
+    "lat": 37.4979052,
+    "lng": 127.0275777,
+    "address": "서울특별시 강남역사거리",
+    "query": "걍남",
+    "resolved_name": "서울특별시 강남역사거리",
+    "place_id": "ChIJUZmyjlmhfDUR3uBrSYR4FUU",
+    "radius_by_intent": {},
+    "source": "google_autocomplete+geocode"
+  },
+  "강나": {
+    "lat": 37.4966645,
+    "lng": 127.0629804,
+    "address": "대한민국 서울특별시 강남구",
+    "query": "강나",
+    "resolved_name": "대한민국 서울특별시 강남",
+    "place_id": "ChIJ-4m1XyOkfDURartwxRuXMbM",
+    "radius_by_intent": {},
+    "source": "google_autocomplete+geocode"
+  },
+  "개봉": {
+    "lat": 37.4942409,
+    "lng": 126.8519326,
+    "address": "대한민국 서울특별시 구로구 개봉동",
+    "query": "개봉",
+    "resolved_name": "대한민국 서울특별시 구로구 개봉동",
+    "place_id": "ChIJKQsahPadfDUR2Sz_lrgX9BQ",
+    "radius_by_intent": {},
+    "source": "google_autocomplete+geocode"
+  },
+  "송파": {
+    "lat": 37.5056205,
+    "lng": 127.1152992,
+    "address": "대한민국 서울특별시 송파구",
+    "query": "송파",
+    "resolved_name": "대한민국 서울특별시 송파구",
+    "place_id": "ChIJd0dO0JylfDURdcviRsh5HYk",
+    "radius_by_intent": {},
+    "source": "google_autocomplete+geocode"
+  }
+}

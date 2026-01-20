@@ -171,6 +171,43 @@ def _tokenize(text: str) -> List[str]:
     return text.lower().replace("\n", " ").split()
 
 
+def _get_lat_lng(meta: Dict):
+    lat = meta.get("lat") or meta.get("latitude")
+    lng = meta.get("lng") or meta.get("lon") or meta.get("longitude")
+    if (lat is None or lng is None) and isinstance(meta.get("location"), dict):
+        loc = meta["location"]
+        lat = loc.get("lat") or loc.get("latitude") or lat
+        lng = loc.get("lng") or loc.get("lon") or loc.get("longitude") or lng
+    try:
+        return float(lat), float(lng)
+    except Exception:
+        return None, None
+
+
+def _haversine_km(lat1, lon1, lat2, lon2) -> float:
+    dlat = lat2 - lat1
+    dlon = lon2 - lon1
+    a = np.sin(dlat / 2) ** 2 + np.cos(lat1) * np.cos(lat2) * np.sin(dlon / 2) ** 2
+    return 6371 * 2 * np.arcsin(np.sqrt(a))
+
+
+def _distance_to_centers_km(lat: float, lng: float, centers: List[List[float]]) -> Optional[float]:
+    if not centers:
+        return None
+    lat1 = np.deg2rad(lat)
+    lon1 = np.deg2rad(lng)
+    min_km = None
+    for c in centers:
+        if not c or len(c) != 2:
+            continue
+        lat2 = np.deg2rad(c[0])
+        lon2 = np.deg2rad(c[1])
+        dist = _haversine_km(lat1, lon1, lat2, lon2)
+        if min_km is None or dist < min_km:
+            min_km = dist
+    return min_km
+
+
 def _needs_keyword_filter(query_text: str) -> Tuple[bool, List[str]]:
     q_lower = query_text.lower()
     matched_terms: List[str] = []
@@ -220,16 +257,51 @@ def retrieve(
     top_k: int = 1,
     history_place_ids: Optional[List[int]] = None,
     debug: bool = False,
+    anchor_centers: Optional[List[List[float]]] = None,
+    anchor_radius_km: Optional[float] = None,
+    admin_term: Optional[str] = None,
 ) -> List[Dict]:
     if mode not in MODE_CONFIG:
         raise ValueError(f"지원하지 않는 mode: {mode}")
     embeddings, keys, id_to_meta, bm25 = _load_split(mode)
+    id_to_idx = {int(keys[i][2]): i for i in range(len(keys))}
+
+    # pre-filter by anchor/admin before scoring
+    candidate_idxs = list(range(len(keys)))
+    filtered_pids = None
+    if anchor_centers and anchor_radius_km is not None:
+        filtered_pids = []
+        for pid, meta in id_to_meta.items():
+            lat, lng = _get_lat_lng(meta)
+            if lat is None or lng is None:
+                continue
+            dist = _distance_to_centers_km(lat, lng, anchor_centers)
+            if dist is not None and dist <= anchor_radius_km:
+                filtered_pids.append(pid)
+    elif admin_term:
+        term = str(admin_term).lower()
+        filtered_pids = []
+        for pid, meta in id_to_meta.items():
+            addr_parts = [
+                str(meta.get("city") or ""),
+                str(meta.get("district") or ""),
+                str(meta.get("dong") or ""),
+                str(meta.get("road") or ""),
+                str(meta.get("address") or meta.get("location", {}).get("addr1") or ""),
+            ]
+            addr_blob = " ".join(addr_parts).lower()
+            if term in addr_blob:
+                filtered_pids.append(pid)
+    if filtered_pids:
+        candidate_idxs = [id_to_idx[pid] for pid in filtered_pids if pid in id_to_idx]
+    if not candidate_idxs:
+        candidate_idxs = list(range(len(keys)))
     model = _load_model()
 
     # 쿼리 텍스트를 history 정보로 강화
     qtext = _build_query_text(query, mode, history_place_ids, id_to_meta)
     qvec = model.encode([qtext], normalize_embeddings=True)[0]
-    dense_scores = embeddings @ qvec
+    dense_scores = embeddings[candidate_idxs] @ qvec
     dense_norm = (dense_scores + 1.0) / 2.0  # [-1,1] -> [0,1]
 
     bm25_scores = None
@@ -239,6 +311,7 @@ def retrieve(
         max_bm25 = bm25_scores.max() if bm25_scores is not None else 0.0
         if max_bm25 > 0:
             bm25_norm = bm25_scores / max_bm25
+        bm25_norm = bm25_norm[candidate_idxs]
 
     scores = ALPHA_DENSE * dense_norm + (1 - ALPHA_DENSE) * bm25_norm
     idxs_all = scores.argsort()[::-1]
@@ -248,7 +321,7 @@ def retrieve(
     filtered_idxs = []
     if use_filter:
         for i in idxs_all:
-            pid = int(keys[i][2])
+            pid = int(keys[candidate_idxs[i]][2])
             meta = id_to_meta.get(pid, {})
             if _has_any_keyword(meta, terms):
                 filtered_idxs.append(i)
@@ -262,7 +335,8 @@ def retrieve(
 
     results: List[Dict] = []
     for i in idxs:
-        pid = int(keys[i][2])
+        base_i = candidate_idxs[i]
+        pid = int(keys[base_i][2])
         meta = id_to_meta.get(pid, {})
         results.append(
             {
@@ -272,7 +346,7 @@ def retrieve(
                 **(
                     {
                         "score_dense": float(dense_scores[i]),
-                        "score_bm25": float(bm25_scores[i]) if bm25_scores is not None else None,
+                        "score_bm25": float(bm25_scores[base_i]) if bm25_scores is not None else None,
                     }
                     if debug
                     else {}

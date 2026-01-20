@@ -1,0 +1,175 @@
+query=더현디 백화점 근처 놀거리 추천해줘	node=LangGraph
+query=더현디 백화점 근처 놀거리 추천해줘	node=route
+query=더현디 백화점 근처 놀거리 추천해줘	node=Unnamed
+query=더현디 백화점 근처 놀거리 추천해줘	node=extract_place
+query=더현디 백화점 근처 놀거리 추천해줘	node=resolve_anchor
+query=더현디 백화점 근처 놀거리 추천해줘	node=retrieve
+query=더현디 백화점 근처 놀거리 추천해줘	node=apply_location_filter
+query=더현디 백화점 근처 놀거리 추천해줘	node=rerank
+query=더현디 백화점 근처 놀거리 추천해줘	node=answer
+query=더현디 백화점 근처 놀거리 추천해줘	node=answer
+query=더현디 백화점 근처 놀거리 추천해줘	node=LangGraph
+query=더현디 백화점 근처 놀거리 추천해줘	node=route
+query=더현디 백화점 근처 놀거리 추천해줘	node=Unnamed
+query=더현디 백화점 근처 놀거리 추천해줘	node=extract_place
+query=더현디 백화점 근처 놀거리 추천해줘	node=resolve_anchor
+query=더현디 백화점 근처 놀거리 추천해줘	node=retrieve
+query=더현디 백화점 근처 놀거리 추천해줘	node=apply_location_filter
+query=더현디 백화점 근처 놀거리 추천해줘	node=rerank
+query=더현디 백화점 근처 놀거리 추천해줘	node=answer
+query=더현디 백화점 근처 놀거리 추천해줘	node=answer
+query=홍대 놀거리 추천해줘	node=LangGraph
+query=홍대 놀거리 추천해줘	node=route
+query=홍대 놀거리 추천해줘	node=Unnamed
+query=홍대 놀거리 추천해줘	node=extract_place
+query=홍대 놀거리 추천해줘	node=resolve_anchor
+query=홍대 놀거리 추천해줘	node=retrieve
+query=홍대 놀거리 추천해줘	node=apply_location_filter
+query=홍대 놀거리 추천해줘	node=rerank
+query=홍대 놀거리 추천해줘	node=answer
+query=홍대 놀거리 추천해줘	node=answer
+query=홍대 놀거리 추천해줘	node=LangGraph
+query=홍대 놀거리 추천해줘	node=route
+query=홍대 놀거리 추천해줘	node=Unnamed
+query=홍대 놀거리 추천해줘	node=extract_place
+query=홍대 놀거리 추천해줘	node=resolve_anchor
+query=홍대 놀거리 추천해줘	node=retrieve
+query=홍대 놀거리 추천해줘	node=apply_location_filter
+query=홍대 놀거리 추천해줘	node=rerank
+query=홍대 놀거리 추천해줘	node=answer
+query=홍대 놀거리 추천해줘	node=answer
+query=명동 놀거리 추천해줘	node=LangGraph
+query=명동 놀거리 추천해줘	node=route
+query=명동 놀거리 추천해줘	node=Unnamed
+query=명동 놀거리 추천해줘	node=extract_place
+query=명동 놀거리 추천해줘	node=resolve_anchor
+query=명동 놀거리 추천해줘	node=retrieve
+query=명동 놀거리 추천해줘	node=apply_location_filter
+query=명동 놀거리 추천해줘	node=rerank
+query=명동 놀거리 추천해줘	node=answer
+query=명동 놀거리 추천해줘	node=answer
+query=강남에 대해 설명해줘	node=LangGraph
+query=강남에 대해 설명해줘	node=route
+query=강남에 대해 설명해줘	node=Unnamed
+query=강남에 대해 설명해줘	node=general_answer
+query=강남에 대해 설명해줘	node=general_answer
+query=강님 맛집 추천해줘	node=LangGraph
+query=강님 맛집 추천해줘	node=route
+query=강님 맛집 추천해줘	node=Unnamed
+query=강님 맛집 추천해줘	node=extract_place
+query=강님 맛집 추천해줘	node=resolve_anchor
+query=강님 맛집 추천해줘	node=retrieve
+query=강님 맛집 추천해줘	node=apply_location_filter
+query=강님 맛집 추천해줘	node=rerank
+query=강님 맛집 추천해줘	node=answer
+query=강님 맛집 추천해줘	node=answer
+query=걍남 맛집 추천해줘	node=LangGraph
+query=걍남 맛집 추천해줘	node=route
+query=걍남 맛집 추천해줘	node=Unnamed
+query=걍남 맛집 추천해줘	node=extract_place
+query=걍남 맛집 추천해줘	node=resolve_anchor
+query=걍남 맛집 추천해줘	node=retrieve
+query=걍남 맛집 추천해줘	node=apply_location_filter
+query=걍남 맛집 추천해줘	node=rerank
+query=걍남 맛집 추천해줘	node=answer
+query=걍남 맛집 추천해줘	node=answer
+query=청담도 맛집 추천해줘	node=LangGraph
+query=청담도 맛집 추천해줘	node=route
+query=청담도 맛집 추천해줘	node=Unnamed
+query=청담도 맛집 추천해줘	node=extract_place
+query=청담도 맛집 추천해줘	node=resolve_anchor
+query=청담도 맛집 추천해줘	node=retrieve
+query=청담도 맛집 추천해줘	node=apply_location_filter
+query=청담도 맛집 추천해줘	node=rerank
+query=청담도 맛집 추천해줘	node=answer
+query=청담도 맛집 추천해줘	node=answer
+query=걍남 맛집 추천해줘	node=LangGraph
+query=걍남 맛집 추천해줘	node=route
+query=걍남 맛집 추천해줘	node=Unnamed
+query=걍남 맛집 추천해줘	node=extract_place
+query=걍남 맛집 추천해줘	node=resolve_anchor
+query=걍남 맛집 추천해줘	node=retrieve
+query=걍남 맛집 추천해줘	node=apply_location_filter
+query=걍남 맛집 추천해줘	node=rerank
+query=걍남 맛집 추천해줘	node=answer
+query=걍남 맛집 추천해줘	node=answer
+query=걍남 맛집 추천해줘	node=LangGraph
+query=걍남 맛집 추천해줘	node=route
+query=걍남 맛집 추천해줘	node=Unnamed
+query=걍남 맛집 추천해줘	node=extract_place
+query=걍남 맛집 추천해줘	node=resolve_anchor
+query=걍남 맛집 추천해줘	node=retrieve
+query=걍남 맛집 추천해줘	node=apply_location_filter
+query=걍남 맛집 추천해줘	node=rerank
+query=걍남 맛집 추천해줘	node=answer
+query=걍남 맛집 추천해줘	node=answer
+query=강나 맛집 추천해줘	node=LangGraph
+query=강나 맛집 추천해줘	node=route
+query=강나 맛집 추천해줘	node=Unnamed
+query=강나 맛집 추천해줘	node=extract_place
+query=강나 맛집 추천해줘	node=resolve_anchor
+query=강나 맛집 추천해줘	node=retrieve
+query=강나 맛집 추천해줘	node=apply_location_filter
+query=강나 맛집 추천해줘	node=rerank
+query=강나 맛집 추천해줘	node=answer
+query=강나 맛집 추천해줘	node=answer
+query=강나 맛집 추천해줘	node=LangGraph
+query=강나 맛집 추천해줘	node=route
+query=강나 맛집 추천해줘	node=Unnamed
+query=강나 맛집 추천해줘	node=extract_place
+query=강나 맛집 추천해줘	node=resolve_anchor
+query=강나 맛집 추천해줘	node=retrieve
+query=강나 맛집 추천해줘	node=apply_location_filter
+query=강나 맛집 추천해줘	node=rerank
+query=강나 맛집 추천해줘	node=answer
+query=강나 맛집 추천해줘	node=answer
+query=개봉 맛집 추천해줘	node=LangGraph
+query=개봉 맛집 추천해줘	node=route
+query=개봉 맛집 추천해줘	node=Unnamed
+query=개봉 맛집 추천해줘	node=extract_place
+query=개봉 맛집 추천해줘	node=resolve_anchor
+query=개봉 맛집 추천해줘	node=retrieve
+query=개봉 맛집 추천해줘	node=apply_location_filter
+query=개봉 맛집 추천해줘	node=rerank
+query=개봉 맛집 추천해줘	node=answer
+query=개봉 맛집 추천해줘	node=answer
+query=송파 맛집 추천해줘	node=LangGraph
+query=송파 맛집 추천해줘	node=route
+query=송파 맛집 추천해줘	node=Unnamed
+query=송파 맛집 추천해줘	node=extract_place
+query=송파 맛집 추천해줘	node=resolve_anchor
+query=송파 맛집 추천해줘	node=retrieve
+query=송파 맛집 추천해줘	node=apply_location_filter
+query=송파 맛집 추천해줘	node=rerank
+query=송파 맛집 추천해줘	node=answer
+query=송파 맛집 추천해줘	node=answer
+query=방이동 놀거리 추천해줘	node=LangGraph
+query=방이동 놀거리 추천해줘	node=route
+query=방이동 놀거리 추천해줘	node=Unnamed
+query=방이동 놀거리 추천해줘	node=extract_place
+query=방이동 놀거리 추천해줘	node=resolve_anchor
+query=방이동 놀거리 추천해줘	node=retrieve
+query=방이동 놀거리 추천해줘	node=apply_location_filter
+query=방이동 놀거리 추천해줘	node=rerank
+query=방이동 놀거리 추천해줘	node=answer
+query=방이동 놀거리 추천해줘	node=answer
+query=식당 추천해줘	node=LangGraph
+query=식당 추천해줘	node=route
+query=식당 추천해줘	node=Unnamed
+query=식당 추천해줘	node=extract_place
+query=식당 추천해줘	node=resolve_anchor
+query=식당 추천해줘	node=retrieve
+query=식당 추천해줘	node=apply_location_filter
+query=식당 추천해줘	node=rerank
+query=식당 추천해줘	node=answer
+query=식당 추천해줘	node=answer
+query=개봉 파스타 맛집 추천해줘	node=LangGraph
+query=개봉 파스타 맛집 추천해줘	node=route
+query=개봉 파스타 맛집 추천해줘	node=Unnamed
+query=개봉 파스타 맛집 추천해줘	node=extract_place
+query=개봉 파스타 맛집 추천해줘	node=resolve_anchor
+query=개봉 파스타 맛집 추천해줘	node=retrieve
+query=개봉 파스타 맛집 추천해줘	node=apply_location_filter
+query=개봉 파스타 맛집 추천해줘	node=rerank
+query=개봉 파스타 맛집 추천해줘	node=answer
+query=개봉 파스타 맛집 추천해줘	node=answer
