@@ -21,28 +21,24 @@ def autocomplete_places(
 ) -> List[dict]:
     if not input_text or not GOOGLE_PLACES_KEY:
         return []
-    params = urllib.parse.urlencode(
-        {
-            "input": input_text,
-            "key": GOOGLE_PLACES_KEY,
-            "language": "ko",
-            "components": "country:kr",
-            "location": location,
-            "radius": str(radius),
-            "types": types,
-        }
-    )
-    url = f"https://maps.googleapis.com/maps/api/place/autocomplete/json?{params}"
-    try:
-        with urllib.request.urlopen(url, timeout=10) as resp:
-            payload = json.loads(resp.read().decode("utf-8"))
-    except Exception:
-        _log_error(input_text, "autocomplete_request_failed")
-        return []
+    base_params = {
+        "input": input_text,
+        "key": GOOGLE_PLACES_KEY,
+        "language": "ko",
+        "components": "country:kr",
+        "location": location,
+        "radius": str(radius),
+    }
+    payload = _request_autocomplete({**base_params, "types": types} if types else base_params)
     status = payload.get("status")
     if status and status != "OK":
-        _log_error(input_text, f"autocomplete_status_{status}")
-        return []
+        # Retry without types to catch establishments like apartments.
+        if status == "ZERO_RESULTS" and types:
+            payload = _request_autocomplete(base_params)
+            status = payload.get("status")
+        if status and status != "OK":
+            _log_error(input_text, f"autocomplete_status_{status}")
+            return []
     preds = payload.get("predictions") or []
     trimmed = preds[: max(1, limit)]
     out = []
@@ -55,6 +51,17 @@ def autocomplete_places(
             }
         )
     return out
+
+
+def _request_autocomplete(params: dict) -> dict:
+    query = urllib.parse.urlencode(params)
+    url = f"https://maps.googleapis.com/maps/api/place/autocomplete/json?{query}"
+    try:
+        with urllib.request.urlopen(url, timeout=10) as resp:
+            return json.loads(resp.read().decode("utf-8"))
+    except Exception:
+        _log_error(params.get("input", ""), "autocomplete_request_failed")
+        return {}
 
 
 def _log_error(query: str, reason: str) -> None:

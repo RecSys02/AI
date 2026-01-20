@@ -25,6 +25,7 @@ from utils.google_place_autocomplete import autocomplete_places
 
 class GraphState(TypedDict):
     query: str
+    normalized_query: str | None
     mode: str | None
     mode_detected: str | None
     mode_unknown: bool | None
@@ -117,16 +118,18 @@ async def _llm_detect_mode(query: str) -> str:
 async def _llm_extract_place(query: str) -> Dict | None:
     """LLM으로 장소 후보 키워드를 최대한 너그럽게 추출한다."""
     messages = [
-        (
-            "system",
-            "사용자 쿼리에서 '맛집', '추천' 등의 요청 대상이 되는 '장소 키워드'를 하나만 추출하세요.\n"
-            "규칙:\n"
-            "1. 표준 지명이 아니거나(예: 강님, 걍남) 오타가 있어도 장소를 나타내는 문맥이면 그대로 추출하세요.\n"
-            "2. '역'이나 '동'이 빠진 경우(예: 강남, 홍대)에도 장소명만 추출하세요.\n"
-            "3. 보정이나 설명을 하지 말고, 사용자가 입력한 형태와 유사하게 반경 키워드만 뽑으세요.\n"
-            "4. 반환 형식: JSON {\"place\": \"...\"}. 찾지 못하면 {\"place\": null}."
-        ),
-        ("user", f"쿼리: {query}"),
+            (
+                "system",
+                "너는 사용자의 의도에서 '지리적 위치(지명)'만 추출하는 전문가야.\n"
+                "다음 JSON 형식으로만 답하라: {\"area\": \"...\", \"point\": \"...\"}\n"
+                "규칙:\n"
+                "1. '음식 메뉴(김밥, 파스타, 떡볶이 등)'나 '장소의 종류(맛집, 카페, 놀거리)'는 절대 지명으로 추출하지 마라.\n"
+                "2. area는 행정구역/지역명(예: 강남구, 신림동, 여의도), point는 구체 지점(역/대학교/아파트/빌딩/랜드마크/몰)로 분리하라.\n"
+                "3. 둘 다 있으면 area와 point 모두 채워라. point가 없다면 point는 null로 두어라.\n"
+                "4. 오타가 있더라도 문맥상 '지역/지점'이면 추출하되(예: 걍남 -> 걍남), 메뉴 이름은 무조건 배제하라.\n"
+                "5. 지명이 없으면 반드시 {\"area\": null, \"point\": null}을 반환하라."
+            ),
+            ("user", f"입력 문장: {query}\n추출 결과: "),
     ]
     try:
         resp = await detect_llm.ainvoke(messages, max_tokens=40)
@@ -134,10 +137,13 @@ async def _llm_extract_place(query: str) -> Dict | None:
         data = json.loads(raw)
         if not isinstance(data, dict):
             return None
-        place = data.get("place")
-        if not place or not isinstance(place, str):
+        area = data.get("area")
+        point = data.get("point")
+        area_val = area.strip() if isinstance(area, str) and area.strip() else None
+        point_val = point.strip() if isinstance(point, str) and point.strip() else None
+        if not area_val and not point_val:
             return None
-        return {"place": place.strip()}
+        return {"area": area_val, "point": point_val}
     except Exception:
         return None
 
@@ -146,6 +152,33 @@ async def route_node(state: GraphState) -> Dict:
     result = {"intent": intent}
     append_node_trace_result(state.get("query", ""), "route", result)
     return result # 변경된 부분만 반환
+
+async def normalize_query_node(state: GraphState) -> Dict:
+    query = state.get("query", "")
+    messages = [
+            (
+                "system",
+                "너는 검색 엔진을 위한 쿼리 최적화 전문가야. 사용자 질문을 아래 규칙에 따라 정규화하라.\n\n"
+                "1. **구체적 지명 보존**: '반포 자이', '삼성의원', '강남역 1번 출구'와 같은 구체적인 건물, 아파트명, 지점 정보는 절대 생략하거나 광역 지명(예: 강남)으로 축소하지 마라.\n"
+                "2. **의도 명확화**: '놀만한 거'는 '놀거리/명소'로, '맛있는 곳'은 '맛집/식당'으로 검색에 유리한 단어로 치환하라.\n"
+                "3. **오타 수정**: '걍남' -> '강남', '강나' -> '강남' 등 명확한 오타는 수정하되, 고유 명사인지 확인하라.\n"
+                "4. **메뉴 강조**: '짜장면', '방어' 같은 구체적 메뉴가 있다면 이를 문장의 핵심으로 유지하라.\n"
+                "JSON 형식만 반환: {\"normalized_query\": \"...\"}"
+            ),
+            ("user", query),
+    ]
+    normalized = query
+    try:
+        resp = await detect_llm.ainvoke(messages, max_tokens=80)
+        raw = (resp.content or "").strip()
+        data = json.loads(raw)
+        if isinstance(data, dict) and data.get("normalized_query"):
+            normalized = str(data["normalized_query"]).strip()
+    except Exception:
+        pass
+    result = {"normalized_query": normalized}
+    append_node_trace_result(query, "normalize_query", result)
+    return result
 
 def _slim_retrievals(items: List[dict]) -> List[dict]:
     slim = []
@@ -163,7 +196,7 @@ def _slim_retrievals(items: List[dict]) -> List[dict]:
     return slim
 
 async def extract_place_node(state: GraphState) -> Dict:
-    query = state.get("query", "")
+    query = state.get("normalized_query") or state.get("query", "")
     place = await _llm_extract_place(query)
     append_place_debug(
         {
@@ -177,7 +210,11 @@ async def extract_place_node(state: GraphState) -> Dict:
 
 async def resolve_anchor_node(state: GraphState) -> Dict:
     place = state.get("place") or {}
-    raw_place = (place.get("place") or "").strip()
+    raw_point = (place.get("point") or "").strip()
+    raw_area = (place.get("area") or "").strip()
+    raw_place = raw_point or raw_area
+    if raw_area and raw_point and raw_area not in raw_point:
+        raw_place = f"{raw_area} {raw_point}"
     if not raw_place:
         result = {}
         append_node_trace_result(state.get("query", ""), "resolve_anchor", result)
@@ -186,7 +223,7 @@ async def resolve_anchor_node(state: GraphState) -> Dict:
     # Admin 판단은 suffix 규칙으로만
     lowered = raw_place.lower()
     admin_suffixes = ("시", "구", "동", "가", "로", "길", "대로")
-    if lowered.endswith(admin_suffixes):
+    if not raw_point and lowered.endswith(admin_suffixes):
         admin_aliases = load_admin_aliases()
         alias_map = build_alias_map(admin_aliases)
         canonical = resolve_alias(raw_place, alias_map)
@@ -320,6 +357,8 @@ async def resolve_anchor_node(state: GraphState) -> Dict:
     append_place_debug(
         {
             "query": state.get("query", ""),
+            "input_area": raw_area or None,
+            "input_point": raw_point or None,
             "normalized": canonical,
             "autocomplete_candidates": candidates,
             "anchor_candidates": anchor_candidates,
@@ -361,7 +400,7 @@ async def resolve_anchor_node(state: GraphState) -> Dict:
     return result
 
 async def retrieve_node(state: GraphState) -> Dict:
-    query = state.get("query", "")
+    query = state.get("normalized_query") or state.get("query", "")
     mode_raw = _detect_mode(state.get("mode"), query)
     if mode_raw == "unknown":
         mode_raw = await _llm_detect_mode(query)
@@ -377,7 +416,7 @@ async def retrieve_node(state: GraphState) -> Dict:
     admin_term = state.get("admin_term")
     centers = anchor.get("centers") or []
     radius_by_intent = anchor.get("radius_by_intent") or {}
-    radius_km = float(radius_by_intent.get(mode_used, 1.5)) if centers else None
+    radius_km = float(radius_by_intent.get(mode_used, 2.0)) if centers else None
     hits = retrieve(
         query=query,
         mode=mode_used,
@@ -512,14 +551,12 @@ async def answer_node(state: GraphState):
         ),
         ("system", f"추천 개수: {state['top_k']}\n후보:\n{context}") if state.get("top_k") else ("system", f"후보:\n{context}"),
     ]
-    input_place = state.get("input_place")
     resolved_name = state.get("resolved_name")
-    if input_place and resolved_name and input_place != resolved_name:
+    if resolved_name:
         messages.append(
             (
                 "system",
-                f"사용자 입력 지명은 '{input_place}'이며, 보정된 기준 지명은 '{resolved_name}'이다. "
-                "답변 서두에 두 지명을 모두 언급하고, 보정된 기준으로 추천한다고 알려라.",
+                f"보정된 기준 지명은 '{resolved_name}'이다. 답변 서두에 이 지명만 언급하고, 이 기준으로 추천한다고 알려라.",
             )
         )
     if state.get("mode_unknown"):
@@ -739,6 +776,7 @@ async def general_answer_node(state: GraphState):
 # 그래프 구성
 workflow = StateGraph(GraphState)
 workflow.add_node("route", route_node)
+workflow.add_node("normalize_query", normalize_query_node)
 workflow.add_node("extract_place", extract_place_node)
 workflow.add_node("resolve_anchor", resolve_anchor_node)
 workflow.add_node("retrieve", retrieve_node)
@@ -750,10 +788,11 @@ workflow.set_entry_point("route")
 # 조건부 엣지
 workflow.add_conditional_edges(
     "route",
-    lambda state: "extract_place" if state["intent"] == "recommend" else "general_answer",
-    {"extract_place": "extract_place", "general_answer": "general_answer"}
+    lambda state: "normalize_query" if state["intent"] == "recommend" else "general_answer",
+    {"normalize_query": "normalize_query", "general_answer": "general_answer"}
 )
 
+workflow.add_edge("normalize_query", "extract_place")
 workflow.add_edge("extract_place", "resolve_anchor")
 workflow.add_edge("resolve_anchor", "retrieve")
 workflow.add_edge("retrieve", "apply_location_filter")

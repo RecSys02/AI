@@ -173,3 +173,316 @@ query=개봉 파스타 맛집 추천해줘	node=apply_location_filter
 query=개봉 파스타 맛집 추천해줘	node=rerank
 query=개봉 파스타 맛집 추천해줘	node=answer
 query=개봉 파스타 맛집 추천해줘	node=answer
+query=강남 맛집 추천해줘	node=LangGraph
+query=강남 맛집 추천해줘	node=route
+query=강남 맛집 추천해줘	node=Unnamed
+query=강남 맛집 추천해줘	node=normalize_query
+query=강남 맛집 추천해줘	node=extract_place
+query=강남 맛집 추천해줘	node=resolve_anchor
+query=강남 맛집 추천해줘	node=retrieve
+query=강남 맛집 추천해줘	node=apply_location_filter
+query=강남 맛집 추천해줘	node=rerank
+query=강남 맛집 추천해줘	node=answer
+query=강남 맛집 추천해줘	node=answer
+query=김밥 맛있는곳 추천해줘	node=LangGraph
+query=김밥 맛있는곳 추천해줘	node=route
+query=김밥 맛있는곳 추천해줘	node=Unnamed
+query=김밥 맛있는곳 추천해줘	node=normalize_query
+query=김밥 맛있는곳 추천해줘	node=extract_place
+query=김밥 맛있는곳 추천해줘	node=resolve_anchor
+query=김밥 맛있는곳 추천해줘	node=retrieve
+query=김밥 맛있는곳 추천해줘	node=apply_location_filter
+query=김밥 맛있는곳 추천해줘	node=rerank
+query=김밥 맛있는곳 추천해줘	node=answer
+query=김밥 맛있는곳 추천해줘	node=answer
+query=김밥 맛있는곳 추천해줘	node=LangGraph
+query=김밥 맛있는곳 추천해줘	node=route
+query=김밥 맛있는곳 추천해줘	node=Unnamed
+query=김밥 맛있는곳 추천해줘	node=normalize_query
+query=김밥 맛있는곳 추천해줘	node=extract_place
+query=김밥 맛있는곳 추천해줘	node=resolve_anchor
+query=김밥 맛있는곳 추천해줘	node=retrieve
+query=김밥 맛있는곳 추천해줘	node=apply_location_filter
+query=김밥 맛있는곳 추천해줘	node=rerank
+query=김밥 맛있는곳 추천해줘	node=answer
+query=김밥 맛있는곳 추천해줘	node=answer
+query=김밥 맛있는곳 추천해줘	node=LangGraph
+query=김밥 맛있는곳 추천해줘	node=route
+query=김밥 맛있는곳 추천해줘	node=Unnamed
+query=김밥 맛있는곳 추천해줘	node=normalize_query
+query=김밥 맛있는곳 추천해줘	node=extract_place
+query=김밥 맛있는곳 추천해줘	node=resolve_anchor
+query=김밥 맛있는곳 추천해줘	node=retrieve
+query=김밥 맛있는곳 추천해줘	node=apply_location_filter
+query=김밥 맛있는곳 추천해줘	node=rerank
+query=김밥 맛있는곳 추천해줘	node=answer
+query=김밥 맛있는곳 추천해줘	node=answer
+query=반포 자이 근처 짜장면 맛집 추천해줘	node=LangGraph
+query=반포 자이 근처 짜장면 맛집 추천해줘	node=route
+query=반포 자이 근처 짜장면 맛집 추천해줘	node=Unnamed
+query=반포 자이 근처 짜장면 맛집 추천해줘	node=normalize_query
+query=반포 자이 근처 짜장면 맛집 추천해줘	node=extract_place
+query=반포 자이 근처 짜장면 맛집 추천해줘	node=resolve_anchor
+query=반포 자이 근처 짜장면 맛집 추천해줘	node=retrieve
+query=반포 자이 근처 짜장면 맛집 추천해줘	node=apply_location_filter
+query=반포 자이 근처 짜장면 맛집 추천해줘	node=rerank
+query=반포 자이 근처 짜장면 맛집 추천해줘	node=answer
+query=반포 자이 근처 짜장면 맛집 추천해줘	node=answer
+query=강남 삼성의원 근처에서 놀만한거 추천해줘	node=LangGraph
+query=강남 삼성의원 근처에서 놀만한거 추천해줘	node=route
+query=강남 삼성의원 근처에서 놀만한거 추천해줘	node=Unnamed
+query=강남 삼성의원 근처에서 놀만한거 추천해줘	node=normalize_query
+query=강남 삼성의원 근처에서 놀만한거 추천해줘	node=extract_place
+query=강남 삼성의원 근처에서 놀만한거 추천해줘	node=resolve_anchor
+query=강남 삼성의원 근처에서 놀만한거 추천해줘	node=retrieve
+query=강남 삼성의원 근처에서 놀만한거 추천해줘	node=apply_location_filter
+query=강남 삼성의원 근처에서 놀만한거 추천해줘	node=rerank
+query=강남 삼성의원 근처에서 놀만한거 추천해줘	node=answer
+query=강남 삼성의원 근처에서 놀만한거 추천해줘	node=answer
+query=잠실 래미안아이파크 근처 데이트장소 추천해줘	node=LangGraph
+query=잠실 래미안아이파크 근처 데이트장소 추천해줘	node=route
+query=잠실 래미안아이파크 근처 데이트장소 추천해줘	node=Unnamed
+query=잠실 래미안아이파크 근처 데이트장소 추천해줘	node=normalize_query
+query=잠실 래미안아이파크 근처 데이트장소 추천해줘	node=extract_place
+query=잠실 래미안아이파크 근처 데이트장소 추천해줘	node=resolve_anchor
+query=잠실 래미안아이파크 근처 데이트장소 추천해줘	node=retrieve
+query=잠실 래미안아이파크 근처 데이트장소 추천해줘	node=apply_location_filter
+query=잠실 래미안아이파크 근처 데이트장소 추천해줘	node=rerank
+query=잠실 래미안아이파크 근처 데이트장소 추천해줘	node=answer
+query=잠실 래미안아이파크 근처 데이트장소 추천해줘	node=answer
+query=김밥 놀거리 추천해줘	node=LangGraph
+query=김밥 놀거리 추천해줘	node=route
+query=김밥 놀거리 추천해줘	node=Unnamed
+query=김밥 놀거리 추천해줘	node=normalize_query
+query=김밥 놀거리 추천해줘	node=extract_place
+query=김밥 놀거리 추천해줘	node=resolve_anchor
+query=김밥 놀거리 추천해줘	node=retrieve
+query=김밥 놀거리 추천해줘	node=apply_location_filter
+query=김밥 놀거리 추천해줘	node=rerank
+query=김밥 놀거리 추천해줘	node=answer
+query=김밥 놀거리 추천해줘	node=answer
+query=부천시 약대동근처 김밥집	node=LangGraph
+query=부천시 약대동근처 김밥집	node=route
+query=부천시 약대동근처 김밥집	node=Unnamed
+query=부천시 약대동근처 김밥집	node=general_answer
+query=부천시 약대동근처 김밥집	node=general_answer
+query=부천시 약대동근처 김밥집 추천해줘	node=LangGraph
+query=부천시 약대동근처 김밥집 추천해줘	node=route
+query=부천시 약대동근처 김밥집 추천해줘	node=Unnamed
+query=부천시 약대동근처 김밥집 추천해줘	node=normalize_query
+query=부천시 약대동근처 김밥집 추천해줘	node=extract_place
+query=부천시 약대동근처 김밥집 추천해줘	node=resolve_anchor
+query=부천시 약대동근처 김밥집 추천해줘	node=retrieve
+query=부천시 약대동근처 김밥집 추천해줘	node=apply_location_filter
+query=부천시 약대동근처 김밥집 추천해줘	node=rerank
+query=부천시 약대동근처 김밥집 추천해줘	node=answer
+query=부천시 약대동근처 김밥집 추천해줘	node=answer
+query=서울시 삼성동 근처 김밥이 맛있는곳 추천해줘	node=LangGraph
+query=서울시 삼성동 근처 김밥이 맛있는곳 추천해줘	node=route
+query=서울시 삼성동 근처 김밥이 맛있는곳 추천해줘	node=Unnamed
+query=서울시 삼성동 근처 김밥이 맛있는곳 추천해줘	node=normalize_query
+query=서울시 삼성동 근처 김밥이 맛있는곳 추천해줘	node=extract_place
+query=서울시 삼성동 근처 김밥이 맛있는곳 추천해줘	node=resolve_anchor
+query=서울시 삼성동 근처 김밥이 맛있는곳 추천해줘	node=retrieve
+query=서울시 삼성동 근처 김밥이 맛있는곳 추천해줘	node=apply_location_filter
+query=서울시 삼성동 근처 김밥이 맛있는곳 추천해줘	node=rerank
+query=서울시 삼성동 근처 김밥이 맛있는곳 추천해줘	node=answer
+query=서울시 삼성동 근처 김밥이 맛있는곳 추천해줘	node=answer
+query=서울 주공아파트 근처 엄마아빠와 놀만한 곳 추천해줘	node=LangGraph
+query=서울 주공아파트 근처 엄마아빠와 놀만한 곳 추천해줘	node=route
+query=서울 주공아파트 근처 엄마아빠와 놀만한 곳 추천해줘	node=Unnamed
+query=서울 주공아파트 근처 엄마아빠와 놀만한 곳 추천해줘	node=normalize_query
+query=서울 주공아파트 근처 엄마아빠와 놀만한 곳 추천해줘	node=extract_place
+query=서울 주공아파트 근처 엄마아빠와 놀만한 곳 추천해줘	node=resolve_anchor
+query=서울 주공아파트 근처 엄마아빠와 놀만한 곳 추천해줘	node=retrieve
+query=서울 주공아파트 근처 엄마아빠와 놀만한 곳 추천해줘	node=apply_location_filter
+query=서울 주공아파트 근처 엄마아빠와 놀만한 곳 추천해줘	node=rerank
+query=서울 주공아파트 근처 엄마아빠와 놀만한 곳 추천해줘	node=answer
+query=서울 주공아파트 근처 엄마아빠와 놀만한 곳 추천해줘	node=answer
+query=신림 주공아파트 근처 놀거리 추천해줘	node=LangGraph
+query=신림 주공아파트 근처 놀거리 추천해줘	node=route
+query=신림 주공아파트 근처 놀거리 추천해줘	node=Unnamed
+query=신림 주공아파트 근처 놀거리 추천해줘	node=normalize_query
+query=신림 주공아파트 근처 놀거리 추천해줘	node=extract_place
+query=신림 주공아파트 근처 놀거리 추천해줘	node=resolve_anchor
+query=신림 주공아파트 근처 놀거리 추천해줘	node=retrieve
+query=신림 주공아파트 근처 놀거리 추천해줘	node=apply_location_filter
+query=신림 주공아파트 근처 놀거리 추천해줘	node=rerank
+query=신림 주공아파트 근처 놀거리 추천해줘	node=answer
+query=신림 주공아파트 근처 놀거리 추천해줘	node=answer
+query=신림 주공아파트 근처 놀거리 추천해줘	node=LangGraph
+query=신림 주공아파트 근처 놀거리 추천해줘	node=route
+query=신림 주공아파트 근처 놀거리 추천해줘	node=Unnamed
+query=신림 주공아파트 근처 놀거리 추천해줘	node=normalize_query
+query=신림 주공아파트 근처 놀거리 추천해줘	node=extract_place
+query=신림 주공아파트 근처 놀거리 추천해줘	node=resolve_anchor
+query=신림 주공아파트 근처 놀거리 추천해줘	node=retrieve
+query=신림 주공아파트 근처 놀거리 추천해줘	node=apply_location_filter
+query=신림 주공아파트 근처 놀거리 추천해줘	node=rerank
+query=신림 주공아파트 근처 놀거리 추천해줘	node=answer
+query=신림 주공아파트 근처 놀거리 추천해줘	node=answer
+query=여의도 더현대 근처 맛집 추천해줘	node=LangGraph
+query=여의도 더현대 근처 맛집 추천해줘	node=route
+query=여의도 더현대 근처 맛집 추천해줘	node=Unnamed
+query=여의도 더현대 근처 맛집 추천해줘	node=normalize_query
+query=여의도 더현대 근처 맛집 추천해줘	node=extract_place
+query=여의도 더현대 근처 맛집 추천해줘	node=resolve_anchor
+query=여의도 더현대 근처 맛집 추천해줘	node=retrieve
+query=여의도 더현대 근처 맛집 추천해줘	node=apply_location_filter
+query=여의도 더현대 근처 맛집 추천해줘	node=rerank
+query=여의도 더현대 근처 맛집 추천해줘	node=answer
+query=여의도 더현대 근처 맛집 추천해줘	node=answer
+query=반포자이 근처 맛집 추천좀	node=LangGraph
+query=반포자이 근처 맛집 추천좀	node=route
+query=반포자이 근처 맛집 추천좀	node=Unnamed
+query=반포자이 근처 맛집 추천좀	node=normalize_query
+query=반포자이 근처 맛집 추천좀	node=extract_place
+query=반포자이 근처 맛집 추천좀	node=resolve_anchor
+query=반포자이 근처 맛집 추천좀	node=retrieve
+query=반포자이 근처 맛집 추천좀	node=apply_location_filter
+query=반포자이 근처 맛집 추천좀	node=rerank
+query=반포자이 근처 맛집 추천좀	node=answer
+query=반포자이 근처 맛집 추천좀	node=answer
+query=반포 자이아파트 근처 놀거리 추천해줘	node=LangGraph
+query=반포 자이아파트 근처 놀거리 추천해줘	node=route
+query=반포 자이아파트 근처 놀거리 추천해줘	node=Unnamed
+query=반포 자이아파트 근처 놀거리 추천해줘	node=normalize_query
+query=반포 자이아파트 근처 놀거리 추천해줘	node=extract_place
+query=반포 자이아파트 근처 놀거리 추천해줘	node=resolve_anchor
+query=반포 자이아파트 근처 놀거리 추천해줘	node=retrieve
+query=반포 자이아파트 근처 놀거리 추천해줘	node=apply_location_filter
+query=반포 자이아파트 근처 놀거리 추천해줘	node=rerank
+query=반포 자이아파트 근처 놀거리 추천해줘	node=answer
+query=반포 자이아파트 근처 놀거리 추천해줘	node=answer
+query=반포 자이아파트 근처 놀거리 추천해줘	node=LangGraph
+query=반포 자이아파트 근처 놀거리 추천해줘	node=route
+query=반포 자이아파트 근처 놀거리 추천해줘	node=Unnamed
+query=반포 자이아파트 근처 놀거리 추천해줘	node=normalize_query
+query=반포 자이아파트 근처 놀거리 추천해줘	node=extract_place
+query=반포 자이아파트 근처 놀거리 추천해줘	node=resolve_anchor
+query=반포 자이아파트 근처 놀거리 추천해줘	node=retrieve
+query=반포 자이아파트 근처 놀거리 추천해줘	node=apply_location_filter
+query=반포 자이아파트 근처 놀거리 추천해줘	node=rerank
+query=반포 자이아파트 근처 놀거리 추천해줘	node=answer
+query=반포 자이아파트 근처 놀거리 추천해줘	node=answer
+query=강남 cgv 근처 맛집 추천해줘	node=LangGraph
+query=강남 cgv 근처 맛집 추천해줘	node=route
+query=강남 cgv 근처 맛집 추천해줘	node=Unnamed
+query=강남 cgv 근처 맛집 추천해줘	node=normalize_query
+query=강남 cgv 근처 맛집 추천해줘	node=extract_place
+query=강남 cgv 근처 맛집 추천해줘	node=resolve_anchor
+query=강남 cgv 근처 맛집 추천해줘	node=retrieve
+query=강남 cgv 근처 맛집 추천해줘	node=apply_location_filter
+query=강남 cgv 근처 맛집 추천해줘	node=rerank
+query=강남 cgv 근처 맛집 추천해줘	node=answer
+query=강남 cgv 근처 맛집 추천해줘	node=answer
+query=구로 고척돔 근처 맛집 추천해줘	node=LangGraph
+query=구로 고척돔 근처 맛집 추천해줘	node=route
+query=구로 고척돔 근처 맛집 추천해줘	node=Unnamed
+query=구로 고척돔 근처 맛집 추천해줘	node=normalize_query
+query=구로 고척돔 근처 맛집 추천해줘	node=extract_place
+query=구로 고척돔 근처 맛집 추천해줘	node=resolve_anchor
+query=구로 고척돔 근처 맛집 추천해줘	node=retrieve
+query=구로 고척돔 근처 맛집 추천해줘	node=apply_location_filter
+query=구로 고척돔 근처 맛집 추천해줘	node=rerank
+query=구로 고척돔 근처 맛집 추천해줘	node=answer
+query=구로 고척돔 근처 맛집 추천해줘	node=answer
+query=구로 고척돔 근처 맛집 추천해줘 피자집 말고	node=LangGraph
+query=구로 고척돔 근처 맛집 추천해줘 피자집 말고	node=route
+query=구로 고척돔 근처 맛집 추천해줘 피자집 말고	node=Unnamed
+query=구로 고척돔 근처 맛집 추천해줘 피자집 말고	node=normalize_query
+query=구로 고척돔 근처 맛집 추천해줘 피자집 말고	node=extract_place
+query=구로 고척돔 근처 맛집 추천해줘 피자집 말고	node=resolve_anchor
+query=구로 고척돔 근처 맛집 추천해줘 피자집 말고	node=retrieve
+query=구로 고척돔 근처 맛집 추천해줘 피자집 말고	node=apply_location_filter
+query=구로 고척돔 근처 맛집 추천해줘 피자집 말고	node=rerank
+query=구로 고척돔 근처 맛집 추천해줘 피자집 말고	node=answer
+query=구로 고척돔 근처 맛집 추천해줘 피자집 말고	node=answer
+query=구로 고척돔 근처 맛집 추천해줘	node=LangGraph
+query=구로 고척돔 근처 맛집 추천해줘	node=route
+query=구로 고척돔 근처 맛집 추천해줘	node=Unnamed
+query=구로 고척돔 근처 맛집 추천해줘	node=normalize_query
+query=구로 고척돔 근처 맛집 추천해줘	node=extract_place
+query=구로 고척돔 근처 맛집 추천해줘	node=resolve_anchor
+query=구로 고척돔 근처 맛집 추천해줘	node=retrieve
+query=구로 고척돔 근처 맛집 추천해줘	node=apply_location_filter
+query=구로 고척돔 근처 맛집 추천해줘	node=rerank
+query=구로 고척돔 근처 맛집 추천해줘	node=answer
+query=구로 고척돔 근처 맛집 추천해줘	node=answer
+query=강남 현대아파트 근처 맛집 추천해줘	node=LangGraph
+query=강남 현대아파트 근처 맛집 추천해줘	node=route
+query=강남 현대아파트 근처 맛집 추천해줘	node=Unnamed
+query=강남 현대아파트 근처 맛집 추천해줘	node=normalize_query
+query=강남 현대아파트 근처 맛집 추천해줘	node=extract_place
+query=강남 현대아파트 근처 맛집 추천해줘	node=resolve_anchor
+query=강남 현대아파트 근처 맛집 추천해줘	node=retrieve
+query=강남 현대아파트 근처 맛집 추천해줘	node=apply_location_filter
+query=강남 현대아파트 근처 맛집 추천해줘	node=rerank
+query=강남 현대아파트 근처 맛집 추천해줘	node=answer
+query=강남 현대아파트 근처 맛집 추천해줘	node=answer
+query=63빌딩 근처 맛집 추천해줘	node=LangGraph
+query=63빌딩 근처 맛집 추천해줘	node=route
+query=63빌딩 근처 맛집 추천해줘	node=Unnamed
+query=63빌딩 근처 맛집 추천해줘	node=normalize_query
+query=63빌딩 근처 맛집 추천해줘	node=extract_place
+query=63빌딩 근처 맛집 추천해줘	node=resolve_anchor
+query=63빌딩 근처 맛집 추천해줘	node=retrieve
+query=63빌딩 근처 맛집 추천해줘	node=apply_location_filter
+query=63빌딩 근처 맛집 추천해줘	node=rerank
+query=63빌딩 근처 맛집 추천해줘	node=answer
+query=63빌딩 근처 맛집 추천해줘	node=answer
+query=강남 삼성의원 근처 맛집 추천해줘	node=LangGraph
+query=강남 삼성의원 근처 맛집 추천해줘	node=route
+query=강남 삼성의원 근처 맛집 추천해줘	node=Unnamed
+query=강남 삼성의원 근처 맛집 추천해줘	node=normalize_query
+query=강남 삼성의원 근처 맛집 추천해줘	node=extract_place
+query=강남 삼성의원 근처 맛집 추천해줘	node=resolve_anchor
+query=강남 삼성의원 근처 맛집 추천해줘	node=retrieve
+query=강남 삼성의원 근처 맛집 추천해줘	node=apply_location_filter
+query=강남 삼성의원 근처 맛집 추천해줘	node=rerank
+query=강남 삼성의원 근처 맛집 추천해줘	node=answer
+query=강남 삼성의원 근처 맛집 추천해줘	node=answer
+query=강남 삼성병원 근처 맛집추천해줘	node=LangGraph
+query=강남 삼성병원 근처 맛집추천해줘	node=route
+query=강남 삼성병원 근처 맛집추천해줘	node=Unnamed
+query=강남 삼성병원 근처 맛집추천해줘	node=normalize_query
+query=강남 삼성병원 근처 맛집추천해줘	node=extract_place
+query=강남 삼성병원 근처 맛집추천해줘	node=resolve_anchor
+query=강남 삼성병원 근처 맛집추천해줘	node=retrieve
+query=강남 삼성병원 근처 맛집추천해줘	node=apply_location_filter
+query=강남 삼성병원 근처 맛집추천해줘	node=rerank
+query=강남 삼성병원 근처 맛집추천해줘	node=answer
+query=강남 삼성병원 근처 맛집추천해줘	node=answer
+query=서울 김밥 추천해줘	node=LangGraph
+query=서울 김밥 추천해줘	node=route
+query=서울 김밥 추천해줘	node=Unnamed
+query=서울 김밥 추천해줘	node=normalize_query
+query=서울 김밥 추천해줘	node=extract_place
+query=서울 김밥 추천해줘	node=resolve_anchor
+query=서울 김밥 추천해줘	node=retrieve
+query=서울 김밥 추천해줘	node=apply_location_filter
+query=서울 김밥 추천해줘	node=rerank
+query=서울 김밥 추천해줘	node=answer
+query=서울 김밥 추천해줘	node=answer
+query=여의도 더헌대 근처 맛집 추천해줘	node=LangGraph
+query=여의도 더헌대 근처 맛집 추천해줘	node=route
+query=여의도 더헌대 근처 맛집 추천해줘	node=Unnamed
+query=여의도 더헌대 근처 맛집 추천해줘	node=normalize_query
+query=여의도 더헌대 근처 맛집 추천해줘	node=extract_place
+query=여의도 더헌대 근처 맛집 추천해줘	node=resolve_anchor
+query=여의도 더헌대 근처 맛집 추천해줘	node=retrieve
+query=여의도 더헌대 근처 맛집 추천해줘	node=apply_location_filter
+query=여의도 더헌대 근처 맛집 추천해줘	node=rerank
+query=여의도 더헌대 근처 맛집 추천해줘	node=answer
+query=여의도 더헌대 근처 맛집 추천해줘	node=answer
+query=어의도 더현대 맛집 추천해줘	node=LangGraph
+query=어의도 더현대 맛집 추천해줘	node=route
+query=어의도 더현대 맛집 추천해줘	node=Unnamed
+query=어의도 더현대 맛집 추천해줘	node=normalize_query
+query=어의도 더현대 맛집 추천해줘	node=extract_place
+query=어의도 더현대 맛집 추천해줘	node=resolve_anchor
+query=어의도 더현대 맛집 추천해줘	node=retrieve
+query=어의도 더현대 맛집 추천해줘	node=apply_location_filter
+query=어의도 더현대 맛집 추천해줘	node=rerank
+query=어의도 더현대 맛집 추천해줘	node=answer
+query=어의도 더현대 맛집 추천해줘	node=answer

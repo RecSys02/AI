@@ -1,2 +1,4 @@
 [2026-01-19 21:58:13] autocomplete_status_ZERO_RESULTS query=61빌딩
 [2026-01-19 21:59:32] autocomplete_status_ZERO_RESULTS query=62빌딩
+[2026-01-20 10:45:34] autocomplete_status_ZERO_RESULTS query=김밥
+[2026-01-20 11:13:40] autocomplete_status_ZERO_RESULTS query=신림 주공아파트

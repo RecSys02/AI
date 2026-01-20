@@ -78,5 +78,115 @@
     "place_id": "ChIJd0dO0JylfDURdcviRsh5HYk",
     "radius_by_intent": {},
     "source": "google_autocomplete+geocode"
+  },
+  "반포": {
+    "lat": 37.5039744,
+    "lng": 127.0007494,
+    "address": "대한민국 서울특별시 서초구 반포동",
+    "query": "반포",
+    "resolved_name": "대한민국 서울특별시 서초구 반포동",
+    "place_id": "ChIJBeokf3mhfDURWjayZXNvayM",
+    "radius_by_intent": {},
+    "source": "google_autocomplete+geocode"
+  },
+  "잠실": {
+    "lat": 37.5067945,
+    "lng": 127.0830482,
+    "address": "대한민국 서울특별시 송파구 잠실동",
+    "query": "잠실",
+    "resolved_name": "대한민국 서울특별시 송파구 잠실동",
+    "place_id": "ChIJ7bllt0ykfDURonZm_i0K2Ns",
+    "radius_by_intent": {},
+    "source": "google_autocomplete+geocode"
+  },
+  "서울": {
+    "lat": 37.550263,
+    "lng": 126.9970831,
+    "address": "대한민국 서울특별시",
+    "query": "서울",
+    "resolved_name": "대한민국 서울",
+    "place_id": "ChIJzzlcLQGifDURm_JbQKHsEX4",
+    "radius_by_intent": {},
+    "source": "google_autocomplete+geocode"
+  },
+  "신림주공아파트": {
+    "lat": 37.4658795,
+    "lng": 126.9278106,
+    "address": "대한민국 서울특별시 관악구 신림동 1704-1",
+    "query": "신림 주공아파트",
+    "resolved_name": "대한민국 서울특별시 관악구 신림동 신림주공1단지아파트",
+    "place_id": "ChIJaYagN9-ffDURKY729wrhMkI",
+    "radius_by_intent": {},
+    "source": "google_autocomplete+geocode"
+  },
+  "여의도": {
+    "lat": 37.5292257,
+    "lng": 126.9293831,
+    "address": "대한민국 서울특별시 영등포구 여의동",
+    "query": "여의도",
+    "resolved_name": "대한민국 서울특별시 영등포구 여의도동",
+    "place_id": "ChIJ3wTs9DmffDURBz_u6toXu8c",
+    "radius_by_intent": {},
+    "source": "google_autocomplete+geocode"
+  },
+  "반포자이": {
+    "lat": 37.5039744,
+    "lng": 127.0007494,
+    "address": "대한민국 서울특별시 서초구 반포동",
+    "query": "반포 자이",
+    "resolved_name": "대한민국 서울특별시 서초구 반포동",
+    "place_id": "ChIJBeokf3mhfDURWjayZXNvayM",
+    "radius_by_intent": {},
+    "source": "google_autocomplete+geocode"
+  },
+  "반포자이아파트": {
+    "lat": 37.506205,
+    "lng": 127.009364,
+    "address": "대한민국 서울특별시 반포자이아파트",
+    "query": "반포 자이 아파트",
+    "resolved_name": "서울특별시 반포자이아파트",
+    "place_id": "ChIJFYctGWOhfDURf6e_xnR13CI",
+    "radius_by_intent": {},
+    "source": "google_autocomplete+geocode"
+  },
+  "강남cgv": {
+    "lat": 37.5242734,
+    "lng": 127.0294158,
+    "address": "대한민국 서울특별시 강남구 압구정로30길 45",
+    "query": "강남 CGV",
+    "resolved_name": "대한민국 서울특별시 강남 압구정로30길 CGV 압구정",
+    "place_id": "ChIJ9WVuBJKjfDURdmUDu0JW4sQ",
+    "radius_by_intent": {},
+    "source": "google_autocomplete+geocode"
+  },
+  "구로구고척돔": {
+    "lat": 37.4980629,
+    "lng": 126.8670625,
+    "address": "대한민국 서울특별시 구로구 경인로 430",
+    "query": "구로구 고척돔",
+    "resolved_name": "대한민국 서울특별시 구로구 경인로 고척스카이돔",
+    "place_id": "ChIJA0lgSWWdfDURJfzQjsAphsI",
+    "radius_by_intent": {},
+    "source": "google_autocomplete+geocode"
+  },
+  "강남현대아파트": {
+    "lat": 37.5327343,
+    "lng": 127.0280489,
+    "address": "대한민국 서울특별시",
+    "query": "강남 현대아파트",
+    "resolved_name": "서울특별시 현대아파트노인정(구현대)",
+    "place_id": "ChIJVQ4TPZujfDURmKUZOj1tuqo",
+    "radius_by_intent": {},
+    "source": "google_autocomplete+geocode"
+  },
+  "강남삼성병원": {
+    "lat": 37.4881193,
+    "lng": 127.0849885,
+    "address": "대한민국 서울특별시 강남구 일원로 81",
+    "query": "강남 삼성병원",
+    "resolved_name": "대한민국 서울특별시 강남구 일원로 삼성서울병원",
+    "place_id": "ChIJWSd9_dKlfDUREf10HHfyN_4",
+    "radius_by_intent": {},
+    "source": "google_autocomplete+geocode"
   }
 }
