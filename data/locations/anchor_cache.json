@@ -1,12 +1,30 @@
 {
+  "시청역": {
+    "lat": 37.5626929,
+    "lng": 126.9740067,
+    "address": "대한민국 서울특별시 중구 서소문동 번지 지하 75-95 1층",
+    "query": "시청역",
+    "resolved_name": "시청역",
+    "place_id": "ChIJfZqfaIuifDURqINRSjd8BSI",
+    "radius_by_intent": {
+      "restaurant": 2.0,
+      "cafe": 2.0,
+      "tourspot": 3.0
+    },
+    "source": "google_autocomplete+geocode"
+  },
   "강남": {
-    "lat": 37.4979052,
-    "lng": 127.0275777,
-    "address": "서울특별시 강남역사거리",
+    "lat": 37.4966645,
+    "lng": 127.0629804,
+    "address": "대한민국 서울특별시 강남구",
     "query": "강남",
-    "resolved_name": "서울특별시 강남역사거리",
-    "place_id": "ChIJUZmyjlmhfDUR3uBrSYR4FUU",
-    "radius_by_intent": {},
+    "resolved_name": "대한민국 서울특별시 강남",
+    "place_id": "ChIJ-4m1XyOkfDURartwxRuXMbM",
+    "radius_by_intent": {
+      "restaurant": 2.0,
+      "cafe": 2.0,
+      "tourspot": 3.0
+    },
     "source": "google_autocomplete+geocode"
   },
   "63빌딩": {
@@ -16,227 +34,53 @@
     "query": "63빌딩",
     "resolved_name": "대한민국 서울특별시 영등포구 63로 63빌딩",
     "place_id": "ChIJn_UiGDyffDURWfZBRKwb5YE",
-    "radius_by_intent": {},
+    "radius_by_intent": {
+      "restaurant": 2.0,
+      "cafe": 2.0,
+      "tourspot": 3.0
+    },
     "source": "google_autocomplete+geocode"
   },
-  "홍대": {
-    "lat": 37.5551463,
-    "lng": 126.9215309,
-    "address": "서울특별시 홍대입구역앞",
-    "query": "홍대",
-    "resolved_name": "서울특별시 홍대입구역앞",
-    "place_id": "ChIJ_6jfrdyYfDURoW0uA4Mfulw",
-    "radius_by_intent": {},
+  "브라질": {
+    "lat": 37.5815247,
+    "lng": 126.9804723,
+    "address": "대한민국 서울특별시 종로구 청와대로 73",
+    "query": "브라질",
+    "resolved_name": "대한민국 서울특별시 종로구 청와대로 주한 브라질 대사관",
+    "place_id": "ChIJCwRzh8aifDURQa9549qldj4",
+    "radius_by_intent": {
+      "restaurant": 2.0,
+      "cafe": 2.0,
+      "tourspot": 3.0
+    },
     "source": "google_autocomplete+geocode"
   },
-  "청담": {
-    "lat": 37.5241801,
-    "lng": 127.0473251,
-    "address": "서울특별시 청담사거리",
-    "query": "청담",
-    "resolved_name": "서울특별시 청담사거리",
-    "place_id": "ChIJY3KfRHqkfDURSRe3b1oDGCE",
-    "radius_by_intent": {},
+  "스위스": {
+    "lat": 37.5890761,
+    "lng": 126.934305,
+    "address": "대한민국 서울특별시 서대문구 연희로 353",
+    "query": "스위스",
+    "resolved_name": "대한민국 서울특별시 서대문구 연희로 스위스 그랜드 호텔 서울",
+    "place_id": "ChIJtVtwRWqYfDURM6pY1eFLIgA",
+    "radius_by_intent": {
+      "restaurant": 2.0,
+      "cafe": 2.0,
+      "tourspot": 3.0
+    },
     "source": "google_autocomplete+geocode"
   },
-  "걍남": {
-    "lat": 37.4979052,
-    "lng": 127.0275777,
-    "address": "서울특별시 강남역사거리",
-    "query": "걍남",
-    "resolved_name": "서울특별시 강남역사거리",
-    "place_id": "ChIJUZmyjlmhfDUR3uBrSYR4FUU",
-    "radius_by_intent": {},
-    "source": "google_autocomplete+geocode"
-  },
-  "강나": {
-    "lat": 37.4966645,
-    "lng": 127.0629804,
-    "address": "대한민국 서울특별시 강남구",
-    "query": "강나",
-    "resolved_name": "대한민국 서울특별시 강남",
-    "place_id": "ChIJ-4m1XyOkfDURartwxRuXMbM",
-    "radius_by_intent": {},
-    "source": "google_autocomplete+geocode"
-  },
-  "개봉": {
-    "lat": 37.4942409,
-    "lng": 126.8519326,
-    "address": "대한민국 서울특별시 구로구 개봉동",
-    "query": "개봉",
-    "resolved_name": "대한민국 서울특별시 구로구 개봉동",
-    "place_id": "ChIJKQsahPadfDUR2Sz_lrgX9BQ",
-    "radius_by_intent": {},
-    "source": "google_autocomplete+geocode"
-  },
-  "송파": {
-    "lat": 37.5056205,
-    "lng": 127.1152992,
-    "address": "대한민국 서울특별시 송파구",
-    "query": "송파",
-    "resolved_name": "대한민국 서울특별시 송파구",
-    "place_id": "ChIJd0dO0JylfDURdcviRsh5HYk",
-    "radius_by_intent": {},
-    "source": "google_autocomplete+geocode"
-  },
-  "반포": {
-    "lat": 37.5039744,
-    "lng": 127.0007494,
-    "address": "대한민국 서울특별시 서초구 반포동",
-    "query": "반포",
-    "resolved_name": "대한민국 서울특별시 서초구 반포동",
-    "place_id": "ChIJBeokf3mhfDURWjayZXNvayM",
-    "radius_by_intent": {},
-    "source": "google_autocomplete+geocode"
-  },
-  "잠실": {
-    "lat": 37.5067945,
-    "lng": 127.0830482,
-    "address": "대한민국 서울특별시 송파구 잠실동",
-    "query": "잠실",
-    "resolved_name": "대한민국 서울특별시 송파구 잠실동",
-    "place_id": "ChIJ7bllt0ykfDURonZm_i0K2Ns",
-    "radius_by_intent": {},
-    "source": "google_autocomplete+geocode"
-  },
-  "서울": {
-    "lat": 37.550263,
-    "lng": 126.9970831,
-    "address": "대한민국 서울특별시",
-    "query": "서울",
-    "resolved_name": "대한민국 서울",
-    "place_id": "ChIJzzlcLQGifDURm_JbQKHsEX4",
-    "radius_by_intent": {},
-    "source": "google_autocomplete+geocode"
-  },
-  "신림주공아파트": {
-    "lat": 37.4658795,
-    "lng": 126.9278106,
-    "address": "대한민국 서울특별시 관악구 신림동 1704-1",
-    "query": "신림 주공아파트",
-    "resolved_name": "대한민국 서울특별시 관악구 신림동 신림주공1단지아파트",
-    "place_id": "ChIJaYagN9-ffDURKY729wrhMkI",
-    "radius_by_intent": {},
-    "source": "google_autocomplete+geocode"
-  },
-  "여의도": {
-    "lat": 37.5292257,
-    "lng": 126.9293831,
-    "address": "대한민국 서울특별시 영등포구 여의동",
-    "query": "여의도",
-    "resolved_name": "대한민국 서울특별시 영등포구 여의도동",
-    "place_id": "ChIJ3wTs9DmffDURBz_u6toXu8c",
-    "radius_by_intent": {},
-    "source": "google_autocomplete+geocode"
-  },
-  "반포자이": {
-    "lat": 37.5039744,
-    "lng": 127.0007494,
-    "address": "대한민국 서울특별시 서초구 반포동",
-    "query": "반포 자이",
-    "resolved_name": "대한민국 서울특별시 서초구 반포동",
-    "place_id": "ChIJBeokf3mhfDURWjayZXNvayM",
-    "radius_by_intent": {},
-    "source": "google_autocomplete+geocode"
-  },
-  "반포자이아파트": {
-    "lat": 37.506205,
-    "lng": 127.009364,
-    "address": "대한민국 서울특별시 반포자이아파트",
-    "query": "반포 자이 아파트",
-    "resolved_name": "서울특별시 반포자이아파트",
-    "place_id": "ChIJFYctGWOhfDURf6e_xnR13CI",
-    "radius_by_intent": {},
-    "source": "google_autocomplete+geocode"
-  },
-  "강남cgv": {
-    "lat": 37.5242734,
-    "lng": 127.0294158,
-    "address": "대한민국 서울특별시 강남구 압구정로30길 45",
-    "query": "강남 CGV",
-    "resolved_name": "대한민국 서울특별시 강남 압구정로30길 CGV 압구정",
-    "place_id": "ChIJ9WVuBJKjfDURdmUDu0JW4sQ",
-    "radius_by_intent": {},
-    "source": "google_autocomplete+geocode"
-  },
-  "구로구고척돔": {
-    "lat": 37.4980629,
-    "lng": 126.8670625,
-    "address": "대한민국 서울특별시 구로구 경인로 430",
-    "query": "구로구 고척돔",
-    "resolved_name": "대한민국 서울특별시 구로구 경인로 고척스카이돔",
-    "place_id": "ChIJA0lgSWWdfDURJfzQjsAphsI",
-    "radius_by_intent": {},
-    "source": "google_autocomplete+geocode"
-  },
-  "강남현대아파트": {
-    "lat": 37.5327343,
-    "lng": 127.0280489,
-    "address": "대한민국 서울특별시",
-    "query": "강남 현대아파트",
-    "resolved_name": "서울특별시 현대아파트노인정(구현대)",
-    "place_id": "ChIJVQ4TPZujfDURmKUZOj1tuqo",
-    "radius_by_intent": {},
-    "source": "google_autocomplete+geocode"
-  },
-  "강남삼성병원": {
-    "lat": 37.4881193,
-    "lng": 127.0849885,
-    "address": "대한민국 서울특별시 강남구 일원로 81",
-    "query": "강남 삼성병원",
-    "resolved_name": "대한민국 서울특별시 강남구 일원로 삼성서울병원",
-    "place_id": "ChIJWSd9_dKlfDUREf10HHfyN_4",
-    "radius_by_intent": {},
-    "source": "google_autocomplete+geocode"
-  },
-  "고척동고척돔": {
-    "lat": 37.4980629,
-    "lng": 126.8670625,
-    "address": "대한민국 서울특별시 구로구 경인로 430",
-    "query": "고척동 고척돔",
-    "resolved_name": "대한민국 서울특별시 구로구 경인로 고척스카이돔",
-    "place_id": "ChIJA0lgSWWdfDURJfzQjsAphsI",
-    "radius_by_intent": {},
-    "source": "google_autocomplete+geocode"
-  },
-  "신림동주공아파트": {
-    "lat": 37.462507,
-    "lng": 126.9261294,
-    "address": "대한민국 서울특별시 관악구 호암로 399",
-    "query": "신림동 주공아파트",
-    "resolved_name": "대한민국 서울특별시 관악구 호암로 삼성산주공뜨란채3단지아파트",
-    "place_id": "ChIJDZ8zwyZgezURD0WitzweUvU",
-    "radius_by_intent": {},
-    "source": "google_autocomplete+geocode"
-  },
-  "더현대": {
-    "lat": 37.5259162,
-    "lng": 126.9284926,
-    "address": "대한민국 서울특별시 영등포구 여의대로 108 1F",
-    "query": "더현대",
-    "resolved_name": "대한민국 서울특별시 영등포구 여의대로 더현대 서울",
-    "place_id": "ChIJz4OjfACffDURdhog9kiXBus",
-    "radius_by_intent": {},
-    "source": "google_autocomplete+geocode"
-  },
-  "강남구역삼동none": {
-    "lat": 37.5000776,
-    "lng": 127.0385419,
-    "address": "대한민국 서울특별시 강남구 역삼동",
-    "query": "강남구 역삼동 None",
-    "resolved_name": "대한민국 서울특별시 강남구 역삼동",
-    "place_id": "ChIJIb2Eov-jfDUR1dWZkSfKRN0",
-    "radius_by_intent": {},
-    "source": "google_autocomplete+geocode"
-  },
-  "코엑스아쿠아리움": {
-    "lat": 37.513131,
-    "lng": 127.0582827,
-    "address": "대한민국 서울특별시 강남구 영동대로 513",
-    "query": "코엑스 아쿠아리움",
-    "resolved_name": "대한민국 서울특별시 강남구 영동대로 씨라이프 코엑스 아쿠아리움",
-    "place_id": "ChIJ72K1TGqkfDURa_ENqoUeeXs",
-    "radius_by_intent": {},
+  "디지털미디어시티": {
+    "lat": 37.577785,
+    "lng": 126.9024019,
+    "address": "대한민국 서울특별시 은평구 증산동",
+    "query": "디지털미디어시티",
+    "resolved_name": "대한민국 서울특별시 은평구 증산동 디지털미디어시티역 1번출구",
+    "place_id": "ChIJL15BIe6ZfDURIlrlvbgq0J8",
+    "radius_by_intent": {
+      "restaurant": 2.0,
+      "cafe": 2.0,
+      "tourspot": 3.0
+    },
     "source": "google_autocomplete+geocode"
   }
 }

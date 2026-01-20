@@ -38,7 +38,7 @@ async def chat_stream(
     initial_state = {
         "query": q,
         "mode": mode,
-        "top_k": max(1, min(10, top_k)) if top_k is not None else None,
+        "top_k": 10,
         "history_place_ids": history_ids,
         "messages": [],
         "debug": bool(debug),
@@ -48,6 +48,7 @@ async def chat_stream(
     async def event_gen():
         any_event = False
         final_sent = False
+        context_sent = False
         async for event in chat_app.astream_events(initial_state, config=config, version="v2"):
             kind = event.get("event")
             if kind == "on_chain_start":
@@ -64,6 +65,9 @@ async def chat_stream(
                 data = event["data"].get("chunk") or {}
                 if "debug" in data:
                     yield {"event": "debug", "data": json.dumps(data["debug"], ensure_ascii=False)}
+                if "context" in data and not context_sent:
+                    context_sent = True
+                    yield {"event": "context", "data": json.dumps(data["context"], ensure_ascii=False)}
                 if "token" in data:
                     any_event = True
                     yield {"event": "token", "data": str(data["token"])}
@@ -88,15 +92,14 @@ async def chat_stream(
 
 @router.post("/chat/stream")
 async def chat_stream_post(req: ChatRequest):
-    top_k = req.top_k
-    normalized_top_k = max(1, min(10, top_k)) if top_k is not None else None
     history_ids = [p.place_id for p in req.history_places]
     initial_state = {
         "query": req.query,
-        "top_k": normalized_top_k,
+        "top_k": 10,
         "history_place_ids": history_ids,
         "messages": [m.model_dump() for m in req.messages],
         "debug": bool(req.debug),
+        "context": req.context.model_dump() if req.context else None,
         "preferred_themes": req.preferred_themes,
         "preferred_moods": req.preferred_moods,
         "preferred_restaurant_types": req.preferred_restaurant_types,
@@ -108,6 +111,7 @@ async def chat_stream_post(req: ChatRequest):
     async def event_gen():
         any_event = False
         final_sent = False
+        context_sent = False
         async for event in chat_app.astream_events(initial_state, version="v2"):
             kind = event.get("event")
             if kind == "on_chain_start":
@@ -124,6 +128,9 @@ async def chat_stream_post(req: ChatRequest):
                 data = event["data"].get("chunk") or {}
                 if "debug" in data:
                     yield {"event": "debug", "data": json.dumps(data["debug"], ensure_ascii=False)}
+                if "context" in data and not context_sent:
+                    context_sent = True
+                    yield {"event": "context", "data": json.dumps(data["context"], ensure_ascii=False)}
                 if "token" in data:
                     any_event = True
                     yield {"event": "token", "data": str(data["token"])}
