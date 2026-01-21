@@ -100,12 +100,7 @@ async def chat_stream(
                 if node:
                     append_node_trace(q, str(node))
                     yield {"event": "node", "data": str(node)}
-            if kind == "on_chat_model_stream":
-                content = getattr(event["data"].get("chunk"), "content", None)
-                if content:
-                    any_event = True
-                    yield {"event": "token", "data": str(content)}
-            elif kind == "on_chain_stream":
+            if kind == "on_chain_stream":
                 data = event["data"].get("chunk") or {}
                 if "debug" in data:
                     yield {"event": "debug", "data": json.dumps(data["debug"], ensure_ascii=False)}
@@ -168,12 +163,7 @@ async def chat_stream_post(req: ChatRequest):
                 if node:
                     append_node_trace(req.query, str(node))
                     yield {"event": "node", "data": str(node)}
-            if kind == "on_chat_model_stream":
-                content = getattr(event["data"].get("chunk"), "content", None)
-                if content:
-                    any_event = True
-                    yield {"event": "token", "data": str(content)}
-            elif kind == "on_chain_stream":
+            if kind == "on_chain_stream":
                 data = event["data"].get("chunk") or {}
                 if "debug" in data:
                     yield {"event": "debug", "data": json.dumps(data["debug"], ensure_ascii=False)}
