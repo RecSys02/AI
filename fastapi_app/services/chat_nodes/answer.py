@@ -1,5 +1,6 @@
 from typing import List
 
+from services.chat_nodes.callbacks import build_callbacks_config
 from services.chat_nodes.intent import is_date_query, is_nearby_query
 from services.chat_nodes.llm_clients import llm
 from services.chat_nodes.state import GraphState, build_context
@@ -15,6 +16,8 @@ async def answer_node(state: GraphState):
         yield {"context": build_context(state)}
         return
     query = state.get("query", "")
+    callbacks = state.get("callbacks")
+    config = build_callbacks_config(callbacks)
     if is_nearby_query(query) and not (state.get("anchor") or state.get("admin_term")):
         # Nearby intent without anchor should ask for a concrete location.
         place = state.get("resolved_name") or state.get("input_place")
@@ -30,7 +33,6 @@ async def answer_node(state: GraphState):
         yield {"context": build_context(state)}
         return
     retrievals = state.get("retrievals", [])
-    print("answer node : ", retrievals)
     if not retrievals:
         # No results: return a fallback prompt based on whether filters were used.
         filter_applied = bool(state.get("anchor") or state.get("admin_term"))
@@ -130,7 +132,7 @@ async def answer_node(state: GraphState):
     messages.append(("user", state.get("query", "")))
 
     parts: List[str] = []
-    async for chunk in llm.astream(messages):
+    async for chunk in llm.astream(messages, config=config):
         content = chunk.content
         if not content:
             continue

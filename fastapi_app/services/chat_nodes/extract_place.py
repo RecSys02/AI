@@ -9,7 +9,7 @@ async def extract_place_node(state: GraphState) -> Dict:
     """Extract a place candidate (area/point) from the normalized query."""
     query = state.get("normalized_query") or state.get("query", "")
     # LLM returns a strict JSON-like structure or None if no place is found.
-    place = await llm_extract_place(query)
+    place = await llm_extract_place(query, callbacks=state.get("callbacks"))
     # Debug log captures what the model extracted for later inspection.
     append_place_debug(
         {

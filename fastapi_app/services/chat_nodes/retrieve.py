@@ -16,7 +16,7 @@ async def retrieve_node(state: GraphState) -> Dict:
     # Mode detection chooses which index to query (restaurant/cafe/tourspot).
     mode_raw = detect_mode(state.get("mode"), query)
     if mode_raw == "unknown":
-        mode_raw = await llm_detect_mode(query)
+        mode_raw = await llm_detect_mode(query, callbacks=state.get("callbacks"))
     mode_unknown = mode_raw == "unknown"
     mode_used = "tourspot" if mode_unknown else mode_raw
     # 이전 방문 기록 아직 없음. 어떻게 뽑아올지 정해야함(기존 추천시스템에서 방문한 이력들 DB에서 뽑아오도록 해야할듯?)

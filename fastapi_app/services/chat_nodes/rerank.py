@@ -1,6 +1,7 @@
 import json
 from typing import Dict
 
+from services.chat_nodes.callbacks import build_callbacks_config
 from services.chat_nodes.config import RERANK_K
 from services.chat_nodes.intent import is_date_query
 from services.chat_nodes.llm_clients import detect_llm
@@ -53,6 +54,7 @@ async def rerank_node(state: GraphState) -> Dict:
 
     candidates_txt = "\n".join([f"[id={i}] {_build_ctx(r)}" for i, r in enumerate(retrievals)])
     user_query = state.get("query", "")
+    config = build_callbacks_config(state.get("callbacks"))
     messages = [
         (
             "system",
@@ -77,7 +79,7 @@ async def rerank_node(state: GraphState) -> Dict:
     raw = None
     try:
         # LLM returns a JSON array of indices (e.g., [0,2]).
-        resp = await detect_llm.ainvoke(messages, max_tokens=50)
+        resp = await detect_llm.ainvoke(messages, max_tokens=50, config=config)
         raw = resp.content or ""
         parsed = json.loads(raw)
         if isinstance(parsed, list):

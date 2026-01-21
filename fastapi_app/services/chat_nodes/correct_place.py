@@ -26,7 +26,7 @@ async def correct_place_node(state: GraphState) -> Dict:
         return result
 
     # Ask LLM to correct typos only; if unchanged, keep original values.
-    corrected = await llm_correct_place(query, area, point)
+    corrected = await llm_correct_place(query, area, point, callbacks=state.get("callbacks"))
     if not corrected or not corrected.get("changed"):
         result = {}
         append_node_trace_result(query, "correct_place", result)

@@ -1,11 +1,13 @@
 import json
 from typing import Dict
 
+from services.chat_nodes.callbacks import build_callbacks_config
 from services.chat_nodes.llm_clients import detect_llm
 
 
-async def llm_extract_place(query: str) -> Dict | None:
+async def llm_extract_place(query: str, callbacks: list | None = None) -> Dict | None:
     """LLM으로 장소 후보 키워드를 최대한 너그럽게 추출한다."""
+    config = build_callbacks_config(callbacks)
     messages = [
         (
             "system",
@@ -21,7 +23,7 @@ async def llm_extract_place(query: str) -> Dict | None:
         ("user", f"입력 문장: {query}\n추출 결과: "),
     ]
     try:
-        resp = await detect_llm.ainvoke(messages, max_tokens=40)
+        resp = await detect_llm.ainvoke(messages, max_tokens=40, config=config)
         raw = (resp.content or "").strip()
         data = json.loads(raw)
         if not isinstance(data, dict):
@@ -37,7 +39,13 @@ async def llm_extract_place(query: str) -> Dict | None:
         return None
 
 
-async def llm_correct_place(query: str, area: str | None, point: str | None) -> Dict | None:
+async def llm_correct_place(
+    query: str,
+    area: str | None,
+    point: str | None,
+    callbacks: list | None = None,
+) -> Dict | None:
+    config = build_callbacks_config(callbacks)
     messages = [
         (
             "system",
@@ -52,7 +60,7 @@ async def llm_correct_place(query: str, area: str | None, point: str | None) -> 
         ),
     ]
     try:
-        resp = await detect_llm.ainvoke(messages, max_tokens=60)
+        resp = await detect_llm.ainvoke(messages, max_tokens=60, config=config)
         raw = (resp.content or "").strip()
         data = json.loads(raw)
         if not isinstance(data, dict):

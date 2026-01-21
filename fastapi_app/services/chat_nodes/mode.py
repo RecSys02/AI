@@ -1,3 +1,4 @@
+from services.chat_nodes.callbacks import build_callbacks_config
 from services.chat_nodes.llm_clients import detect_llm
 
 
@@ -43,8 +44,9 @@ def detect_mode(mode_hint: str | None, query: str) -> str:
     return "unknown"
 
 
-async def llm_detect_mode(query: str) -> str:
+async def llm_detect_mode(query: str, callbacks: list | None = None) -> str:
     """LLM으로 모드 분류 (tourspot/cafe/restaurant/unknown 중 하나만 반환)."""
+    config = build_callbacks_config(callbacks)
     messages = [
         (
             "system",
@@ -54,7 +56,7 @@ async def llm_detect_mode(query: str) -> str:
         ("user", query),
     ]
     try:
-        resp = await detect_llm.ainvoke(messages, max_tokens=5)
+        resp = await detect_llm.ainvoke(messages, max_tokens=5, config=config)
         mode = (resp.content or "").strip().lower()
         return mode if mode in {"tourspot", "cafe", "restaurant"} else "unknown"
     except Exception:

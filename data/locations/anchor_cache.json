@@ -110,5 +110,33 @@
       "tourspot": 3.0
     },
     "source": "google_autocomplete+geocode"
+  },
+  "동묘앞": {
+    "lat": 37.573246,
+    "lng": 127.016589,
+    "address": "대한민국 서울특별시 숭인동 동묘앞",
+    "query": "동묘앞",
+    "resolved_name": "대한민국 서울특별시 숭인동 동묘앞",
+    "place_id": "ChIJpz_FrDejfDURODF56Bdmbq0",
+    "radius_by_intent": {
+      "restaurant": 2.0,
+      "cafe": 2.0,
+      "tourspot": 3.0
+    },
+    "source": "google_autocomplete+geocode"
+  },
+  "현대힐스테이트": {
+    "lat": 37.5174587,
+    "lng": 127.0461587,
+    "address": "대한민국 서울특별시 강남구 학동로68길 112 7.힐스테이트1차 상가동 2호",
+    "query": "현대 힐스테이트",
+    "resolved_name": "대한민국 서울특별시 강남구 학동로68길 현대힐스테이트공인",
+    "place_id": "ChIJTXYR7XOkfDUR7gGwRHDbb58",
+    "radius_by_intent": {
+      "restaurant": 2.0,
+      "cafe": 2.0,
+      "tourspot": 3.0
+    },
+    "source": "google_autocomplete+geocode"
   }
 }

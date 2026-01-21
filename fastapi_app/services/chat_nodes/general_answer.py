@@ -1,5 +1,6 @@
 from typing import List
 
+from services.chat_nodes.callbacks import build_callbacks_config
 from services.chat_nodes.config import GENERAL_K
 from services.chat_nodes.llm_clients import llm
 from services.chat_nodes.mode import detect_mode, llm_detect_mode
@@ -11,10 +12,12 @@ from utils.geo import append_node_trace_result
 async def general_answer_node(state: GraphState):
     """Answer non-recommendation questions using lightweight retrieval + LLM."""
     query = state.get("query", "")
+    callbacks = state.get("callbacks")
+    config = build_callbacks_config(callbacks)
     # Detect category (tourspot/cafe/restaurant) to pick the right index.
     mode_raw = detect_mode(state.get("mode"), query)
     if mode_raw == "unknown":
-        mode_raw = await llm_detect_mode(query)
+        mode_raw = await llm_detect_mode(query, callbacks=callbacks)
     mode_unknown = mode_raw == "unknown"
     mode_used = "tourspot" if mode_unknown else mode_raw
     history_place_ids: List[int] = state.get("history_place_ids") or []
@@ -91,7 +94,7 @@ async def general_answer_node(state: GraphState):
     messages.append(("user", query))
 
     parts: List[str] = []
-    async for chunk in llm.astream(messages):
+    async for chunk in llm.astream(messages, config=config):
         content = chunk.content
         if not content:
             continue

@@ -24,6 +24,7 @@ class GraphState(TypedDict):
     messages: List[dict]
     debug: bool | None
     context: Dict | None
+    callbacks: List[object] | None
 
 
 def slim_retrievals(items: List[dict]) -> List[dict]:

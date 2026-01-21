@@ -1,6 +1,7 @@
 import json
 from typing import Dict
 
+from services.chat_nodes.callbacks import build_callbacks_config
 from services.chat_nodes.llm_clients import detect_llm
 from services.chat_nodes.state import GraphState
 from utils.geo import append_node_trace_result
@@ -9,6 +10,8 @@ from utils.geo import append_node_trace_result
 async def normalize_query_node(state: GraphState) -> Dict:
     """Normalize the user query with LLM guidance while preserving critical place details."""
     query = state.get("query", "")
+    callbacks = state.get("callbacks")
+    config = build_callbacks_config(callbacks)
     # LLM prompt is tuned to keep specific place names and improve search-friendly phrasing.
     messages = [
         (
@@ -25,7 +28,7 @@ async def normalize_query_node(state: GraphState) -> Dict:
     normalized = query
     try:
         # Use a short, deterministic completion for consistent normalization.
-        resp = await detect_llm.ainvoke(messages, max_tokens=80)
+        resp = await detect_llm.ainvoke(messages, max_tokens=80, config=config)
         raw = (resp.content or "").strip()
         data = json.loads(raw)
         if isinstance(data, dict) and data.get("normalized_query"):
