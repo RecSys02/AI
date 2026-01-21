@@ -82,5 +82,33 @@
       "tourspot": 3.0
     },
     "source": "google_autocomplete+geocode"
+  },
+  "서울서초역": {
+    "lat": 37.4917945,
+    "lng": 127.0076354,
+    "address": "서울특별시 서초역사거리",
+    "query": "서울 서초역",
+    "resolved_name": "서울 서초역",
+    "place_id": "ChIJk_7jpnKhfDURn6SUeWHUQ7Q",
+    "radius_by_intent": {
+      "restaurant": 2.0,
+      "cafe": 2.0,
+      "tourspot": 3.0
+    },
+    "source": "google_autocomplete+geocode"
+  },
+  "서울시청": {
+    "lat": 37.5648406,
+    "lng": 126.977303,
+    "address": "서울특별시 시청앞",
+    "query": "서울 시청",
+    "resolved_name": "서울특별시 시청앞",
+    "place_id": "ChIJzz_R5fKifDURJSTIFbslRp0",
+    "radius_by_intent": {
+      "restaurant": 2.0,
+      "cafe": 2.0,
+      "tourspot": 3.0
+    },
+    "source": "google_autocomplete+geocode"
   }
 }

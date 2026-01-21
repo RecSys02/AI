@@ -5,6 +5,7 @@ from utils.geo import append_node_trace_result
 
 
 async def expand_radius_node(state: GraphState) -> Dict:
+    """Increase the previous anchor radius when the user asks to widen the search."""
     query = state.get("query", "")
     if not state.get("expand_request"):
         result = {}
@@ -15,6 +16,7 @@ async def expand_radius_node(state: GraphState) -> Dict:
     last_anchor = ctx.get("last_anchor") or {}
     centers = last_anchor.get("centers") or []
     if not centers:
+        # Cannot expand without a prior anchor to expand from.
         result = {"expand_failed": True}
         append_node_trace_result(query, "expand_radius", result)
         return result
@@ -26,6 +28,7 @@ async def expand_radius_node(state: GraphState) -> Dict:
     if base_radius is None:
         base_radius = radius_by_intent.get(last_mode, default_radius_by_intent.get(last_mode, 2.0))
     new_radius = min(float(base_radius) + 1.0, 10.0)
+    # Only expand the active mode radius to avoid surprising changes.
     radius_by_intent[last_mode] = new_radius
 
     anchor = {

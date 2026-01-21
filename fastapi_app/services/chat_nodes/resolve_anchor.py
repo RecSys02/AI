@@ -243,6 +243,7 @@ def _select_anchor_candidates(candidates: List[dict], normalized_query: str) -> 
 
 
 async def resolve_anchor_node(state: GraphState) -> Dict:
+    """Resolve a textual place into a geographic anchor or admin term."""
     place = state.get("place") or {}
     raw_point = (place.get("point") or "").strip()
     raw_area = (place.get("area") or "").strip()
@@ -254,7 +255,7 @@ async def resolve_anchor_node(state: GraphState) -> Dict:
         append_node_trace_result(state.get("query", ""), "resolve_anchor", result)
         return result
 
-    # Admin 판단은 suffix 규칙으로만
+    # Admin region detection: use suffix rules only (e.g., 시/구/동).
     lowered = raw_place.lower()
     admin_suffixes = ("시", "구", "동", "가", "로", "길", "대로")
     if not raw_point and lowered.endswith(admin_suffixes):
@@ -273,10 +274,11 @@ async def resolve_anchor_node(state: GraphState) -> Dict:
         append_node_trace_result(state.get("query", ""), "resolve_anchor", result)
         return result
 
-    # Keyword 경로: alias -> geo_centers -> cache -> local search -> geocode
+    # Keyword path: alias -> geo_centers -> cache -> autocomplete -> geocode
     keyword_aliases = load_keyword_aliases()
     alias_map = build_alias_map(keyword_aliases)
     canonical = resolve_alias(raw_place, alias_map)
+    # Build matching tokens to score autocomplete candidates.
     match_tokens = _build_match_tokens(raw_place, raw_area, raw_point)
     canonical_norm = normalize_text(canonical)
     if canonical_norm and canonical_norm not in match_tokens:
@@ -296,6 +298,7 @@ async def resolve_anchor_node(state: GraphState) -> Dict:
     station_tokens = [token for token in match_tokens if token.endswith("역")]
     station_variants = _build_station_variants(match_tokens)
 
+    # Exact configured centers take precedence over live lookups.
     geo_centers = load_geo_centers()
     if canonical in geo_centers:
         entry = geo_centers[canonical] or {}
@@ -315,6 +318,7 @@ async def resolve_anchor_node(state: GraphState) -> Dict:
             append_node_trace_result(state.get("query", ""), "resolve_anchor", result)
             return result
 
+    # Cache lookup guards against stale/wrong anchors by token validation.
     cache = load_anchor_cache()
     cache_key = normalize_text(canonical)
     cached = cache.get(cache_key)
@@ -352,6 +356,7 @@ async def resolve_anchor_node(state: GraphState) -> Dict:
             append_node_trace_result(state.get("query", ""), "resolve_anchor", result)
             return result
 
+    # Autocomplete is used only when cache/geo_centers do not resolve.
     candidates = autocomplete_places(canonical, limit=5, types=None)
     if not candidates:
         candidates = autocomplete_places(canonical, limit=5, types="(regions)")
@@ -383,6 +388,7 @@ async def resolve_anchor_node(state: GraphState) -> Dict:
     intersection_hint = any(hint in (state.get("query") or "") for hint in INTERSECTION_HINTS)
     scored = []
     for idx, item in enumerate(base_candidates):
+        # Score candidates by token match quality and type hints.
         score = _score_candidate(
             item,
             match_tokens=match_tokens,
@@ -411,6 +417,7 @@ async def resolve_anchor_node(state: GraphState) -> Dict:
             lat = geo.get("lat")
             lng = geo.get("lng")
             if isinstance(lat, (int, float)) and isinstance(lng, (int, float)):
+                # Hard-bound to 서울권 to avoid far-off anchors.
                 if 37.4 <= lat <= 37.7 and 126.7 <= lng <= 127.2:
                     selected = {
                         "geo": geo,
@@ -439,6 +446,7 @@ async def resolve_anchor_node(state: GraphState) -> Dict:
     )
 
     if selected:
+        # Save resolved anchor for faster future lookups.
         lat = selected["geo"].get("lat")
         lng = selected["geo"].get("lng")
         default_radius_by_intent = {"restaurant": 2.0, "cafe": 2.0, "tourspot": 3.0}

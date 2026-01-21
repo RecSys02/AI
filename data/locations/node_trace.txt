@@ -1261,3 +1261,60 @@ query=어머니랑 갈 맛집 추천해줘	node=apply_location_filter
 query=어머니랑 갈 맛집 추천해줘	node=rerank
 query=어머니랑 갈 맛집 추천해줘	node=answer
 query=어머니랑 갈 맛집 추천해줘	node=answer
+query=서울 서청역	node=LangGraph
+query=서울 서청역	node=route
+query=서울 서청역	node=Unnamed
+query=서울 서청역	node=general_answer
+query=서울 서청역	node=general_answer
+query=서울 서청역 놀거리 추천해줘	node=LangGraph
+query=서울 서청역 놀거리 추천해줘	node=route
+query=서울 서청역 놀거리 추천해줘	node=Unnamed
+query=서울 서청역 놀거리 추천해줘	node=normalize_query
+query=서울 서청역 놀거리 추천해줘	node=extract_place
+query=서울 서청역 놀거리 추천해줘	node=correct_place
+query=서울 서청역 놀거리 추천해줘	node=Unnamed
+query=서울 서청역 놀거리 추천해줘	node=resolve_anchor
+query=서울 서청역 놀거리 추천해줘	node=retrieve
+query=서울 서청역 놀거리 추천해줘	node=apply_location_filter
+query=서울 서청역 놀거리 추천해줘	node=rerank
+query=서울 서청역 놀거리 추천해줘	node=answer
+query=서울 서청역 놀거리 추천해줘	node=answer
+query=서울 서청ㅇ 놀거리 추천해줘	node=LangGraph
+query=서울 서청ㅇ 놀거리 추천해줘	node=route
+query=서울 서청ㅇ 놀거리 추천해줘	node=Unnamed
+query=서울 서청ㅇ 놀거리 추천해줘	node=normalize_query
+query=서울 서청ㅇ 놀거리 추천해줘	node=extract_place
+query=서울 서청ㅇ 놀거리 추천해줘	node=correct_place
+query=서울 서청ㅇ 놀거리 추천해줘	node=Unnamed
+query=서울 서청ㅇ 놀거리 추천해줘	node=resolve_anchor
+query=서울 서청ㅇ 놀거리 추천해줘	node=retrieve
+query=서울 서청ㅇ 놀거리 추천해줘	node=apply_location_filter
+query=서울 서청ㅇ 놀거리 추천해줘	node=rerank
+query=서울 서청ㅇ 놀거리 추천해줘	node=answer
+query=서울 서청ㅇ 놀거리 추천해줘	node=answer
+query=서울 시청ㅇ 놀거리 추천해줘	node=LangGraph
+query=서울 시청ㅇ 놀거리 추천해줘	node=route
+query=서울 시청ㅇ 놀거리 추천해줘	node=Unnamed
+query=서울 시청ㅇ 놀거리 추천해줘	node=normalize_query
+query=서울 시청ㅇ 놀거리 추천해줘	node=extract_place
+query=서울 시청ㅇ 놀거리 추천해줘	node=correct_place
+query=서울 시청ㅇ 놀거리 추천해줘	node=Unnamed
+query=서울 시청ㅇ 놀거리 추천해줘	node=resolve_anchor
+query=서울 시청ㅇ 놀거리 추천해줘	node=retrieve
+query=서울 시청ㅇ 놀거리 추천해줘	node=apply_location_filter
+query=서울 시청ㅇ 놀거리 추천해줘	node=rerank
+query=서울 시청ㅇ 놀거리 추천해줘	node=answer
+query=서울 시청ㅇ 놀거리 추천해줘	node=answer
+query=잔실 근처 맛집 추천해줘	node=LangGraph
+query=잔실 근처 맛집 추천해줘	node=route
+query=잔실 근처 맛집 추천해줘	node=Unnamed
+query=잔실 근처 맛집 추천해줘	node=normalize_query
+query=잔실 근처 맛집 추천해줘	node=extract_place
+query=잔실 근처 맛집 추천해줘	node=correct_place
+query=잔실 근처 맛집 추천해줘	node=Unnamed
+query=잔실 근처 맛집 추천해줘	node=resolve_anchor
+query=잔실 근처 맛집 추천해줘	node=retrieve
+query=잔실 근처 맛집 추천해줘	node=apply_location_filter
+query=잔실 근처 맛집 추천해줘	node=rerank
+query=잔실 근처 맛집 추천해줘	node=answer
+query=잔실 근처 맛집 추천해줘	node=answer

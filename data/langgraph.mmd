@@ -8,6 +8,8 @@ graph TD;
 	route(route)
 	normalize_query(normalize_query)
 	extract_place(extract_place)
+	correct_place(correct_place)
+	expand_radius(expand_radius)
 	resolve_anchor(resolve_anchor)
 	retrieve(retrieve)
 	apply_location_filter(apply_location_filter)
@@ -17,7 +19,11 @@ graph TD;
 	__end__([<p>__end__</p>]):::last
 	__start__ --> route;
 	apply_location_filter --> rerank;
-	extract_place --> resolve_anchor;
+	correct_place -.-> expand_radius;
+	correct_place -.-> resolve_anchor;
+	expand_radius -.-> answer;
+	expand_radius -.-> retrieve;
+	extract_place --> correct_place;
 	normalize_query --> extract_place;
 	rerank --> answer;
 	resolve_anchor --> retrieve;

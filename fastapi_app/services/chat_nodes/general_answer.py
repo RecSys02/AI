@@ -9,7 +9,9 @@ from utils.geo import append_node_trace_result
 
 
 async def general_answer_node(state: GraphState):
+    """Answer non-recommendation questions using lightweight retrieval + LLM."""
     query = state.get("query", "")
+    # Detect category (tourspot/cafe/restaurant) to pick the right index.
     mode_raw = detect_mode(state.get("mode"), query)
     if mode_raw == "unknown":
         mode_raw = await llm_detect_mode(query)
@@ -28,6 +30,7 @@ async def general_answer_node(state: GraphState):
         history_place_ids=history_place_ids,
     )
     if not hits:
+        # No search results for general queries.
         yield {"final": "관련 정보를 찾지 못했습니다."}
         yield {"context": build_context(state)}
         return
@@ -77,6 +80,7 @@ async def general_answer_node(state: GraphState):
         ("system", f"후보 정보:\n{context}"),
     ]
     if mode_unknown:
+        # Ask the user to clarify the category when detection is uncertain.
         messages.append(
             (
                 "system",

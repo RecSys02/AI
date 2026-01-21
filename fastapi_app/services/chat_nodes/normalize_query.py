@@ -7,7 +7,9 @@ from utils.geo import append_node_trace_result
 
 
 async def normalize_query_node(state: GraphState) -> Dict:
+    """Normalize the user query with LLM guidance while preserving critical place details."""
     query = state.get("query", "")
+    # LLM prompt is tuned to keep specific place names and improve search-friendly phrasing.
     messages = [
         (
             "system",
@@ -22,12 +24,14 @@ async def normalize_query_node(state: GraphState) -> Dict:
     ]
     normalized = query
     try:
+        # Use a short, deterministic completion for consistent normalization.
         resp = await detect_llm.ainvoke(messages, max_tokens=80)
         raw = (resp.content or "").strip()
         data = json.loads(raw)
         if isinstance(data, dict) and data.get("normalized_query"):
             normalized = str(data["normalized_query"]).strip()
     except Exception:
+        # On any failure, fall back to the raw user query.
         pass
     result = {"normalized_query": normalized}
     append_node_trace_result(query, "normalize_query", result)

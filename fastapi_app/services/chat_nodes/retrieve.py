@@ -9,8 +9,11 @@ from utils.geo import append_node_trace_result
 
 
 async def retrieve_node(state: GraphState) -> Dict:
+    """Retrieve candidates using embeddings/BM25 and optional location constraints."""
     query = state.get("normalized_query") or state.get("query", "")
+    # Date-oriented requests get additional intent keywords for better recall.
     query_for_retrieve = augment_query_for_date(query) if is_date_query(query) else query
+    # Mode detection chooses which index to query (restaurant/cafe/tourspot).
     mode_raw = detect_mode(state.get("mode"), query)
     if mode_raw == "unknown":
         mode_raw = await llm_detect_mode(query)
@@ -20,7 +23,7 @@ async def retrieve_node(state: GraphState) -> Dict:
     history_ids = state.get("history_place_ids") or []
 
     debug_flag = bool(state.get("debug"))
-    # 후보를 retrieve 함수를 사용해 뽑아옴
+    # Use location constraints if an anchor/admin term is available.
     anchor = state.get("anchor") or {}
     admin_term = state.get("admin_term")
     centers = anchor.get("centers") or []

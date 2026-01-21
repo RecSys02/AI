@@ -5,6 +5,7 @@ from utils.geo import append_node_trace_result, distance_to_centers_km, get_lat_
 
 
 async def apply_location_filter_node(state: GraphState) -> Dict:
+    """Filter retrieved candidates by anchor radius or admin-term address match."""
     retrievals = state.get("retrievals") or []
     if not retrievals:
         result = {}
@@ -16,6 +17,7 @@ async def apply_location_filter_node(state: GraphState) -> Dict:
     mode_used = state.get("mode") or "tourspot"
 
     if anchor:
+        # Distance filter uses anchor center(s) and per-mode radius.
         centers = anchor.get("centers") or []
         radius_by_intent = anchor.get("radius_by_intent") or {}
         radius_km = float(radius_by_intent.get(mode_used, 2.0))
@@ -37,6 +39,7 @@ async def apply_location_filter_node(state: GraphState) -> Dict:
         return result
 
     if admin_term:
+        # Admin-term filter checks address fields for substring matches.
         term = str(admin_term).lower()
         filtered = []
         for r in retrievals:

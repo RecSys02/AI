@@ -9,13 +9,14 @@ from utils.geo import append_node_trace_result
 
 
 async def rerank_node(state: GraphState) -> Dict:
-    """LLM으로 상위 후보를 재선택한다."""
+    """Re-rank the candidate list using an LLM selector."""
     retrievals = state.get("retrievals") or []
     if not retrievals:
         result = {"retrievals": []}
         append_node_trace_result(state.get("query", ""), "rerank", result)
         return result
 
+    # desired_k is bounded by available candidates and request top_k.
     desired_k = max(1, min(state.get("top_k") or RERANK_K, len(retrievals)))
 
     def _build_ctx(r: dict) -> str:
@@ -75,6 +76,7 @@ async def rerank_node(state: GraphState) -> Dict:
 
     raw = None
     try:
+        # LLM returns a JSON array of indices (e.g., [0,2]).
         resp = await detect_llm.ainvoke(messages, max_tokens=50)
         raw = resp.content or ""
         parsed = json.loads(raw)
@@ -90,6 +92,7 @@ async def rerank_node(state: GraphState) -> Dict:
             if idxs:
                 selected = [retrievals[i] for i in idxs[:desired_k]]
                 if len(selected) < desired_k:
+                    # Fill remaining slots with non-selected items in original order.
                     remaining = [r for j, r in enumerate(retrievals) if j not in idxs]
                     selected.extend(remaining[: max(0, desired_k - len(selected))])
                 result = {"retrievals": selected}

@@ -7,6 +7,7 @@ from utils.geo import append_node_trace_result
 
 
 async def answer_node(state: GraphState):
+    """Generate the final response or clarification based on retrieval results."""
     if state.get("expand_failed"):
         final_text = "이전에 사용한 기준 위치가 없어서 범위를 넓힐 수 없어요. 기준 장소를 알려주세요."
         append_node_trace_result(state.get("query", ""), "answer", {"final": final_text})
@@ -15,6 +16,7 @@ async def answer_node(state: GraphState):
         return
     query = state.get("query", "")
     if is_nearby_query(query) and not (state.get("anchor") or state.get("admin_term")):
+        # Nearby intent without anchor should ask for a concrete location.
         place = state.get("resolved_name") or state.get("input_place")
         if not place:
             place_info = state.get("place") or {}
@@ -30,6 +32,7 @@ async def answer_node(state: GraphState):
     retrievals = state.get("retrievals", [])
     print("answer node : ", retrievals)
     if not retrievals:
+        # No results: return a fallback prompt based on whether filters were used.
         filter_applied = bool(state.get("anchor") or state.get("admin_term"))
         if filter_applied:
             resolved_name = state.get("resolved_name")
@@ -53,6 +56,7 @@ async def answer_node(state: GraphState):
         return
     # retrieval 디버그 정보 포함해서 뭔지 확인하고 싶을때!
     if state.get("debug"):
+        # Debug payload includes raw retrievals for inspection.
         yield {"debug": retrievals}
 
     # 후보 컨텍스트: 이름 + 요약/설명 + 주소 + 키워드까지 포함
@@ -100,6 +104,7 @@ async def answer_node(state: GraphState):
     filter_applied = bool(state.get("anchor") or state.get("admin_term"))
     resolved_name = state.get("resolved_name") if filter_applied else None
     if resolved_name:
+        # Pin the answer to the resolved anchor name.
         messages.append(
             (
                 "system",
@@ -107,6 +112,7 @@ async def answer_node(state: GraphState):
             )
         )
     if state.get("mode_unknown"):
+        # Ask the user for the category when mode detection is uncertain.
         messages.append(
             (
                 "system",
