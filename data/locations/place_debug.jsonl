@@ -214,3 +214,4 @@
 {"query": "온수역 맛집 추천", "place": {"area": null, "point": "온수역"}}
 {"query": "범위 넓혀줘", "place": null}
 {"query": "맛집 추천", "place": null}
+{"query": "중구 맛집 추천", "place": {"area": "중구", "point": null}}

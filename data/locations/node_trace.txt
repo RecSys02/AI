@@ -1527,3 +1527,16 @@ query=맛집 추천해줘	node=apply_location_filter
 query=맛집 추천해줘	node=rerank
 query=맛집 추천해줘	node=answer
 query=맛집 추천해줘	node=answer
+query=중구 맛집 추천해줘	node=LangGraph
+query=중구 맛집 추천해줘	node=route
+query=중구 맛집 추천해줘	node=Unnamed
+query=중구 맛집 추천해줘	node=normalize_query
+query=중구 맛집 추천해줘	node=extract_place
+query=중구 맛집 추천해줘	node=correct_place
+query=중구 맛집 추천해줘	node=Unnamed
+query=중구 맛집 추천해줘	node=resolve_anchor
+query=중구 맛집 추천해줘	node=retrieve
+query=중구 맛집 추천해줘	node=apply_location_filter
+query=중구 맛집 추천해줘	node=rerank
+query=중구 맛집 추천해줘	node=answer
+query=중구 맛집 추천해줘	node=answer
