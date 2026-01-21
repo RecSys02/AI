@@ -77,6 +77,12 @@ def _preview_text(value: Optional[str], limit: int = 200) -> str:
     return cleaned[:limit] + "...(truncated)"
 
 
+def _is_langgraph_node_event(event: dict) -> bool:
+    metadata = event.get("metadata") or {}
+    node_name = metadata.get("langgraph_node")
+    return bool(node_name and node_name == event.get("name"))
+
+
 @router.get("/chat/stream")
 async def chat_stream(
     request: Request,
@@ -124,12 +130,12 @@ async def chat_stream(
         try:
             async for event in chat_app.astream_events(initial_state, config=config, version="v2"):
                 kind = event.get("event")
-                if kind == "on_chain_start":
+                if kind == "on_chain_start" and _is_langgraph_node_event(event):
                     node = event.get("name")
                     if node:
                         append_node_trace(q, str(node))
                         yield {"event": "node", "data": str(node)}
-                if kind == "on_chain_stream":
+                if kind == "on_chain_stream" and _is_langgraph_node_event(event):
                     data = event["data"].get("chunk") or {}
                     if "debug" in data:
                         yield {"event": "debug", "data": json.dumps(data["debug"], ensure_ascii=False)}
@@ -211,12 +217,12 @@ async def chat_stream_post(req: ChatRequest, request: Request):
         try:
             async for event in chat_app.astream_events(initial_state, config=config, version="v2"):
                 kind = event.get("event")
-                if kind == "on_chain_start":
+                if kind == "on_chain_start" and _is_langgraph_node_event(event):
                     node = event.get("name")
                     if node:
                         append_node_trace(req.query, str(node))
                         yield {"event": "node", "data": str(node)}
-                if kind == "on_chain_stream":
+                if kind == "on_chain_stream" and _is_langgraph_node_event(event):
                     data = event["data"].get("chunk") or {}
                     if "debug" in data:
                         yield {"event": "debug", "data": json.dumps(data["debug"], ensure_ascii=False)}

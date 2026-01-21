@@ -215,3 +215,5 @@
 {"query": "범위 넓혀줘", "place": null}
 {"query": "맛집 추천", "place": null}
 {"query": "중구 맛집 추천", "place": {"area": "중구", "point": null}}
+{"query": "종로 맛집 추천", "place": {"area": "종로", "point": null}}
+{"query": "종로 맛집 추천", "place": {"area": "종로", "point": null}}
