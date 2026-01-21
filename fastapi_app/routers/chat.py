@@ -32,9 +32,9 @@ def _build_langfuse_callbacks(session_id: Optional[str] = None) -> List[object] 
     if module_name.startswith("langfuse.langchain"):
         # Langfuse v3 LangChain handler reads keys/host from environment.
         try:
-            handler = CallbackHandler()
+            handler = CallbackHandler(update_trace=True)
         except TypeError:
-            handler = CallbackHandler(public_key=public_key)
+            handler = CallbackHandler(public_key=public_key, update_trace=True)
     else:
         kwargs = {"public_key": public_key, "secret_key": secret_key}
         host = os.getenv("LANGFUSE_HOST") or os.getenv("LANGFUSE_BASE_URL")

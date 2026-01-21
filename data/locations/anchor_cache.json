@@ -138,5 +138,19 @@
       "tourspot": 3.0
     },
     "source": "google_autocomplete+geocode"
+  },
+  "온수역": {
+    "lat": 37.4909025,
+    "lng": 126.8279308,
+    "address": "서울특별시 온수역입구",
+    "query": "온수역",
+    "resolved_name": "온수역",
+    "place_id": "ChIJc1olJmNiezURJd0O4M2fzbU",
+    "radius_by_intent": {
+      "restaurant": 2.0,
+      "cafe": 2.0,
+      "tourspot": 3.0
+    },
+    "source": "google_autocomplete+geocode"
   }
 }
