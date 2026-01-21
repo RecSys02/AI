@@ -1,8 +1,10 @@
+import asyncio
+import json
+import logging
 import os
 from typing import List, Optional
 
-import json
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Query, Request
 from sse_starlette.sse import EventSourceResponse
 
 from services.chat_graph import chat_app
@@ -10,6 +12,7 @@ from utils.geo import append_node_trace
 from models.chat_request import ChatRequest
 
 router = APIRouter()
+logger = logging.getLogger("uvicorn.error")
 
 try:
     from langfuse.callback import CallbackHandler
@@ -65,8 +68,18 @@ def _parse_history(raw: Optional[str]) -> List[int]:
     return ids
 
 
+def _preview_text(value: Optional[str], limit: int = 200) -> str:
+    if not value:
+        return ""
+    cleaned = value.replace("\n", " ").replace("\r", " ")
+    if len(cleaned) <= limit:
+        return cleaned
+    return cleaned[:limit] + "...(truncated)"
+
+
 @router.get("/chat/stream")
 async def chat_stream(
+    request: Request,
     q: str = Query(..., description="사용자 질문"),
     mode: Optional[str] = Query(None, description="카테고리(tourspot/cafe/restaurant). 미지정 시 기본값 사용"),
     top_k: Optional[int] = Query(None, ge=1, le=10),
@@ -74,6 +87,20 @@ async def chat_stream(
     session_id: Optional[str] = Query(None, description="대화 스레드/세션 식별자"),
     debug: Optional[bool] = Query(False, description="디버그(점수) 포함 여부"),
 ):
+    req_id = os.urandom(4).hex()
+    client_host = request.client.host if request.client else None
+    forwarded_for = request.headers.get("x-forwarded-for")
+    logger.info(
+        "chat_stream start req_id=%s client=%s xff=%s session_id=%s mode=%s top_k=%s debug=%s q=%s",
+        req_id,
+        client_host,
+        forwarded_for,
+        session_id,
+        mode,
+        top_k,
+        bool(debug),
+        _preview_text(q),
+    )
     history_ids = _parse_history(history_place_ids)
     callbacks = _build_langfuse_callbacks(session_id)
     initial_state = {
@@ -93,49 +120,68 @@ async def chat_stream(
         any_event = False
         final_sent = False
         context_sent = False
-        async for event in chat_app.astream_events(initial_state, config=config, version="v2"):
-            kind = event.get("event")
-            if kind == "on_chain_start":
-                node = event.get("name")
-                if node:
-                    append_node_trace(q, str(node))
-                    yield {"event": "node", "data": str(node)}
-            if kind == "on_chat_model_stream":
-                content = getattr(event["data"].get("chunk"), "content", None)
-                if content:
-                    any_event = True
-                    yield {"event": "token", "data": str(content)}
-            elif kind == "on_chain_stream":
-                data = event["data"].get("chunk") or {}
-                if "debug" in data:
-                    yield {"event": "debug", "data": json.dumps(data["debug"], ensure_ascii=False)}
-                if "context" in data and not context_sent:
-                    context_sent = True
-                    yield {"event": "context", "data": json.dumps(data["context"], ensure_ascii=False)}
-                if "token" in data:
-                    any_event = True
-                    yield {"event": "token", "data": str(data["token"])}
-                if "final" in data and not final_sent:
-                    any_event = True
+        cancelled = False
+        try:
+            async for event in chat_app.astream_events(initial_state, config=config, version="v2"):
+                kind = event.get("event")
+                if kind == "on_chain_start":
+                    node = event.get("name")
+                    if node:
+                        append_node_trace(q, str(node))
+                        yield {"event": "node", "data": str(node)}
+                if kind == "on_chain_stream":
+                    data = event["data"].get("chunk") or {}
+                    if "debug" in data:
+                        yield {"event": "debug", "data": json.dumps(data["debug"], ensure_ascii=False)}
+                    if "context" in data and not context_sent:
+                        context_sent = True
+                        yield {"event": "context", "data": json.dumps(data["context"], ensure_ascii=False)}
+                    if "token" in data:
+                        any_event = True
+                        yield {"event": "token", "data": str(data["token"])}
+                    if "final" in data and not final_sent:
+                        any_event = True
+                        final_sent = True
+                        yield {"event": "final", "data": str(data["final"])}
+            if not any_event:
+                final_state = chat_app.invoke(initial_state, config=config)
+                final_text = None
+                if isinstance(final_state, dict):
+                    final_text = final_state.get("final") or final_state.get("answer")
+                if final_text and not final_sent:
                     final_sent = True
-                    yield {"event": "final", "data": str(data["final"])}
-        if not any_event:
-            final_state = chat_app.invoke(initial_state, config=config)
-            final_text = None
-            if isinstance(final_state, dict):
-                final_text = final_state.get("final") or final_state.get("answer")
-            if final_text and not final_sent:
-                final_sent = True
-                yield {"event": "token", "data": str(final_text)}
-                yield {"event": "final", "data": str(final_text)}
-        yield {"event": "done", "data": "ok"}
+                    yield {"event": "token", "data": str(final_text)}
+                    yield {"event": "final", "data": str(final_text)}
+            yield {"event": "done", "data": "ok"}
+        except asyncio.CancelledError:
+            cancelled = True
+            raise
+        finally:
+            logger.info(
+                "chat_stream done req_id=%s any_event=%s final_sent=%s cancelled=%s",
+                req_id,
+                any_event,
+                final_sent,
+                cancelled,
+            )
 
 
     return EventSourceResponse(event_gen(), media_type="text/event-stream")
 
 
 @router.post("/chat/stream")
-async def chat_stream_post(req: ChatRequest):
+async def chat_stream_post(req: ChatRequest, request: Request):
+    req_id = os.urandom(4).hex()
+    client_host = request.client.host if request.client else None
+    forwarded_for = request.headers.get("x-forwarded-for")
+    logger.info(
+        "chat_stream_post start req_id=%s client=%s xff=%s debug=%s q=%s",
+        req_id,
+        client_host,
+        forwarded_for,
+        bool(req.debug),
+        _preview_text(req.query),
+    )
     history_ids = [p.place_id for p in req.history_places]
     callbacks = _build_langfuse_callbacks()
     initial_state = {
@@ -161,41 +207,49 @@ async def chat_stream_post(req: ChatRequest):
         any_event = False
         final_sent = False
         context_sent = False
-        async for event in chat_app.astream_events(initial_state, config=config, version="v2"):
-            kind = event.get("event")
-            if kind == "on_chain_start":
-                node = event.get("name")
-                if node:
-                    append_node_trace(req.query, str(node))
-                    yield {"event": "node", "data": str(node)}
-            if kind == "on_chat_model_stream":
-                content = getattr(event["data"].get("chunk"), "content", None)
-                if content:
-                    any_event = True
-                    yield {"event": "token", "data": str(content)}
-            elif kind == "on_chain_stream":
-                data = event["data"].get("chunk") or {}
-                if "debug" in data:
-                    yield {"event": "debug", "data": json.dumps(data["debug"], ensure_ascii=False)}
-                if "context" in data and not context_sent:
-                    context_sent = True
-                    yield {"event": "context", "data": json.dumps(data["context"], ensure_ascii=False)}
-                if "token" in data:
-                    any_event = True
-                    yield {"event": "token", "data": str(data["token"])}
-                if "final" in data and not final_sent:
-                    any_event = True
+        cancelled = False
+        try:
+            async for event in chat_app.astream_events(initial_state, config=config, version="v2"):
+                kind = event.get("event")
+                if kind == "on_chain_start":
+                    node = event.get("name")
+                    if node:
+                        append_node_trace(req.query, str(node))
+                        yield {"event": "node", "data": str(node)}
+                if kind == "on_chain_stream":
+                    data = event["data"].get("chunk") or {}
+                    if "debug" in data:
+                        yield {"event": "debug", "data": json.dumps(data["debug"], ensure_ascii=False)}
+                    if "context" in data and not context_sent:
+                        context_sent = True
+                        yield {"event": "context", "data": json.dumps(data["context"], ensure_ascii=False)}
+                    if "token" in data:
+                        any_event = True
+                        yield {"event": "token", "data": str(data["token"])}
+                    if "final" in data and not final_sent:
+                        any_event = True
+                        final_sent = True
+                        yield {"event": "final", "data": str(data["final"])}
+            if not any_event:
+                final_state = chat_app.invoke(initial_state, config=config, version="v2")
+                final_text = None
+                if isinstance(final_state, dict):
+                    final_text = final_state.get("final") or final_state.get("answer")
+                if final_text and not final_sent:
                     final_sent = True
-                    yield {"event": "final", "data": str(data["final"])}
-        if not any_event:
-            final_state = chat_app.invoke(initial_state, config=config, version="v2")
-            final_text = None
-            if isinstance(final_state, dict):
-                final_text = final_state.get("final") or final_state.get("answer")
-            if final_text and not final_sent:
-                final_sent = True
-                yield {"event": "token", "data": str(final_text)}
-                yield {"event": "final", "data": str(final_text)}
-        yield {"event": "done", "data": "ok"}
+                    yield {"event": "token", "data": str(final_text)}
+                    yield {"event": "final", "data": str(final_text)}
+            yield {"event": "done", "data": "ok"}
+        except asyncio.CancelledError:
+            cancelled = True
+            raise
+        finally:
+            logger.info(
+                "chat_stream_post done req_id=%s any_event=%s final_sent=%s cancelled=%s",
+                req_id,
+                any_event,
+                final_sent,
+                cancelled,
+            )
 
     return EventSourceResponse(event_gen(), media_type="text/event-stream")
