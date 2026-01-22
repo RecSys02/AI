@@ -1,5 +1,6 @@
 import csv
 import json
+import math
 import os
 from datetime import datetime
 from pathlib import Path
@@ -50,8 +51,16 @@ class RecommendService:
                 "distance_scale_km": 2.0, # 가까운 곳을 더 선호
             },
         }
-        # OpenAI 클라이언트 초기화
-        self.openai_client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+        # OpenAI 클라이언트 초기화 (없으면 지연 생성)
+        openai_key = os.getenv("OPENAI_API_KEY")
+        self.openai_client = OpenAI(api_key=openai_key) if openai_key else None
+        # 거리 확장 설정 (후보 부족 시 자동 확장)
+        self.expand_distance_step_km = float(
+            os.getenv("RECOMMEND_EXPAND_STEP_KM", "1.0")
+        )
+        self.expand_distance_max_km = float(
+            os.getenv("RECOMMEND_EXPAND_MAX_KM", "10.0")
+        )
 
         # CSV 로깅 설정
         self.enable_csv_logging = os.getenv("RERANK_CSV_LOG", "false").lower() == "true"
@@ -280,18 +289,7 @@ class RecommendService:
 ranked_indices는 위 후보 목록의 index 값들을 재정렬한 배열입니다."""
 
         try:
-            response = self.openai_client.chat.completions.create(
-                model=os.getenv("CHAT_MODEL", "gpt-4o-mini"),
-                messages=[
-                    {"role": "system", "content": "당신은 여행 POI 추천 전문가입니다. 사용자의 선호도를 분석하여 최적의 장소를 추천합니다."},
-                    {"role": "user", "content": prompt}
-                ],
-                temperature=0.3,
-                response_format={"type": "json_object"}
-            )
-
-            result = json.loads(response.choices[0].message.content)
-            ranked_indices = result.get("ranked_indices", [])
+            ranked_indices = self._request_ranked_indices(prompt)
 
             # 유효성 검증
             if not ranked_indices or not all(isinstance(i, int) and 0 <= i < len(candidates) for i in ranked_indices):
@@ -346,17 +344,92 @@ ranked_indices는 위 후보 목록의 index 값들을 재정렬한 배열입니
                     item["rank_after_rerank"] = idx + 1
             return result
 
+    def _request_ranked_indices(self, prompt: str) -> list[int]:
+        provider = os.getenv("RERANK_PROVIDER", "openai").lower()
+        if provider == "gemini":
+            return self._request_ranked_indices_gemini(prompt)
+        return self._request_ranked_indices_openai(prompt)
+
+    def _request_ranked_indices_openai(self, prompt: str) -> list[int]:
+        if not self.openai_client:
+            raise RuntimeError("OPENAI_API_KEY is required for OpenAI rerank.")
+        response = self.openai_client.chat.completions.create(
+            model=os.getenv("CHAT_MODEL", "gpt-4o-mini"),
+            messages=[
+                {"role": "system", "content": "당신은 여행 POI 추천 전문가입니다. 사용자의 선호도를 분석하여 최적의 장소를 추천합니다."},
+                {"role": "user", "content": prompt},
+            ],
+            temperature=0.3,
+            response_format={"type": "json_object"},
+        )
+        content = response.choices[0].message.content or ""
+        return self._parse_ranked_indices(content)
+
+    def _request_ranked_indices_gemini(self, prompt: str) -> list[int]:
+        api_key = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
+        if not api_key:
+            raise RuntimeError("GEMINI_API_KEY (or GOOGLE_API_KEY) is required for Gemini rerank.")
+        try:
+            import google.generativeai as genai
+        except Exception as exc:
+            raise RuntimeError("google.generativeai is not installed.") from exc
+
+        genai.configure(api_key=api_key)
+        model_name = os.getenv("GEMINI_RERANK_MODEL", "gemini-2.0-flash")
+        model = genai.GenerativeModel(model_name)
+        response = model.generate_content(prompt)
+        text = (response.text or "").strip()
+        return self._parse_ranked_indices(text)
+
+    @staticmethod
+    def _parse_ranked_indices(text: str) -> list[int]:
+        if not text:
+            return []
+        try:
+            result = json.loads(text)
+        except json.JSONDecodeError:
+            start = text.find("{")
+            end = text.rfind("}")
+            if start < 0 or end < 0 or end <= start:
+                return []
+            try:
+                result = json.loads(text[start : end + 1])
+            except json.JSONDecodeError:
+                return []
+        ranked_indices = result.get("ranked_indices", [])
+        return ranked_indices if isinstance(ranked_indices, list) else []
+    def _filter_candidates(self, items: List[dict], history_ids: set[int]) -> List[dict]:
+        filtered = []
+        for item in items:
+            place_id = item.get("place_id")
+            if place_id in history_ids:
+                continue
+            score = item.get("score")
+            if score is not None and not math.isfinite(score):
+                continue
+            filtered.append(item)
+        return filtered
+
     def recommend(self, user, top_k_per_category: int = 10, distance_max_km: float = 3.0, debug: bool = False) -> List[dict]:
         per_category = {}
         selected_all = getattr(user, "selected_places", None) or getattr(user, "last_selected_pois", None) or []
         history_all = getattr(user, "history_places", None) or []
         history_ids = {p.place_id for p in history_all if getattr(p, "place_id", None) is not None}
-        # 거리 계산은 마지막 선택 장소 1개 기준(카테고리 무관)
+        # 거리 계산은 마지막 선택 장소 좌표 기준(같은 카테고리에서만 좌표 찾기)
         distance_place_ids = []
+        anchor_coords = None
         if selected_all:
             last = selected_all[-1]
             if getattr(last, "place_id", None) is not None:
-                distance_place_ids = [last.place_id]
+                last_category = getattr(last, "category", None)
+                if last_category:
+                    for scorer in self.scorers:
+                        if scorer.name == last_category and hasattr(scorer, "get_coords"):
+                            anchor_coords = scorer.get_coords(last.place_id)
+                            break
+                # 좌표를 못 찾으면 거리 계산을 건너뛴다 (카테고리 충돌 방지)
+                if anchor_coords is None:
+                    distance_place_ids = []
 
         for scorer in self.scorers:
             builder = self.text_builders.get(scorer.name)
@@ -375,23 +448,38 @@ ranked_indices는 위 후보 목록의 index 값들을 재정렬한 배열입니
             weights = self.category_weights.get(scorer.name, {})
             # 임베딩 기반으로 top-15 추출 (reranking을 위한 후보군)
             # 음식 종류는 임베딩 텍스트에 포함되어 자연스럽게 가중치 반영
-            initial_k = 15
-            per_category[scorer.name] = scorer.topk(
-                user_vec,
-                top_k=initial_k,
-                recent_place_ids=recent_place_ids,
-                distance_place_ids=distance_place_ids,
-                recent_weight=weights.get("recent_weight", 0.3),
-                distance_weight=weights.get("distance_weight", 0.2),
-                distance_scale_km=weights.get("distance_scale_km", 5.0),
-                distance_max_km=distance_max_km,
-                debug=debug,
-                include_meta=True,  # LLM reranking을 위해 메타데이터 포함
-            )
-            # 방문 이력(place_id 기준) 제외
-            candidates = [
-                r for r in per_category[scorer.name] if r["place_id"] not in history_ids
-            ][:initial_k]
+            initial_k = max(top_k_per_category * 2, 15)
+            candidates = []
+            max_km = distance_max_km
+            while True:
+                per_category[scorer.name] = scorer.topk(
+                    user_vec,
+                    top_k=initial_k,
+                    recent_place_ids=recent_place_ids,
+                    distance_place_ids=distance_place_ids,
+                    anchor_coords=anchor_coords,
+                    recent_weight=weights.get("recent_weight", 0.3),
+                    distance_weight=weights.get("distance_weight", 0.2),
+                    distance_scale_km=weights.get("distance_scale_km", 5.0),
+                    distance_max_km=max_km,
+                    debug=debug,
+                    include_meta=True,  # LLM reranking을 위해 메타데이터 포함
+                )
+                # 방문 이력(place_id 기준) 제외 + 비유효 점수 제거
+                candidates = self._filter_candidates(per_category[scorer.name], history_ids)
+                if len(candidates) >= top_k_per_category:
+                    break
+                if max_km is None:
+                    break
+                if (
+                    self.expand_distance_step_km <= 0
+                    or self.expand_distance_max_km <= max_km
+                ):
+                    break
+                max_km = min(
+                    max_km + self.expand_distance_step_km,
+                    self.expand_distance_max_km,
+                )
 
             # LLM reranking으로 최종 top-10 선택
             per_category[scorer.name] = self._llm_rerank(

@@ -170,6 +170,12 @@ class EmbeddingScorer:
             self._lng = np.array(lngs)
             print(f"[SCORER] loaded coords: {len(self._coords_by_place_id)} / keys={len(self._keys)}")
 
+    def get_coords(self, place_id: int) -> Optional[tuple[float, float]]:
+        self._load()
+        if not self._coords_by_place_id:
+            return None
+        return self._coords_by_place_id.get(int(place_id))
+
     def _recent_vector(self, place_ids: list[int]) -> np.ndarray | None:
         if not place_ids:
             return None
@@ -207,12 +213,20 @@ class EmbeddingScorer:
         dist = _haversine_km(lat_rad, lng_rad, math.radians(centroid_lat), math.radians(centroid_lng))
         return dist
 
+    def _distance_from_anchor(self, lat: float, lng: float) -> Optional[np.ndarray]:
+        if self._lat is None or self._lng is None:
+            return None
+        lat_rad = np.deg2rad(self._lat)
+        lng_rad = np.deg2rad(self._lng)
+        return _haversine_km(lat_rad, lng_rad, math.radians(lat), math.radians(lng))
+
     def topk(
         self,
         user_vec: np.ndarray,
         top_k: int = 10,
         recent_place_ids: list[int] | None = None,
         distance_place_ids: list[int] | None = None,
+        anchor_coords: tuple[float, float] | None = None,
         recent_weight: float = 0.3,
         distance_weight: float = 0.2,
         distance_scale_km: float = 5.0,
@@ -234,8 +248,12 @@ class EmbeddingScorer:
             scores += recent_component
 
         # distance bonus
-        dist_ids = distance_place_ids if distance_place_ids is not None else recent_place_ids
-        dist = self._distance_from_recent_centroid(dist_ids or [])
+        dist = None
+        if anchor_coords is not None:
+            dist = self._distance_from_anchor(anchor_coords[0], anchor_coords[1])
+        if dist is None:
+            dist_ids = distance_place_ids if distance_place_ids is not None else recent_place_ids
+            dist = self._distance_from_recent_centroid(dist_ids or [])
         if dist is not None:
             distance_km = dist
             if distance_max_km is not None:
