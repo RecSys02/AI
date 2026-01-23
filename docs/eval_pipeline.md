@@ -28,7 +28,20 @@ python scripts/generate_candidates.py --radius-km 3.0 --max-per-mode 50
 - 카페: `cafe_type`
 - 관광지: `themes`
 
-## 3) 후보 수 기준 유저 필터링
+## 3) 추천 결과 생성 (Top10, LLM rerank 제외)
+
+- 스크립트: `scripts/run_recommend_sample.py`
+- 출력: `data/eval/recommend_top10_5000.jsonl`
+
+예시:
+```bash
+cd fastapi_app
+uv run python ../scripts/run_recommend_sample.py \
+  --limit 5000 \
+  --output ../data/eval/recommend_top10_5000.jsonl
+```
+
+## 4) 후보 수 기준 유저 필터링
 
 카테고리별 후보 개수가 충분한 유저만 남깁니다.
 
@@ -40,20 +53,9 @@ python scripts/generate_candidates.py --radius-km 3.0 --max-per-mode 50
 
 예시 (카테고리별 최소 20개):
 ```bash
-python scripts/filter_users_by_candidates.py --k 20
-```
-
-## 4) 추천 결과 생성 (Top10, LLM rerank 제외)
-
-- 스크립트: `scripts/run_recommend_sample.py`
-- 출력: `data/eval/recommend_top10_5000.jsonl`
-
-예시:
-```bash
-cd fastapi_app
-uv run python ../scripts/run_recommend_sample.py \
-  --limit 5000 \
-  --output ../data/eval/recommend_top10_5000.jsonl
+python scripts/filter_users_by_candidates.py \
+  --k 20 \
+  --recommendations data/eval/recommend_top10_5000.jsonl
 ```
 
 ## 5) LLM 라벨링 (Top5)

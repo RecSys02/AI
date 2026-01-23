@@ -1,5 +1,6 @@
 from typing import Dict
 
+from services.chat_nodes.callbacks import record_langfuse_timings
 from services.chat_nodes.config import RETRIEVE_K
 from services.chat_nodes.intent import augment_query_for_date, is_date_query
 from services.chat_nodes.mode import detect_mode, llm_detect_mode
@@ -29,6 +30,7 @@ async def retrieve_node(state: GraphState) -> Dict:
     centers = anchor.get("centers") or []
     radius_by_intent = anchor.get("radius_by_intent") or {}
     radius_km = float(radius_by_intent.get(mode_used, 2.0)) if centers else None
+    timings = {} if debug_flag else None
     hits = retrieve(
         query=query_for_retrieve,
         mode=mode_used,
@@ -38,6 +40,7 @@ async def retrieve_node(state: GraphState) -> Dict:
         anchor_centers=centers or None,
         anchor_radius_km=radius_km,
         admin_term=admin_term,
+        timings=timings,
     )
     result = {
         "retrievals": hits,
@@ -46,6 +49,9 @@ async def retrieve_node(state: GraphState) -> Dict:
         "mode_unknown": mode_unknown,
         "last_radius_km": radius_km,
     }
+    if timings is not None:
+        result["retrieve_timings_ms"] = timings
+        record_langfuse_timings(state.get("callbacks"), timings)
     append_node_trace_result(
         state.get("query", ""),
         "retrieve",

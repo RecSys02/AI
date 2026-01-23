@@ -1,5 +1,6 @@
 import json
 import re
+import time
 from functools import lru_cache
 from pathlib import Path
 from typing import Callable, Dict, List, Optional, Tuple
@@ -290,13 +291,20 @@ def retrieve(
     anchor_centers: Optional[List[List[float]]] = None,
     anchor_radius_km: Optional[float] = None,
     admin_term: Optional[str] = None,
+    timings: Optional[Dict[str, float]] = None,
 ) -> List[Dict]:
     if mode not in MODE_CONFIG:
         raise ValueError(f"지원하지 않는 mode: {mode}")
+    t_start = time.perf_counter()
+    t0 = time.perf_counter()
     embeddings, keys, id_to_meta, bm25 = _load_split(mode)
+    t1 = time.perf_counter()
+    if timings is not None:
+        timings["load_split_ms"] = round((t1 - t0) * 1000, 2)
     id_to_idx = {int(keys[i][2]): i for i in range(len(keys))}
 
     # pre-filter by anchor/admin before scoring
+    t0 = time.perf_counter()
     candidate_idxs = list(range(len(keys)))
     filtered_pids = None
     filter_applied = False
@@ -327,18 +335,42 @@ def retrieve(
                 filtered_pids.append(pid)
     if filter_applied:
         if not filtered_pids:
+            t1 = time.perf_counter()
+            if timings is not None:
+                timings["pre_filter_ms"] = round((t1 - t0) * 1000, 2)
+                timings["total_ms"] = round((t1 - t_start) * 1000, 2)
             return []
         candidate_idxs = [id_to_idx[pid] for pid in filtered_pids if pid in id_to_idx]
         if not candidate_idxs:
+            t1 = time.perf_counter()
+            if timings is not None:
+                timings["pre_filter_ms"] = round((t1 - t0) * 1000, 2)
+                timings["total_ms"] = round((t1 - t_start) * 1000, 2)
             return []
+    t1 = time.perf_counter()
+    if timings is not None:
+        timings["pre_filter_ms"] = round((t1 - t0) * 1000, 2)
+    t0 = time.perf_counter()
     model = _load_model()
+    t1 = time.perf_counter()
+    if timings is not None:
+        timings["load_model_ms"] = round((t1 - t0) * 1000, 2)
 
     # 쿼리 텍스트를 history 정보로 강화
     qtext = _build_query_text(query, mode, history_place_ids, id_to_meta)
+    t0 = time.perf_counter()
     qvec = model.encode([qtext], normalize_embeddings=True)[0]
+    t1 = time.perf_counter()
+    if timings is not None:
+        timings["encode_ms"] = round((t1 - t0) * 1000, 2)
+    t0 = time.perf_counter()
     dense_scores = embeddings[candidate_idxs] @ qvec
     dense_norm = (dense_scores + 1.0) / 2.0  # [-1,1] -> [0,1]
+    t1 = time.perf_counter()
+    if timings is not None:
+        timings["dense_score_ms"] = round((t1 - t0) * 1000, 2)
 
+    t0 = time.perf_counter()
     bm25_scores = None
     bm25_norm = np.zeros_like(dense_norm)
     if bm25 is not None:
@@ -347,11 +379,19 @@ def retrieve(
         if max_bm25 > 0:
             bm25_norm = bm25_scores / max_bm25
         bm25_norm = bm25_norm[candidate_idxs]
+    t1 = time.perf_counter()
+    if timings is not None:
+        timings["bm25_ms"] = round((t1 - t0) * 1000, 2)
 
+    t0 = time.perf_counter()
     scores = ALPHA_DENSE * dense_norm + (1 - ALPHA_DENSE) * bm25_norm
     idxs_all = scores.argsort()[::-1]
+    t1 = time.perf_counter()
+    if timings is not None:
+        timings["rank_ms"] = round((t1 - t0) * 1000, 2)
 
     # 키워드 기반 필터 (수족관 등 특정 도메인 키워드가 있을 때만)
+    t0 = time.perf_counter()
     use_filter, terms = _needs_keyword_filter(qtext, mode)
     filtered_idxs = []
     if use_filter:
@@ -363,13 +403,21 @@ def retrieve(
             if len(filtered_idxs) >= top_k:
                 break
         if not filtered_idxs:
+            t1 = time.perf_counter()
+            if timings is not None:
+                timings["keyword_filter_ms"] = round((t1 - t0) * 1000, 2)
+                timings["total_ms"] = round((t1 - t_start) * 1000, 2)
             return []
     # 필터 결과가 없으면 전체 점수 순으로 fallback
     if filtered_idxs:
         idxs = filtered_idxs[:top_k]
     else:
         idxs = idxs_all[:top_k]
+    t1 = time.perf_counter()
+    if timings is not None:
+        timings["keyword_filter_ms"] = round((t1 - t0) * 1000, 2)
 
+    t0 = time.perf_counter()
     results: List[Dict] = []
     for i in idxs:
         base_i = candidate_idxs[i]
@@ -391,4 +439,8 @@ def retrieve(
                 "meta": meta,
             }
         )
+    t1 = time.perf_counter()
+    if timings is not None:
+        timings["build_results_ms"] = round((t1 - t0) * 1000, 2)
+        timings["total_ms"] = round((t1 - t_start) * 1000, 2)
     return results

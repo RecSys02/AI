@@ -166,5 +166,47 @@
       "tourspot": 3.0
     },
     "source": "google_autocomplete+geocode"
+  },
+  "우면산": {
+    "lat": 37.4708333,
+    "lng": 127.0094444,
+    "address": "대한민국 서울특별시 우면산",
+    "query": "우면산",
+    "resolved_name": "서울특별시 우면산",
+    "place_id": "ChIJH7-RlOKgfDURN5t3Wzy86gQ",
+    "radius_by_intent": {
+      "restaurant": 2.0,
+      "cafe": 2.0,
+      "tourspot": 3.0
+    },
+    "source": "google_autocomplete+geocode"
+  },
+  "북한산": {
+    "lat": 37.6583286,
+    "lng": 126.9464422,
+    "address": "서울특별시 북한산성입구",
+    "query": "북한산",
+    "resolved_name": "서울특별시 북한산성입구",
+    "place_id": "ChIJPWWkriOWfDURvGdAowxzUE4",
+    "radius_by_intent": {
+      "restaurant": 2.0,
+      "cafe": 2.0,
+      "tourspot": 3.0
+    },
+    "source": "google_autocomplete+geocode"
+  },
+  "올림픽대로": {
+    "lat": 37.5110457,
+    "lng": 126.993496,
+    "address": "대한민국 서울특별시 서초구 올림픽대로",
+    "query": "올림픽대로",
+    "resolved_name": "대한민국 서울특별시 서초구 올림픽대로",
+    "place_id": "ChIJ4af2bIGhfDURpXqDsfrPuOE",
+    "radius_by_intent": {
+      "restaurant": 2.0,
+      "cafe": 2.0,
+      "tourspot": 3.0
+    },
+    "source": "google_autocomplete+geocode"
   }
 }

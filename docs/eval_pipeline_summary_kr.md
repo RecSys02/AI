@@ -25,7 +25,20 @@ python scripts/generate_candidates.py --radius-km 3.0 --max-per-mode 50
 - cafe: `cafe_type`
 - tourspot: `themes`
 
-## 3) 후보 수 기준 유저 필터링
+## 3) 추천 결과 생성 (retrieval only)
+
+- 스크립트: `scripts/run_recommend_sample.py`
+- 출력: `data/eval/recommend_top10_retrieval.jsonl`
+
+```bash
+cd fastapi_app
+uv run python ../scripts/run_recommend_sample.py \
+  --users ../data/eval/users_5000.jsonl \
+  --output ../data/eval/recommend_top10_retrieval.jsonl \
+  --limit 5000
+```
+
+## 4) 후보 수 기준 유저 필터링
 
 카테고리별 후보 20개 이상인 유저만 유지.
 
@@ -36,20 +49,9 @@ python scripts/generate_candidates.py --radius-km 3.0 --max-per-mode 50
   - `data/eval/filtered/recommendations.jsonl`
 
 ```bash
-python scripts/filter_users_by_candidates.py --k 20
-```
-
-## 4) 추천 결과 생성 (retrieval only)
-
-- 스크립트: `scripts/run_recommend_sample.py`
-- 출력: `data/eval/recommend_top10_retrieval.jsonl`
-
-```bash
-cd fastapi_app
-uv run python ../scripts/run_recommend_sample.py \
-  --users ../data/eval/filtered/users.jsonl \
-  --output ../data/eval/recommend_top10_retrieval.jsonl \
-  --limit 5000
+python scripts/filter_users_by_candidates.py \
+  --k 20 \
+  --recommendations data/eval/recommend_top10_retrieval.jsonl
 ```
 
 ## 5) 라벨 생성 (Top5)
