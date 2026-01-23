@@ -1,5 +1,14 @@
 #!/usr/bin/env python3
-# uv run python ../scripts/run_recommend_sample.py --limit 10
+#
+'''
+scripts.eval.run_recommend_sample의 Docstring
+
+uv run python ../scripts/eval/run_recommend_sample.py \
+  --users ../data/eval/samples/users_100_from_labels.jsonl \
+  --output ../data/eval/recommend_top10_rerank_gemini3_sample100.jsonl \
+  --limit 100 --rerank
+
+'''
 # rerank with LLM: --rerank
 import argparse
 import json
@@ -9,7 +18,7 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(PROJECT_ROOT / "fastapi_app"))
 
 from models.user_input import UserInput  # noqa: E402
@@ -55,7 +64,7 @@ def main() -> None:
     )
     parser.add_argument(
         "--output",
-        default=str(PROJECT_ROOT / "data" / "eval" / "recommend_top10_rerank_gemini.jsonl"),
+        default=str(PROJECT_ROOT / "data" / "eval" / "recommend_top10_rerank_gemini_3.jsonl"),
         help="Output JSONL path.",
     )
     parser.add_argument("--limit", type=int, default=100, help="Max users to run.")

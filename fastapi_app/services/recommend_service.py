@@ -2,6 +2,7 @@ import csv
 import json
 import math
 import os
+import time
 from datetime import datetime
 from pathlib import Path
 from typing import List
@@ -77,6 +78,30 @@ class RecommendService:
                         "score", "score_base", "score_recent", "score_distance"
                     ])
 
+        # Rerank metrics logging (latency/tokens)
+        self.enable_rerank_metrics = os.getenv("RERANK_METRICS_LOG", "false").lower() == "true"
+        if self.enable_rerank_metrics:
+            self.rerank_metrics_path = Path(__file__).resolve().parents[2] / "logs" / "rerank_metrics.csv"
+            self.rerank_metrics_path.parent.mkdir(parents=True, exist_ok=True)
+            if not self.rerank_metrics_path.exists():
+                with open(self.rerank_metrics_path, "w", newline="", encoding="utf-8") as f:
+                    writer = csv.writer(f)
+                    writer.writerow([
+                        "timestamp",
+                        "provider",
+                        "model",
+                        "user_id",
+                        "category",
+                        "candidates",
+                        "top_k",
+                        "latency_ms",
+                        "prompt_tokens",
+                        "completion_tokens",
+                        "total_tokens",
+                        "status",
+                        "error",
+                    ])
+
     # 음식 종류 강제 필터링 제거: 복수 선호 타입 지원 및 유연한 추천을 위해
     # 임베딩 텍스트(user_text_builder.py)에 "세계음식 > 양식" 형태로 선호도 포함
     # LLM reranking에서 선호도를 고려하여 자연스럽게 가중치 반영
@@ -116,7 +141,51 @@ class RecommendService:
                         item.get("score_distance", 0)
                     ])
         except Exception as e:
-            print(f"[RERANK] Failed to log to CSV: {e}")
+            print(f"[RERANK] Failed to log rerank comparison: {e}")
+
+    def _log_rerank_metrics(
+        self,
+        user_id: str,
+        category: str,
+        provider: str,
+        model: str,
+        candidates_count: int,
+        top_k: int,
+        latency_ms: float,
+        usage: dict | None,
+        status: str,
+        error: str = "",
+    ) -> None:
+        if not self.enable_rerank_metrics:
+            return
+        try:
+            prompt_tokens = ""
+            completion_tokens = ""
+            total_tokens = ""
+            if usage:
+                prompt_tokens = usage.get("prompt_tokens", "")
+                completion_tokens = usage.get("completion_tokens", "")
+                total_tokens = usage.get("total_tokens", "")
+            timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            with open(self.rerank_metrics_path, "a", newline="", encoding="utf-8") as f:
+                writer = csv.writer(f)
+                writer.writerow([
+                    timestamp,
+                    provider,
+                    model,
+                    user_id,
+                    category,
+                    candidates_count,
+                    top_k,
+                    f"{latency_ms:.2f}",
+                    prompt_tokens,
+                    completion_tokens,
+                    total_tokens,
+                    status,
+                    error,
+                ])
+        except Exception as e:
+            print(f"[RERANK] Failed to log rerank metrics: {e}")
 
     def _llm_rerank(self, user, category: str, candidates: List[dict], top_k: int = 10, debug: bool = False) -> List[dict]:
         """
@@ -289,7 +358,24 @@ class RecommendService:
 ranked_indices는 위 후보 목록의 index 값들을 재정렬한 배열입니다."""
 
         try:
-            ranked_indices = self._request_ranked_indices(prompt)
+            provider = os.getenv("RERANK_PROVIDER", "openai").lower()
+            model_name = os.getenv("CHAT_MODEL", "gpt-4o-mini")
+            if provider == "gemini":
+                model_name = os.getenv("GEMINI_RERANK_MODEL", "gemini-2.0-flash")
+            start_time = time.perf_counter()
+            ranked_indices, usage = self._request_ranked_indices(prompt)
+            latency_ms = (time.perf_counter() - start_time) * 1000.0
+            self._log_rerank_metrics(
+                user_id=str(getattr(user, "user_id", "unknown")),
+                category=category,
+                provider=provider,
+                model=model_name,
+                candidates_count=len(candidates),
+                top_k=top_k,
+                latency_ms=latency_ms,
+                usage=usage,
+                status="ok",
+            )
 
             # 유효성 검증
             if not ranked_indices or not all(isinstance(i, int) and 0 <= i < len(candidates) for i in ranked_indices):
@@ -337,6 +423,26 @@ ranked_indices는 위 후보 목록의 index 값들을 재정렬한 배열입니
         except Exception as e:
             # LLM 호출 실패 시 원본 순서 유지 (내부 메타데이터 제거)
             print(f"[RERANK] LLM reranking failed for {category}: {e}")
+            provider = os.getenv("RERANK_PROVIDER", "openai").lower()
+            model_name = os.getenv("CHAT_MODEL", "gpt-4o-mini")
+            if provider == "gemini":
+                model_name = os.getenv("GEMINI_RERANK_MODEL", "gemini-2.0-flash")
+            start_time = locals().get("start_time")
+            latency_ms = 0.0
+            if isinstance(start_time, float):
+                latency_ms = (time.perf_counter() - start_time) * 1000.0
+            self._log_rerank_metrics(
+                user_id=str(getattr(user, "user_id", "unknown")),
+                category=category,
+                provider=provider,
+                model=model_name,
+                candidates_count=len(candidates),
+                top_k=top_k,
+                latency_ms=latency_ms,
+                usage=None,
+                status="error",
+                error=str(e),
+            )
             result = [{k: v for k, v in item.items() if k != "_meta"} for item in candidates[:top_k]]
             if debug:
                 for idx, item in enumerate(result):
@@ -344,13 +450,13 @@ ranked_indices는 위 후보 목록의 index 값들을 재정렬한 배열입니
                     item["rank_after_rerank"] = idx + 1
             return result
 
-    def _request_ranked_indices(self, prompt: str) -> list[int]:
+    def _request_ranked_indices(self, prompt: str) -> tuple[list[int], dict]:
         provider = os.getenv("RERANK_PROVIDER", "openai").lower()
         if provider == "gemini":
             return self._request_ranked_indices_gemini(prompt)
         return self._request_ranked_indices_openai(prompt)
 
-    def _request_ranked_indices_openai(self, prompt: str) -> list[int]:
+    def _request_ranked_indices_openai(self, prompt: str) -> tuple[list[int], dict]:
         if not self.openai_client:
             raise RuntimeError("OPENAI_API_KEY is required for OpenAI rerank.")
         response = self.openai_client.chat.completions.create(
@@ -363,9 +469,16 @@ ranked_indices는 위 후보 목록의 index 값들을 재정렬한 배열입니
             response_format={"type": "json_object"},
         )
         content = response.choices[0].message.content or ""
-        return self._parse_ranked_indices(content)
+        usage = {}
+        if getattr(response, "usage", None):
+            usage = {
+                "prompt_tokens": response.usage.prompt_tokens,
+                "completion_tokens": response.usage.completion_tokens,
+                "total_tokens": response.usage.total_tokens,
+            }
+        return self._parse_ranked_indices(content), usage
 
-    def _request_ranked_indices_gemini(self, prompt: str) -> list[int]:
+    def _request_ranked_indices_gemini(self, prompt: str) -> tuple[list[int], dict]:
         api_key = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
         if not api_key:
             raise RuntimeError("GEMINI_API_KEY (or GOOGLE_API_KEY) is required for Gemini rerank.")
@@ -375,11 +488,19 @@ ranked_indices는 위 후보 목록의 index 값들을 재정렬한 배열입니
             raise RuntimeError("google.generativeai is not installed.") from exc
 
         genai.configure(api_key=api_key)
-        model_name = os.getenv("GEMINI_RERANK_MODEL", "gemini-2.0-flash")
+        model_name = os.getenv("GEMINI_RERANK_MODEL", "gemini-3-flash-preview")
         model = genai.GenerativeModel(model_name)
         response = model.generate_content(prompt)
         text = (response.text or "").strip()
-        return self._parse_ranked_indices(text)
+        usage = {}
+        usage_meta = getattr(response, "usage_metadata", None)
+        if usage_meta:
+            usage = {
+                "prompt_tokens": getattr(usage_meta, "prompt_token_count", ""),
+                "completion_tokens": getattr(usage_meta, "candidates_token_count", ""),
+                "total_tokens": getattr(usage_meta, "total_token_count", ""),
+            }
+        return self._parse_ranked_indices(text), usage
 
     @staticmethod
     def _parse_ranked_indices(text: str) -> list[int]:

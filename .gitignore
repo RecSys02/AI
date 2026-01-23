@@ -39,3 +39,4 @@ poi_with_id_region*.json
 
 *.json
 *.jsonl
+*.csv

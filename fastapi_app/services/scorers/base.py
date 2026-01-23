@@ -295,7 +295,7 @@ class EmbeddingScorer:
 
             item = {
                 "category": self.name,
-                "region": self._keys[i][0],
+                "province": self._keys[i][0],
                 "place_id": place_id,
                 "score": float(scores[i]),
             }
