@@ -62,6 +62,10 @@ class RecommendService:
         self.expand_distance_max_km = float(
             os.getenv("RECOMMEND_EXPAND_MAX_KM", "10.0")
         )
+        self.default_anchor_coords = (
+            float(os.getenv("DEFAULT_ANCHOR_LAT", "37.4979")),
+            float(os.getenv("DEFAULT_ANCHOR_LNG", "127.0276")),
+        )
 
         # CSV 로깅 설정
         self.enable_csv_logging = os.getenv("RERANK_CSV_LOG", "false").lower() == "true"
@@ -533,8 +537,19 @@ ranked_indices는 위 후보 목록의 index 값들을 재정렬한 배열입니
 
     def recommend(self, user, top_k_per_category: int = 10, distance_max_km: float = 3.0, debug: bool = False) -> List[dict]:
         per_category = {}
-        selected_all = getattr(user, "selectedPlaces", None) or getattr(user, "last_selected_pois", None) or []
-        history_all = getattr(user, "historyPlaces", None) or []
+        selected_all_raw = (
+            getattr(user, "selected_places", None) or getattr(user, "last_selected_pois", None) or []
+        )
+        selected_all = []
+        for poi in selected_all_raw:
+            try:
+                place_id = int(getattr(poi, "place_id", -1))
+            except (TypeError, ValueError):
+                continue
+            category = getattr(poi, "category", None)
+            if place_id > 0 and category in {"tourspot", "cafe", "restaurant"}:
+                selected_all.append(poi)
+        history_all = getattr(user, "history_places", None) or []
         history_ids = {p.place_id for p in history_all if getattr(p, "place_id", None) is not None}
         # 거리 계산은 마지막 선택 장소 좌표 기준(같은 카테고리에서만 좌표 찾기)
         distance_place_ids = []
@@ -548,9 +563,23 @@ ranked_indices는 위 후보 목록의 index 값들을 재정렬한 배열입니
                         if scorer.name == last_category and hasattr(scorer, "get_coords"):
                             anchor_coords = scorer.get_coords(last.place_id)
                             break
-                # 좌표를 못 찾으면 거리 계산을 건너뛴다 (카테고리 충돌 방지)
+                # 좌표를 못 찾으면 distance_place_ids로 대체 후 필요 시 fallback
                 if anchor_coords is None:
-                    distance_place_ids = []
+                    distance_place_ids = [{"place_id": 1, "category": "tourspot", "province": "seoul"}]
+                    for scorer in self.scorers:
+                        if scorer.name == "tourspot" and hasattr(scorer, "get_coords"):
+                            anchor_coords = scorer.get_coords(1)
+                            break
+                    if anchor_coords is None:
+                        anchor_coords = self.default_anchor_coords
+        else:
+            distance_place_ids = [{"place_id": 1, "category": "tourspot", "province": "seoul"}]
+            for scorer in self.scorers:
+                if scorer.name == "tourspot" and hasattr(scorer, "get_coords"):
+                    anchor_coords = scorer.get_coords(1)
+                    break
+            if anchor_coords is None:
+                anchor_coords = self.default_anchor_coords
 
         for scorer in self.scorers:
             builder = self.text_builders.get(scorer.name)
