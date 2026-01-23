@@ -37,3 +37,5 @@ poi_with_id_region*.json
 # =========================
 .ipynb_checkpoints/
 
+*.json
+*.jsonl

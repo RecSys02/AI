@@ -152,5 +152,19 @@
       "tourspot": 3.0
     },
     "source": "google_autocomplete+geocode"
+  },
+  "종묘": {
+    "lat": 37.5746313,
+    "lng": 126.9938158,
+    "address": "대한민국 서울특별시 종로구 종로 157 종묘관리소",
+    "query": "종묘",
+    "resolved_name": "대한민국 서울특별시 종로구 종로 종묘",
+    "place_id": "ChIJz7ocWtiifDURU-HmRwLa3yQ",
+    "radius_by_intent": {
+      "restaurant": 2.0,
+      "cafe": 2.0,
+      "tourspot": 3.0
+    },
+    "source": "google_autocomplete+geocode"
   }
 }

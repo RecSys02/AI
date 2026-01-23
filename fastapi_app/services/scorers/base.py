@@ -170,6 +170,12 @@ class EmbeddingScorer:
             self._lng = np.array(lngs)
             print(f"[SCORER] loaded coords: {len(self._coords_by_place_id)} / keys={len(self._keys)}")
 
+    def get_coords(self, place_id: int) -> Optional[tuple[float, float]]:
+        self._load()
+        if not self._coords_by_place_id:
+            return None
+        return self._coords_by_place_id.get(int(place_id))
+
     def _recent_vector(self, place_ids: list[int]) -> np.ndarray | None:
         if not place_ids:
             return None
@@ -207,12 +213,20 @@ class EmbeddingScorer:
         dist = _haversine_km(lat_rad, lng_rad, math.radians(centroid_lat), math.radians(centroid_lng))
         return dist
 
+    def _distance_from_anchor(self, lat: float, lng: float) -> Optional[np.ndarray]:
+        if self._lat is None or self._lng is None:
+            return None
+        lat_rad = np.deg2rad(self._lat)
+        lng_rad = np.deg2rad(self._lng)
+        return _haversine_km(lat_rad, lng_rad, math.radians(lat), math.radians(lng))
+
     def topk(
         self,
         user_vec: np.ndarray,
         top_k: int = 10,
         recent_place_ids: list[int] | None = None,
         distance_place_ids: list[int] | None = None,
+        anchor_coords: tuple[float, float] | None = None,
         recent_weight: float = 0.3,
         distance_weight: float = 0.2,
         distance_scale_km: float = 5.0,
@@ -233,23 +247,33 @@ class EmbeddingScorer:
             recent_component = recent_weight * np.dot(self._embeddings, recent_vec)
             scores += recent_component
 
-        # distance bonus
-        dist_ids = distance_place_ids if distance_place_ids is not None else recent_place_ids
-        dist = self._distance_from_recent_centroid(dist_ids or [])
+        # distance bonus + pre-filter by distance
+        dist = None
+        if anchor_coords is not None:
+            dist = self._distance_from_anchor(anchor_coords[0], anchor_coords[1])
+        if dist is None:
+            dist_ids = distance_place_ids if distance_place_ids is not None else recent_place_ids
+            dist = self._distance_from_recent_centroid(dist_ids or [])
         if dist is not None:
             distance_km = dist
-            if distance_max_km is not None:
-                # 너무 먼 곳은 제외
-                far_mask = (dist > distance_max_km) | np.isnan(dist)
-                scores[far_mask] = -np.inf
             if distance_weight != 0:
                 dist_bonus = np.exp(-dist / distance_scale_km)
                 dist_bonus = np.where(np.isnan(dist_bonus), 0.0, dist_bonus)
                 distance_component = distance_weight * dist_bonus
                 scores += distance_component
 
-        # 정렬된 인덱스 (높은 점수부터)
-        sorted_idxs = scores.argsort()[::-1]
+        # 거리 필터를 먼저 적용한 뒤 정렬
+        if distance_km is not None and distance_max_km is not None:
+            valid_mask = (distance_km <= distance_max_km) & ~np.isnan(distance_km)
+            valid_idxs = np.flatnonzero(valid_mask)
+            if valid_idxs.size:
+                sorted_local = scores[valid_idxs].argsort()[::-1]
+                sorted_idxs = valid_idxs[sorted_local]
+            else:
+                sorted_idxs = np.array([], dtype=int)
+        else:
+            # 정렬된 인덱스 (높은 점수부터)
+            sorted_idxs = scores.argsort()[::-1]
 
         results = []
         filtered_count = 0
