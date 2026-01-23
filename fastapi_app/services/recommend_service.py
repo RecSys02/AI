@@ -62,6 +62,7 @@ class RecommendService:
         self.expand_distance_max_km = float(
             os.getenv("RECOMMEND_EXPAND_MAX_KM", "10.0")
         )
+        self.default_anchor_coords = (37.4979, 127.0276)
 
         # CSV 로깅 설정
         self.enable_csv_logging = os.getenv("RERANK_CSV_LOG", "false").lower() == "true"
@@ -551,6 +552,8 @@ ranked_indices는 위 후보 목록의 index 값들을 재정렬한 배열입니
                 # 좌표를 못 찾으면 거리 계산을 건너뛴다 (카테고리 충돌 방지)
                 if anchor_coords is None:
                     distance_place_ids = []
+        else:
+            anchor_coords = self.default_anchor_coords
 
         for scorer in self.scorers:
             builder = self.text_builders.get(scorer.name)
