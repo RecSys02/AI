@@ -533,8 +533,8 @@ ranked_indices는 위 후보 목록의 index 값들을 재정렬한 배열입니
 
     def recommend(self, user, top_k_per_category: int = 10, distance_max_km: float = 3.0, debug: bool = False) -> List[dict]:
         per_category = {}
-        selected_all = getattr(user, "selected_places", None) or getattr(user, "last_selected_pois", None) or []
-        history_all = getattr(user, "history_places", None) or []
+        selected_all = getattr(user, "selectedPlaces", None) or getattr(user, "last_selected_pois", None) or []
+        history_all = getattr(user, "historyPlaces", None) or []
         history_ids = {p.place_id for p in history_all if getattr(p, "place_id", None) is not None}
         # 거리 계산은 마지막 선택 장소 좌표 기준(같은 카테고리에서만 좌표 찾기)
         distance_place_ids = []
