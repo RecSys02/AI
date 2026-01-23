@@ -3,10 +3,12 @@
 '''
 scripts.eval.run_recommend_sample의 Docstring
 
-uv run python ../scripts/eval/run_recommend_sample.py \
-  --users ../data/eval/samples/users_100_from_labels.jsonl \
-  --output ../data/eval/recommend_top10_rerank_gemini3_sample100.jsonl \
-  --limit 100 --rerank
+python scripts/eval/compute_metrics.py \
+  --labels data/eval/samples/labels_top5_gemini_100.jsonl \
+  --pred data/eval/recommend_top10_rerank_gemini2_sample100.jsonl \
+  --pred data/eval/recommend_top10_rerank_gemini3_sample100.jsonl \
+  --k 10
+
 
 '''
 # rerank with LLM: --rerank
