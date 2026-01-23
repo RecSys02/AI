@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 '''
 python scripts/eval/compute_metrics.py \
-  --labels data/eval/labels_top5_all.jsonl \
-  --pred data/eval/filtered/recommendations.jsonl \
+  --labels data/eval/labels_top5_gemini.jsonl \
+  --pred data/eval/filtered_rerank/recommendations.jsonl \
   --k 10
 '''
 import argparse

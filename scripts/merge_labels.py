@@ -1,25 +1,25 @@
 #!/usr/bin/env python3
+'''
+python scripts/merge_labels.py \
+  --inputs data/eval/labels_top5_*.jsonl \
+  --output data/eval/labels_top5_all.jsonl
+
+
+'''
 import argparse
 import json
 from pathlib import Path
 
 
-def _read_jsonl(path: Path) -> tuple[list[dict], int]:
+def _read_jsonl(path: Path) -> list[dict]:
     records = []
-    skipped = 0
     with path.open("r", encoding="utf-8") as f:
         for line in f:
             line = line.strip()
             if not line:
                 continue
-            if not line.startswith("{"):
-                skipped += 1
-                continue
-            try:
-                records.append(json.loads(line))
-            except json.JSONDecodeError:
-                skipped += 1
-    return records, skipped
+            records.append(json.loads(line))
+    return records
 
 
 def main() -> None:
@@ -35,12 +35,9 @@ def main() -> None:
     args = parser.parse_args()
 
     merged: dict[tuple[int, str], dict] = {}
-    total_skipped = 0
     for input_path in args.inputs:
         path = Path(input_path)
-        records, skipped = _read_jsonl(path)
-        total_skipped += skipped
-        for rec in records:
+        for rec in _read_jsonl(path):
             user_id = rec.get("userId")
             category = rec.get("category")
             if user_id is None or category is None:
@@ -57,8 +54,6 @@ def main() -> None:
             f.write(json.dumps(rec, ensure_ascii=False) + "\n")
 
     print(f"Wrote {len(merged)} records to {output_path}")
-    if total_skipped:
-        print(f"Skipped invalid lines: {total_skipped}")
 
 
 if __name__ == "__main__":

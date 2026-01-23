@@ -247,7 +247,7 @@ class EmbeddingScorer:
             recent_component = recent_weight * np.dot(self._embeddings, recent_vec)
             scores += recent_component
 
-        # distance bonus
+        # distance bonus + pre-filter by distance
         dist = None
         if anchor_coords is not None:
             dist = self._distance_from_anchor(anchor_coords[0], anchor_coords[1])
@@ -256,18 +256,24 @@ class EmbeddingScorer:
             dist = self._distance_from_recent_centroid(dist_ids or [])
         if dist is not None:
             distance_km = dist
-            if distance_max_km is not None:
-                # 너무 먼 곳은 제외
-                far_mask = (dist > distance_max_km) | np.isnan(dist)
-                scores[far_mask] = -np.inf
             if distance_weight != 0:
                 dist_bonus = np.exp(-dist / distance_scale_km)
                 dist_bonus = np.where(np.isnan(dist_bonus), 0.0, dist_bonus)
                 distance_component = distance_weight * dist_bonus
                 scores += distance_component
 
-        # 정렬된 인덱스 (높은 점수부터)
-        sorted_idxs = scores.argsort()[::-1]
+        # 거리 필터를 먼저 적용한 뒤 정렬
+        if distance_km is not None and distance_max_km is not None:
+            valid_mask = (distance_km <= distance_max_km) & ~np.isnan(distance_km)
+            valid_idxs = np.flatnonzero(valid_mask)
+            if valid_idxs.size:
+                sorted_local = scores[valid_idxs].argsort()[::-1]
+                sorted_idxs = valid_idxs[sorted_local]
+            else:
+                sorted_idxs = np.array([], dtype=int)
+        else:
+            # 정렬된 인덱스 (높은 점수부터)
+            sorted_idxs = scores.argsort()[::-1]
 
         results = []
         filtered_count = 0

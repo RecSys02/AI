@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-# uv run python ../scripts/run_recommend_sample.py --limit 5000
+# uv run python ../scripts/run_recommend_sample.py --limit 10
+# rerank with LLM: --rerank
 import argparse
 import json
 import os
@@ -54,7 +55,7 @@ def main() -> None:
     )
     parser.add_argument(
         "--output",
-        default=str(PROJECT_ROOT / "data" / "eval" / "recommend_top10_sample_rerank.jsonl"),
+        default=str(PROJECT_ROOT / "data" / "eval" / "recommend_top10_rerank_gemini.jsonl"),
         help="Output JSONL path.",
     )
     parser.add_argument("--limit", type=int, default=100, help="Max users to run.")

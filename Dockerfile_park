@@ -1,18 +1,12 @@
 FROM python:3.10-slim
 WORKDIR /app
-#docker build -f Dockerfile_park -t myapp-park-test .
 
+RUN pip install --no-cache-dir uv
+ENV UV_SYSTEM_PYTHON=1
 
-# 의존성은 fastapi_app/pyproject.toml 기준 설치
-COPY fastapi_app/pyproject.toml fastapi_app/README.md /app/fastapi_app/
-RUN pip install --no-cache-dir --upgrade pip \
-    && pip install --no-cache-dir -e /app/fastapi_app
+COPY fastapi_app/pyproject.toml fastapi_app/uv.lock /app/fastapi_app/
+RUN uv sync --project /app/fastapi_app --no-dev --frozen
 
-# 필요한 데이터만 복사
-COPY data /app/data
-# 앱 코드만 복사
-COPY fastapi_app /app/fastapi_app
-
+COPY . .
 WORKDIR /app/fastapi_app
-EXPOSE 8000
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]

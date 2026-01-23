@@ -49,12 +49,12 @@ def main() -> None:
     )
     parser.add_argument(
         "--recommendations",
-        default="../data/eval/recommend_top10_5000_new.jsonl",
+        default="../data/eval/recommend_top10_rerank_gemini.jsonl",
         help="Recommendations JSONL path.",
     )
     parser.add_argument(
         "--output-dir",
-        default="../data/eval/filtered",
+        default="../data/eval/filtered_rerank",
         help="Output directory for filtered JSONL files.",
     )
     parser.add_argument("--k", type=int, default=10, help="Minimum per category (0 to disable).")
