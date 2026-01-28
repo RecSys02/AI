@@ -15,10 +15,23 @@ async def answer_node(state: GraphState):
         yield {"final": final_text}
         yield {"context": build_context(state)}
         return
+    if state.get("anchor_failed"):
+        place = state.get("resolved_name") or state.get("input_place")
+        if not place:
+            place_info = state.get("place") or {}
+            place = place_info.get("point") or place_info.get("area")
+        if place:
+            final_text = f"'{place}' 위치를 찾지 못했어요. 지점/역/건물명을 알려주세요."
+        else:
+            final_text = "위치를 찾지 못했어요. 기준이 될 지점/역/건물명을 알려주세요."
+        append_node_trace_result(state.get("query", ""), "answer", {"final": final_text})
+        yield {"final": final_text}
+        yield {"context": build_context(state)}
+        return
     query = state.get("query", "")
     callbacks = state.get("callbacks")
     config = build_callbacks_config(callbacks)
-    if is_nearby_query(query) and not (state.get("anchor") or state.get("admin_term")):
+    if is_nearby_query(query) and not state.get("anchor"):
         # Nearby intent without anchor should ask for a concrete location.
         place = state.get("resolved_name") or state.get("input_place")
         if not place:
@@ -35,7 +48,7 @@ async def answer_node(state: GraphState):
     retrievals = state.get("retrievals", [])
     if not retrievals:
         # No results: return a fallback prompt based on whether filters were used.
-        filter_applied = bool(state.get("anchor") or state.get("admin_term"))
+        filter_applied = bool(state.get("anchor"))
         if filter_applied:
             resolved_name = state.get("resolved_name")
             input_place = state.get("input_place")
@@ -103,7 +116,7 @@ async def answer_node(state: GraphState):
         ),
         ("system", f"후보:\n{context}"),
     ]
-    filter_applied = bool(state.get("anchor") or state.get("admin_term"))
+    filter_applied = bool(state.get("anchor"))
     resolved_name = state.get("resolved_name") if filter_applied else None
     if resolved_name:
         # Pin the answer to the resolved anchor name.

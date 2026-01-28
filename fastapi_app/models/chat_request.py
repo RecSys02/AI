@@ -32,7 +32,6 @@ class ChatContext(BaseModel):
     last_mode: Optional[str] = None
     last_query: Optional[str] = None
     last_resolved_name: Optional[str] = None
-    last_admin_term: Optional[str] = None
     last_place: Optional[PlaceRef] = None
     last_filter_applied: Optional[bool] = None
 

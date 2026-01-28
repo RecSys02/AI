@@ -2,7 +2,6 @@ from typing import Dict, List
 
 from services.chat_nodes.state import GraphState
 from utils.geo import (
-    add_alias,
     append_node_trace_result,
     append_place_debug,
     build_alias_map,
@@ -12,9 +11,7 @@ from utils.geo import (
     load_keyword_aliases,
     normalize_text,
     resolve_alias,
-    save_admin_aliases,
     save_anchor_cache,
-    save_keyword_aliases,
 )
 from utils.google_geocode import geocode_place_id
 from utils.google_place_autocomplete import autocomplete_places
@@ -255,28 +252,13 @@ async def resolve_anchor_node(state: GraphState) -> Dict:
         append_node_trace_result(state.get("query", ""), "resolve_anchor", result)
         return result
 
-    # Admin region detection: use suffix rules only (e.g., 시/구/동).
-    lowered = raw_place.lower()
-    admin_suffixes = ("시", "구", "동", "가", "로", "길", "대로")
-    if not raw_point and lowered.endswith(admin_suffixes):
-        admin_aliases = load_admin_aliases()
-        alias_map = build_alias_map(admin_aliases)
-        canonical = resolve_alias(raw_place, alias_map)
-        if canonical != raw_place:
-            if add_alias(admin_aliases, canonical, raw_place):
-                save_admin_aliases(admin_aliases)
-        result = {
-            "admin_term": canonical,
-            "place": {"place": canonical},
-            "input_place": raw_place,
-            "resolved_name": canonical,
-        }
-        append_node_trace_result(state.get("query", ""), "resolve_anchor", result)
-        return result
-
     # Keyword path: alias -> geo_centers -> cache -> autocomplete -> geocode
+    admin_suffixes = ("시", "구", "동", "가", "로", "길", "대로")
     keyword_aliases = load_keyword_aliases()
     alias_map = build_alias_map(keyword_aliases)
+    if raw_place.endswith(admin_suffixes):
+        admin_aliases = load_admin_aliases()
+        alias_map.update(build_alias_map(admin_aliases))
     canonical = resolve_alias(raw_place, alias_map)
     # Build matching tokens to score autocomplete candidates.
     match_tokens = _build_match_tokens(raw_place, raw_area, raw_point)
@@ -481,6 +463,11 @@ async def resolve_anchor_node(state: GraphState) -> Dict:
         append_node_trace_result(state.get("query", ""), "resolve_anchor", result)
         return result
 
-    result = {"place": {"place": canonical}, "input_place": raw_place, "resolved_name": canonical}
+    result = {
+        "place": {"place": canonical},
+        "input_place": raw_place,
+        "resolved_name": canonical,
+        "anchor_failed": True,
+    }
     append_node_trace_result(state.get("query", ""), "resolve_anchor", result)
     return result

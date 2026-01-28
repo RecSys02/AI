@@ -38,3 +38,43 @@ query=올림픽도로 근처 맛집 추천해줘	node=apply_location_filter
 query=올림픽도로 근처 맛집 추천해줘	node=rerank
 query=올림픽도로 근처 맛집 추천해줘	node=answer
 query=올림픽도로 근처 맛집 추천해줘	node=answer
+query=근처 맛집 추천해줘	node=rewrite_query
+query=근처 맛집 추천해줘	node=route
+query=근처 맛집 추천해줘	node=extract_place
+query=근처 맛집 추천해줘	node=correct_place
+query=근처 맛집 추천해줘	node=resolve_anchor
+query=근처 맛집 추천해줘	node=retrieve
+query=근처 맛집 추천해줘	node=apply_location_filter
+query=근처 맛집 추천해줘	node=rerank
+query=근처 맛집 추천해줘	node=answer
+query=근처 맛집 추천해줘	node=answer
+query=근처 맛집 추천해줘	node=rewrite_query
+query=근처 맛집 추천해줘	node=route
+query=근처 맛집 추천해줘	node=extract_place
+query=근처 맛집 추천해줘	node=correct_place
+query=근처 맛집 추천해줘	node=resolve_anchor
+query=근처 맛집 추천해줘	node=retrieve
+query=근처 맛집 추천해줘	node=apply_location_filter
+query=근처 맛집 추천해줘	node=rerank
+query=근처 맛집 추천해줘	node=answer
+query=근처 맛집 추천해줘	node=answer
+query=근처 맛집 추천해줘	node=rewrite_query
+query=근처 맛집 추천해줘	node=route
+query=근처 맛집 추천해줘	node=extract_place
+query=근처 맛집 추천해줘	node=correct_place
+query=근처 맛집 추천해줘	node=resolve_anchor
+query=근처 맛집 추천해줘	node=retrieve
+query=근처 맛집 추천해줘	node=apply_location_filter
+query=근처 맛집 추천해줘	node=rerank
+query=근처 맛집 추천해줘	node=answer
+query=근처 맛집 추천해줘	node=answer
+query=신사동 맛집	node=rewrite_query
+query=신사동 맛집	node=route
+query=신사동 맛집	node=extract_place
+query=신사동 맛집	node=correct_place
+query=신사동 맛집	node=resolve_anchor
+query=신사동 맛집	node=retrieve
+query=신사동 맛집	node=apply_location_filter
+query=신사동 맛집	node=rerank
+query=신사동 맛집	node=answer
+query=신사동 맛집	node=answer

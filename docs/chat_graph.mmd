@@ -1,8 +1,8 @@
 flowchart TD
-    route((route)) -->|intent == recommend| normalize_query[normalize_query]
+    rewrite_query[rewrite_query] --> route((route))
+    route -->|intent == recommend| extract_place[extract_place]
     route -->|intent != recommend| general_answer[general_answer]
 
-    normalize_query --> extract_place[extract_place]
     extract_place --> correct_place[correct_place]
 
     correct_place -->|expand_request| expand_radius[expand_radius]

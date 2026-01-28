@@ -208,5 +208,19 @@
       "tourspot": 3.0
     },
     "source": "google_autocomplete+geocode"
+  },
+  "강남구강남역": {
+    "lat": 37.497973,
+    "lng": 127.0277184,
+    "address": "대한민국 서울특별시 강남구 강남대로 지하 396",
+    "query": "강남구 강남역",
+    "resolved_name": "강남구 강남역",
+    "place_id": "ChIJQ1SOWgChfDURlntqagCo4zM",
+    "radius_by_intent": {
+      "restaurant": 2.0,
+      "cafe": 2.0,
+      "tourspot": 3.0
+    },
+    "source": "google_autocomplete+geocode"
   }
 }

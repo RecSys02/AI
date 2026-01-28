@@ -44,7 +44,6 @@ async def expand_radius_node(state: GraphState) -> Dict:
         "last_radius_km": new_radius,
         "mode": last_mode,
         "resolved_name": ctx.get("last_resolved_name"),
-        "admin_term": ctx.get("last_admin_term"),
         "place": ctx.get("last_place"),
         "expand_failed": False,
     }
@@ -56,7 +55,6 @@ async def expand_radius_node(state: GraphState) -> Dict:
             "last_radius_km": new_radius,
             "mode": last_mode,
             "resolved_name": ctx.get("last_resolved_name"),
-            "admin_term": ctx.get("last_admin_term"),
             "place": ctx.get("last_place"),
             "expand_failed": False,
         },
