@@ -1,5 +1,5 @@
 from services.chat_nodes.callbacks import build_callbacks_config
-from services.chat_nodes.llm_clients import detect_llm
+from services.chat_nodes.llm_clients import detect_llm, max_tokens_kwargs
 
 
 def detect_mode(mode_hint: str | None, query: str) -> str:
@@ -56,7 +56,7 @@ async def llm_detect_mode(query: str, callbacks: list | None = None) -> str:
         ("user", query),
     ]
     try:
-        resp = await detect_llm.ainvoke(messages, max_tokens=5, config=config)
+        resp = await detect_llm.ainvoke(messages, **max_tokens_kwargs(5), config=config)
         mode = (resp.content or "").strip().lower()
         return mode if mode in {"tourspot", "cafe", "restaurant"} else "unknown"
     except Exception:

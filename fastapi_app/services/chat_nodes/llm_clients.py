@@ -22,6 +22,12 @@ def _gemini_models() -> tuple[str, str]:
 
 
 provider = _provider()
+_MAX_TOKENS_KEY = "max_output_tokens" if provider == "gemini" else "max_tokens"
+
+
+def max_tokens_kwargs(max_tokens: int) -> dict:
+    """Return the provider-appropriate max token argument."""
+    return {_MAX_TOKENS_KEY: max_tokens}
 if provider == "gemini":
     try:
         from langchain_google_genai import ChatGoogleGenerativeAI

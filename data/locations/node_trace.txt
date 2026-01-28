@@ -112,3 +112,31 @@ query=그럼 무슨 식당이 있어?	node=apply_location_filter
 query=그럼 무슨 식당이 있어?	node=rerank
 query=그럼 무슨 식당이 있어?	node=answer
 query=그럼 무슨 식당이 있어?	node=answer
+query=그럼 무슨 식당이 있어?	node=rewrite_query
+query=그럼 무슨 식당이 있어?	node=route
+query=그럼 무슨 식당이 있어?	node=general_answer
+query=그럼 무슨 식당이 있어?	node=general_answer
+query=논현역 근처 맛집 추천해줘	node=rewrite_query
+query=논현역 근처 맛집 추천해줘	node=route
+query=논현역 근처 맛집 추천해줘	node=extract_place
+query=논현역 근처 맛집 추천해줘	node=correct_place
+query=논현역 근처 맛집 추천해줘	node=resolve_anchor
+query=논현역 근처 맛집 추천해줘	node=retrieve
+query=논현역 근처 맛집 추천해줘	node=apply_location_filter
+query=논현역 근처 맛집 추천해줘	node=rerank
+query=논현역 근처 맛집 추천해줘	node=answer
+query=논현역 근처 맛집 추천해줘	node=answer
+query=논현역 근처 맛집 추천해줘	node=rewrite_query
+query=논현역 근처 맛집 추천해줘	node=route
+query=논현역 근처 맛집 추천해줘	node=extract_place
+query=논현역 근처 맛집 추천해줘	node=correct_place
+query=논현역 근처 맛집 추천해줘	node=resolve_anchor
+query=논현역 근처 맛집 추천해줘	node=retrieve
+query=논현역 근처 맛집 추천해줘	node=apply_location_filter
+query=논현역 근처 맛집 추천해줘	node=rerank
+query=논현역 근처 맛집 추천해줘	node=answer
+query=논현역 근처 맛집 추천해줘	node=answer
+query=카페는?	node=rewrite_query
+query=카페는?	node=route
+query=카페는?	node=general_answer
+query=카페는?	node=general_answer

@@ -250,5 +250,19 @@
       "tourspot": 3.0
     },
     "source": "google_autocomplete+geocode"
+  },
+  "논현역": {
+    "lat": 37.5110701,
+    "lng": 127.021328,
+    "address": "서울특별시 논현역앞",
+    "query": "논현역",
+    "resolved_name": "논현역",
+    "place_id": "ChIJVazq_eajfDUR7y2KZITyTAM",
+    "radius_by_intent": {
+      "restaurant": 2.0,
+      "cafe": 2.0,
+      "tourspot": 3.0
+    },
+    "source": "google_autocomplete+geocode"
   }
 }
