@@ -26,10 +26,12 @@ class DummyScorer:
         self.results = results
         self.last_debug = None
         self.last_distance_max_km = None
+        self.last_anchor_coords = None
 
     def topk(self, user_vec, top_k, **kwargs):
         self.last_debug = kwargs.get("debug")
         self.last_distance_max_km = kwargs.get("distance_max_km")
+        self.last_anchor_coords = kwargs.get("anchor_coords")
         max_km = self.last_distance_max_km
         items = self.results
         if max_km is not None:
@@ -123,3 +125,37 @@ def test_distance_max_filters_far(make_service):
     tour = next(r for r in result if r["category"] == "tourspot")
     assert [item["place_id"] for item in tour["items"]] == [10]
     assert svc.scorers[0].last_distance_max_km == 5.0
+
+
+def test_region_anchor_used_when_no_selected_places(make_service, monkeypatch):
+    scored = {"tourspot": [], "cafe": [], "restaurant": []}
+    monkeypatch.setattr(
+        recommend_service,
+        "load_geo_centers",
+        lambda: {"서울특별시 동작구": {"centers": [[37.5124, 126.9395]]}},
+    )
+    svc = make_service(scored)
+    user = _base_user(region="서울특별시 동작구")
+
+    svc.recommend(user, top_k_per_category=1, distance_max_km=5.0)
+
+    assert svc.scorers[0].last_anchor_coords == (37.5124, 126.9395)
+
+
+def test_accom_address_anchor_overrides_selected(make_service, monkeypatch):
+    scored = {"tourspot": [], "cafe": [], "restaurant": []}
+    monkeypatch.setattr(
+        recommend_service,
+        "geocode_address",
+        lambda addr: {"lat": 37.5123, "lng": 126.9399, "address": addr},
+    )
+    svc = make_service(scored)
+    user = _base_user(
+        region="seoul",
+        accom_address="서울특별시 동작구 상도로 123",
+        selected_places=[PoiRef(place_id=123, category="tourspot", province="seoul")],
+    )
+
+    svc.recommend(user, top_k_per_category=1, distance_max_km=5.0)
+
+    assert svc.scorers[0].last_anchor_coords == (37.5123, 126.9399)

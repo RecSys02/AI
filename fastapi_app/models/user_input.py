@@ -27,6 +27,7 @@ class UserInput(BaseModel):
 
     # 일정 생성 시 입력
     region: str
+    accom_address: Optional[str] = None
     companion: Optional[List[str]] = None
     budget: Optional[str] = None
 

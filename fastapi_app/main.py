@@ -57,12 +57,21 @@ def recommend(
 ):
     # distance_max_km=0 은 필터 비활성화
     max_km = None if distance_max_km == 0 else distance_max_km
-    recommendations = svc.recommend(
-        user,
-        top_k_per_category=top_k_per_category,
-        distance_max_km=max_km,
-        debug=debug,
-    )
+    if debug:
+        recommendations, debug_info = svc.recommend(
+            user,
+            top_k_per_category=top_k_per_category,
+            distance_max_km=max_km,
+            debug=debug,
+            return_debug=True,
+        )
+    else:
+        recommendations = svc.recommend(
+            user,
+            top_k_per_category=top_k_per_category,
+            distance_max_km=max_km,
+            debug=debug,
+        )
     # 성공 요청 요약 로그
     logger.info(
         "200 /recommend user=%s top_k=%s distance_max_km=%s debug=%s",
@@ -71,4 +80,6 @@ def recommend(
         max_km,
         debug,
     )
+    if debug:
+        return {"recommendations": recommendations, "debug": debug_info}
     return {"recommendations": recommendations}

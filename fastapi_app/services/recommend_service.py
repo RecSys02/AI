@@ -15,6 +15,8 @@ from services.scorers import (
     build_restaurant_scorer,
     build_tourspot_scorer,
 )
+from utils.geo import load_geo_centers, normalize_text
+from utils.google_geocode import geocode_address
 from utils.user_text_builder import (
     build_cafe_text,
     build_restaurant_text,
@@ -66,6 +68,7 @@ class RecommendService:
             float(os.getenv("DEFAULT_ANCHOR_LAT", "37.4979")),
             float(os.getenv("DEFAULT_ANCHOR_LNG", "127.0276")),
         )
+        self._accom_anchor_cache: dict[str, dict[str, float | str]] = {}
 
         # CSV 로깅 설정
         self.enable_csv_logging = os.getenv("RERANK_CSV_LOG", "false").lower() == "true"
@@ -535,7 +538,88 @@ ranked_indices는 위 후보 목록의 index 값들을 재정렬한 배열입니
             filtered.append(item)
         return filtered
 
-    def recommend(self, user, top_k_per_category: int = 10, distance_max_km: float = 3.0, debug: bool = False) -> List[dict]:
+    def _resolve_region_anchor(self, region: str | None) -> tuple[float, float] | None:
+        if not region:
+            return None
+        region_value = region.strip()
+        if not region_value:
+            return None
+        geo_centers = load_geo_centers()
+        if not geo_centers:
+            return None
+        entry = geo_centers.get(region_value)
+        if not entry and " " in region_value:
+            entry = geo_centers.get(region_value.split()[-1])
+        if not entry:
+            region_norm = normalize_text(region_value)
+            for key, value in geo_centers.items():
+                if normalize_text(key) == region_norm:
+                    entry = value
+                    break
+        if not entry:
+            return None
+        centers = entry.get("centers") or []
+        if not centers:
+            return None
+        center = centers[0]
+        if not isinstance(center, (list, tuple)) or len(center) != 2:
+            return None
+        try:
+            return float(center[0]), float(center[1])
+        except (TypeError, ValueError):
+            return None
+
+    def _resolve_accom_anchor(
+        self, accom_address: str | None
+    ) -> tuple[tuple[float, float] | None, dict | None]:
+        if not accom_address:
+            return None, None
+        address_value = accom_address.strip()
+        if not address_value:
+            return None, None
+        key = normalize_text(address_value)
+        if key and key in self._accom_anchor_cache:
+            cached = self._accom_anchor_cache[key]
+            coords = (float(cached["lat"]), float(cached["lng"]))
+            debug_info = {
+                "input_address": address_value,
+                "formatted_address": cached.get("address", ""),
+                "lat": coords[0],
+                "lng": coords[1],
+                "status": "cache_hit",
+            }
+            return coords, debug_info
+        geo = geocode_address(address_value)
+        if not geo:
+            debug_info = {
+                "input_address": address_value,
+                "status": "geocode_failed",
+            }
+            return None, debug_info
+        coords = (float(geo["lat"]), float(geo["lng"]))
+        if key:
+            self._accom_anchor_cache[key] = {
+                "lat": coords[0],
+                "lng": coords[1],
+                "address": geo.get("address", ""),
+            }
+        debug_info = {
+            "input_address": address_value,
+            "formatted_address": geo.get("address", ""),
+            "lat": coords[0],
+            "lng": coords[1],
+            "status": "geocoded",
+        }
+        return coords, debug_info
+
+    def recommend(
+        self,
+        user,
+        top_k_per_category: int = 10,
+        distance_max_km: float = 3.0,
+        debug: bool = False,
+        return_debug: bool = False,
+    ) -> List[dict] | tuple[List[dict], dict]:
         per_category = {}
         selected_all_raw = (
             getattr(user, "selected_places", None) or getattr(user, "last_selected_pois", None) or []
@@ -554,7 +638,15 @@ ranked_indices는 위 후보 목록의 index 값들을 재정렬한 배열입니
         # 거리 계산은 마지막 선택 장소 좌표 기준(같은 카테고리에서만 좌표 찾기)
         distance_place_ids = []
         anchor_coords = None
-        if selected_all:
+        accom_anchor, accom_debug = self._resolve_accom_anchor(
+            getattr(user, "accom_address", None)
+        )
+        region_anchor = self._resolve_region_anchor(getattr(user, "region", None))
+        anchor_source = None
+        if accom_anchor:
+            anchor_coords = accom_anchor
+            anchor_source = "accom_address"
+        elif selected_all:
             last = selected_all[-1]
             if getattr(last, "place_id", None) is not None:
                 last_category = getattr(last, "category", None)
@@ -566,9 +658,13 @@ ranked_indices는 위 후보 목록의 index 값들을 재정렬한 배열입니
                 # 좌표를 못 찾으면 distance_place_ids로 대체 후 필요 시 fallback
                 if anchor_coords is None:
                     distance_place_ids = []
-                    anchor_coords = self.default_anchor_coords
+                    anchor_coords = region_anchor or self.default_anchor_coords
+                    anchor_source = "region" if region_anchor else "default"
+                else:
+                    anchor_source = "last_selected_place"
         else:
-            anchor_coords = self.default_anchor_coords
+            anchor_coords = region_anchor or self.default_anchor_coords
+            anchor_source = "region" if region_anchor else "default"
 
         for scorer in self.scorers:
             builder = self.text_builders.get(scorer.name)
@@ -634,4 +730,21 @@ ranked_indices는 위 후보 목록의 index 값들을 재정렬한 배열입니
         for category, items in per_category.items():
             recommendations.append({"category": category, "items": items})
 
-        return recommendations
+        if not return_debug:
+            return recommendations
+
+        debug_info = {
+            "anchor_source": anchor_source,
+            "anchor_coords": list(anchor_coords) if anchor_coords else None,
+            "accom_address": getattr(user, "accom_address", None),
+            "accom_geocode": accom_debug,
+            "region": getattr(user, "region", None),
+            "region_anchor": list(region_anchor) if region_anchor else None,
+            "last_selected_place_id": getattr(selected_all[-1], "place_id", None)
+            if selected_all
+            else None,
+            "last_selected_category": getattr(selected_all[-1], "category", None)
+            if selected_all
+            else None,
+        }
+        return recommendations, debug_info
