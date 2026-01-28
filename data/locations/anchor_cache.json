@@ -306,5 +306,19 @@
       "tourspot": 3.0
     },
     "source": "google_autocomplete+geocode"
+  },
+  "잠실역": {
+    "lat": 37.513238,
+    "lng": 127.0999314,
+    "address": "서울특별시 잠실역사거리",
+    "query": "잠실역",
+    "resolved_name": "잠실역",
+    "place_id": "ChIJEfNFDgqlfDURbuAxuPX-vrk",
+    "radius_by_intent": {
+      "restaurant": 2.0,
+      "cafe": 2.0,
+      "tourspot": 3.0
+    },
+    "source": "google_autocomplete+geocode"
   }
 }

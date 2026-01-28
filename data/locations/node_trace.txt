@@ -416,3 +416,23 @@ query=잠실 근처 카페13	node=apply_location_filter
 query=잠실 근처 카페13	node=rerank
 query=잠실 근처 카페13	node=answer
 query=잠실 근처 카페13	node=answer
+query=잠실역 근방 맛집 추천해줘	node=rewrite_query
+query=잠실역 근방 맛집 추천해줘	node=route
+query=잠실역 근방 맛집 추천해줘	node=extract_place
+query=잠실역 근방 맛집 추천해줘	node=correct_place
+query=잠실역 근방 맛집 추천해줘	node=resolve_anchor
+query=잠실역 근방 맛집 추천해줘	node=retrieve
+query=잠실역 근방 맛집 추천해줘	node=apply_location_filter
+query=잠실역 근방 맛집 추천해줘	node=rerank
+query=잠실역 근방 맛집 추천해줘	node=answer
+query=잠실역 근방 맛집 추천해줘	node=answer
+query=잠실역 근방 맛집 추천해줘	node=rewrite_query
+query=잠실역 근방 맛집 추천해줘	node=route
+query=잠실역 근방 맛집 추천해줘	node=extract_place
+query=잠실역 근방 맛집 추천해줘	node=correct_place
+query=잠실역 근방 맛집 추천해줘	node=resolve_anchor
+query=잠실역 근방 맛집 추천해줘	node=retrieve
+query=잠실역 근방 맛집 추천해줘	node=apply_location_filter
+query=잠실역 근방 맛집 추천해줘	node=rerank
+query=잠실역 근방 맛집 추천해줘	node=answer
+query=잠실역 근방 맛집 추천해줘	node=answer

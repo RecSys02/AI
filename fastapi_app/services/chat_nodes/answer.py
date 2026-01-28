@@ -9,140 +9,126 @@ from utils.geo import append_node_trace_result
 
 async def answer_node(state: GraphState):
     """Generate the final response or clarification based on retrieval results."""
+    
+    # 1. 예외 케이스 처리 (위치 검색 실패 등)
     if state.get("expand_failed"):
         final_text = "이전에 사용한 기준 위치가 없어서 범위를 넓힐 수 없어요. 기준 장소를 알려주세요."
         append_node_trace_result(state.get("query", ""), "answer", {"final": final_text})
         yield {"final": final_text}
         yield {"context": build_context(state)}
         return
+
     if state.get("anchor_failed"):
         place = state.get("resolved_name") or state.get("input_place")
         if not place:
             place_info = state.get("place") or {}
             place = place_info.get("point") or place_info.get("area")
-        if place:
-            final_text = f"'{place}' 위치를 찾지 못했어요. 지점/역/건물명을 알려주세요."
-        else:
-            final_text = "위치를 찾지 못했어요. 기준이 될 지점/역/건물명을 알려주세요."
+        
+        final_text = f"'{place}' 위치를 찾지 못했어요. 지점/역/건물명을 알려주세요." if place else "위치를 찾지 못했어요. 기준이 될 지점/역/건물명을 알려주세요."
         append_node_trace_result(state.get("query", ""), "answer", {"final": final_text})
         yield {"final": final_text}
         yield {"context": build_context(state)}
         return
+
     query = state.get("query", "")
     callbacks = state.get("callbacks")
     config = build_callbacks_config(callbacks)
+
+    # 주변 추천 의도인데 기준점이 없는 경우
     if is_nearby_query(query) and not state.get("anchor"):
-        # Nearby intent without anchor should ask for a concrete location.
         place = state.get("resolved_name") or state.get("input_place")
         if not place:
             place_info = state.get("place") or {}
             place = place_info.get("point") or place_info.get("area")
-        if place:
-            final_text = f"'{place}'가 어느 지점을 말하는지 알려주세요. 기준 위치를 알려주시면 그 근처로 추천할게요."
-        else:
-            final_text = "근처/주변 추천을 하려면 기준 위치가 필요해요. 지점/역/건물명을 알려주세요."
+        
+        final_text = f"'{place}'가 어느 지점을 말하는지 알려주세요. 기준 위치를 알려주시면 그 근처로 추천할게요." if place else "근처/주변 추천을 하려면 기준 위치가 필요해요. 지점/역/건물명을 알려주세요."
         append_node_trace_result(state.get("query", ""), "answer", {"final": final_text})
         yield {"final": final_text}
         yield {"context": build_context(state)}
         return
+
     retrievals = state.get("retrievals", [])
+    
+    # 검색 결과가 없는 경우
     if not retrievals:
-        # No results: return a fallback prompt based on whether filters were used.
         filter_applied = bool(state.get("anchor"))
         if filter_applied:
-            resolved_name = state.get("resolved_name")
-            input_place = state.get("input_place")
-            location_name = resolved_name or input_place or "해당 지역"
+            location_name = state.get("resolved_name") or state.get("input_place") or "해당 지역"
             mode_used = state.get("mode") or "tourspot"
-            category_label = {
-                "tourspot": "놀거리",
-                "restaurant": "맛집",
-                "cafe": "카페",
-            }.get(mode_used, "추천")
-            yield {
-                "final": (
-                    f"{location_name} 근처에는 조건에 맞는 결과가 없어요. "
-                    f"반경을 넓혀서 다시 찾아볼까요, 아니면 {location_name}의 다른 {category_label}로 추천해드릴까요?"
-                )
-            }
+            category_label = {"tourspot": "놀거리", "restaurant": "맛집", "cafe": "카페"}.get(mode_used, "추천")
+            final_text = f"{location_name} 근처에는 조건에 맞는 결과가 없어요. 반경을 넓혀서 다시 찾아볼까요, 아니면 {location_name}의 다른 {category_label}로 추천해드릴까요?"
         else:
-            yield {"final": "검색된 결과가 없습니다."}
+            final_text = "검색된 결과가 없습니다."
+        
+        yield {"final": final_text}
         yield {"context": build_context(state)}
         return
-    # retrieval 디버그 정보 포함해서 뭔지 확인하고 싶을때!
+
     if state.get("debug"):
-        # Debug payload includes raw retrievals for inspection.
         yield {"debug": retrievals}
 
-    # 후보 컨텍스트: 이름 + 요약/설명 + 주소 + 키워드까지 포함
+    # 2. 컨텍스트 구성 방식 개선 (태그 기반 구조화)
     def _build_ctx(r: dict) -> str:
         meta = r.get("meta") or {}
         name = meta.get("name") or meta.get("title") or "장소"
-        summary = meta.get("summary_one_sentence") or meta.get("description") or meta.get("content") or ""
+        summary = meta.get("summary_one_sentence") or meta.get("description") or ""
         addr = meta.get("address") or meta.get("location", {}).get("addr1") or ""
-        kw = meta.get("keywords") or []
-        kw_str = ", ".join([str(k) for k in kw]) if kw else ""
-        popularity = []
-        if meta.get("views") is not None:
-            popularity.append(f"조회수 {meta['views']}")
-        if meta.get("likes") is not None:
-            popularity.append(f"좋아요 {meta['likes']}")
-        if meta.get("bookmarks") is not None:
-            popularity.append(f"북마크 {meta['bookmarks']}")
-        rating_parts = []
-        if meta.get("starts"):
-            rating_parts.append(f"평점 {meta['starts']}")
-        if meta.get("counts"):
-            rating_parts.append(f"리뷰 {meta['counts']}")
-        rating_str = ", ".join(rating_parts)
-        pop_str = ", ".join(popularity)
-        parts = [f"{name}", summary]
-        if addr:
-            parts.append(f"주소: {addr}")
-        if kw_str:
-            parts.append(f"키워드: {kw_str}")
-        if pop_str:
-            parts.append(f"인기: {pop_str}")
-        if rating_str:
-            parts.append(rating_str)
-        return " ".join([p for p in parts if p])
+        kw = ", ".join(map(str, meta.get("keywords", [])))
+        
+        rating = f"평점 {meta['starts']}" if meta.get("starts") else ""
+        reviews = f"리뷰 {meta['counts']}" if meta.get("counts") else ""
+        
+        ctx_parts = [f"[장소명]: {name}", f"[설명]: {summary}"]
+        if addr: ctx_parts.append(f"[주소]: {addr}")
+        if kw: ctx_parts.append(f"[키워드]: {kw}")
+        if rating or reviews: ctx_parts.append(f"[정보]: {rating} {reviews}".strip())
+        
+        return " | ".join(ctx_parts)
 
-    context = "\n".join([f"- {_build_ctx(r)}" for r in retrievals])
-    messages = [
-        (
-            "system",
-            "너는 서울 여행 가이드다. 아래 후보 목록에서만 선택해 한 줄 요약과 함께 추천해라. "
-            "후보에 없는 장소는 절대 언급하지 말고, 후보 정보(이름/설명/키워드)를 활용해 답하라.",
-        ),
-        ("system", f"후보:\n{context}"),
-    ]
-    filter_applied = bool(state.get("anchor"))
-    resolved_name = state.get("resolved_name") if filter_applied else None
-    if resolved_name:
-        # Pin the answer to the resolved anchor name.
-        messages.append(
-            (
-                "system",
-                f"보정된 기준 지명은 '{resolved_name}'이다. 답변 서두에 이 지명만 언급하고, 이 기준으로 추천한다고 알려라.",
-            )
-        )
-    if state.get("mode_unknown"):
-        # Ask the user for the category when mode detection is uncertain.
-        messages.append(
-            (
-                "system",
-                "모드를 정확히 인식하지 못했다면 관광지 기준으로 임시 추천했으니, "
-                "사용자가 카페/식당/관광지 중 원하는 카테고리를 답하도록 유도하라.",
-            )
-        )
+    context_str = "\n".join([f"- {_build_ctx(r)}" for r in retrievals])
+
+    # 1. 출력 형식 및 기본 지침 정의
+    resolved_name = state.get("resolved_name") if bool(state.get("anchor")) else "서울"
+    
+    FORMAT_INSTRUCTION = (
+        "답변은 반드시 아래 형식을 지켜라:\n"
+        "번호. [장소 이름]\n"
+        "   - 특징: 한 줄 요약\n"
+        "   - 추천 이유: 상세 설명\n"
+    )
+
+    system_base = (
+        "너는 서울 전문 여행 가이드다. 다음 지침을 엄격히 준수하라.\n"
+        f"1. 답변 서두에 기준 위치인 '{resolved_name}'를 언급하며 인사를 건넨다.\n"
+        "2. 제공된 '후보 목록'에 있는 정보만 사용하며, 없는 장소는 절대 지어내지 않는다.\n"
+        f"3. {FORMAT_INSTRUCTION}"
+    )
+
+    # 2. 유동적인 제약 조건 추가 (데이트 의도 등)
+    constraints = []
     if is_date_query(query):
-        messages.append(
-            (
-                "system",
-                "사용자 의도는 데이트/커플이다. 분위기, 로맨틱함, 기념일/특별한 경험, 조용함 등을 우선 고려해 추천하라.",
-            )
-        )
-    messages.append(("user", state.get("query", "")))
+        constraints.append("- 데이트 의도에 맞춰 로맨틱하고 분위기 좋은 점을 강조하여 추천 이유를 작성할 것.")
+    if state.get("mode_unknown"):
+        constraints.append("- 카테고리가 불분명하므로 관광지 위주로 추천했음을 알리고, 맛집/카페 등 선호 타입을 물어볼 것.")
+
+    full_system_prompt = system_base + "\n" + "\n".join(constraints)
+
+    # 3. Few-shot 예시와 함께 메시지 구성
+    messages = [
+        ("system", full_system_prompt),
+        ("system", f"후보 목록:\n{context_str}"),
+        ("user", "잠실역 근처 맛집 추천해줘"),
+        ("assistant", (
+            f"{resolved_name} 주변에서 즐거운 시간을 보내실 수 있는 곳들을 추천해 드립니다.\n\n"
+            "1. [홀리차우 잠실점]\n"
+            "   - 특징: 퓨전 중국요리 맛집\n"
+            "   - 추천 이유: 롯데월드와 가까워 아이들과 방문하기 좋으며, 남녀노소 즐길 메뉴가 다양합니다.\n"
+            "2. [옹솥 롯데백화점잠실점]\n"
+            "   - 특징: 푸짐한 전골 요리\n"
+            "   - 추천 이유: 곱창전골 등 다양한 메뉴와 푸짐한 밑반찬이 제공되어 가족 식사에 적합합니다."
+        )),
+        ("user", query)
+    ]
 
     parts: List[str] = []
     async for chunk in llm.astream(messages, config=config):
