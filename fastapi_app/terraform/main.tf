@@ -1,10 +1,10 @@
 resource "google_project_service" "artifact_registry" {
-  service = "artifactregistry.googleapis.com"
+  service            = "artifactregistry.googleapis.com"
   disable_on_destroy = false
 }
 
 resource "google_project_service" "cloud_run" {
-  service = "run.googleapis.com"
+  service            = "run.googleapis.com"
   disable_on_destroy = false
 }
 
@@ -32,9 +32,9 @@ resource "google_artifact_registry_repository" "ai_repo" {
 
 # 2. 임베딩 데이터를 저장할 GCS 버킷 생성
 resource "google_storage_bucket" "data_bucket" {
-  name          = "ai-park-embeddings-data" 
+  name          = "ai-park-embeddings-data"
   location      = "ASIA-NORTHEAST3"
-  force_destroy = true 
+  force_destroy = true
 }
 
 # 3. Cloud Run 서비스 정의
@@ -45,38 +45,43 @@ resource "google_cloud_run_v2_service" "ai_service" {
 
   template {
     timeout = "600s"
+
     containers {
       image = "asia-northeast3-docker.pkg.dev/gen-lang-client-0492042254/ai-server/app:latest"
-    resources {
+
+      resources {
         limits = {
-          # 메모리를 2GiB 또는 4GiB로 늘려주세요.
-          memory = "4Gi"  # 넉넉하게 4GiB 추천 (데이터 양에 따라 조절)
-          cpu    = "2"     # CPU도 2개 정도로 늘려주면 로딩이 빨라집니다.
+          memory = "4Gi"
+          cpu    = "2"
         }
-      }    
+      }
+
       ports {
         container_port = 8000
       }
 
-      env {
-        name  = "OPENAI_API_KEY"
-        value = "your-api-key-here" # 나중에 Secret Manager로 교체 권장
-      }
-
       volume_mounts {
         name       = "embeddings-storage"
-        mount_path = "/app/data" 
+        mount_path = "/app/data"
       }
     }
 
-    # volumes 블록은 containers 블록과 같은 레벨(template 바로 아래)에 있어야 합니다.
     volumes {
       name = "embeddings-storage"
       gcs {
         bucket    = google_storage_bucket.data_bucket.name
-        read_only = false # 필요에 따라 설정
+        read_only = false
       }
     }
+  } # template 블록 끝
+
+  # GitHub Actions에서 주입하는 환경변수와 라벨이 삭제되지 않도록 보호
+  lifecycle {
+    ignore_changes = [
+      template[0].containers[0].env,
+      template[0].labels,
+      template[0].annotations,
+    ]
   }
 }
 
