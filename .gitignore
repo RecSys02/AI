@@ -42,3 +42,16 @@ poi_with_id_region*.json
 *.csv
 *.log
 *.txt
+
+# Terraform 관련 파일
+# Terraform 관련 (보안 및 로컬 설정)
+**/.terraform/
+*.tfstate
+*.tfstate.backup
+**/.terraform.lock.hcl
+
+# Python 관련
+**/__pycache__/
+*.py[cod]
+.venv/
+fastapi_app/uv.lock  # 팀 정책에 따라 다를 수 있지만 보통은 포함하지 않기도 함

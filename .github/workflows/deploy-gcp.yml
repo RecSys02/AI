@@ -49,14 +49,12 @@ jobs:
           # 아래 env_vars 섹션에 모든 설정을 추가합니다.
           env_vars: |
             # [보안 키] - GitHub Secrets에 등록 필수
-            GCP_SA_KEY=${{ secrets.GCP_SA_KEY }}
             GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }}
             GOOGLE_GEOCODE_KEY=${{ secrets.GOOGLE_GEOCODE_KEY }}
             GOOGLE_PLACES_KEY=${{ secrets.GOOGLE_PLACES_KEY }}
             LANGFUSE_PUBLIC_KEY=${{ secrets.LANGFUSE_PUBLIC_KEY }}
             LANGFUSE_SECRET_KEY=${{ secrets.LANGFUSE_SECRET_KEY }}
             OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}
-
 
             # [모델 및 서비스 설정]
             CHAT_MODEL=gpt-4.1-mini
