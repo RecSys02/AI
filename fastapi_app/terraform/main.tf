@@ -51,8 +51,8 @@ resource "google_cloud_run_v2_service" "ai_service" {
 
       resources {
         limits = {
-          memory = "4Gi"
-          cpu    = "2"
+          memory = "8Gi"
+          cpu    = "4"
         }
       }
 
