@@ -46,7 +46,13 @@ resource "google_cloud_run_v2_service" "ai_service" {
   template {
     containers {
       image = "asia-northeast3-docker.pkg.dev/gen-lang-client-0492042254/ai-server/app:latest"
-      
+    resources {
+        limits = {
+          # 메모리를 2GiB 또는 4GiB로 늘려주세요.
+          memory = "4GiB"  # 넉넉하게 4GiB 추천 (데이터 양에 따라 조절)
+          cpu    = "2"     # CPU도 2개 정도로 늘려주면 로딩이 빨라집니다.
+        }
+      }    
       ports {
         container_port = 8000
       }
