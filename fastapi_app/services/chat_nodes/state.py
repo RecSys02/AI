@@ -14,6 +14,7 @@ class GraphState(TypedDict):
     input_place: str | None
     resolved_name: str | None
     last_radius_km: float | None
+    last_normalized_query: str | None
     top_k: int | None
     history_place_ids: List[int]
     intent: str
@@ -50,6 +51,7 @@ def build_context(state: GraphState) -> Dict:
         "last_radius_km": state.get("last_radius_km"),
         "last_mode": state.get("mode"),
         "last_query": state.get("query"),
+        "last_normalized_query": state.get("normalized_query"),
         "last_resolved_name": state.get("resolved_name"),
         "last_place": state.get("place"),
         "last_filter_applied": bool(anchor),

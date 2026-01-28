@@ -236,5 +236,19 @@
       "tourspot": 3.0
     },
     "source": "google_autocomplete+geocode"
+  },
+  "도봉구청앞": {
+    "lat": 37.6693012,
+    "lng": 127.0462377,
+    "address": "서울특별시 도봉구청앞",
+    "query": "도봉구청 앞",
+    "resolved_name": "서울특별시 도봉구청앞",
+    "place_id": "ChIJ0TFLkjG5fDURmDrWQNguZFs",
+    "radius_by_intent": {
+      "restaurant": 2.0,
+      "cafe": 2.0,
+      "tourspot": 3.0
+    },
+    "source": "google_autocomplete+geocode"
   }
 }

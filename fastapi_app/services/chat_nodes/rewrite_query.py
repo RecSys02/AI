@@ -16,10 +16,28 @@ async def rewrite_query_node(state: GraphState) -> Dict:
 
     last_place = context.get("last_resolved_name")
     last_mode = context.get("last_mode")
+    last_normalized_query = context.get("last_normalized_query")
+    history = []
+    for msg in state.get("messages") or []:
+        role = str(msg.get("role") or "").strip()
+        content = str(msg.get("content") or "").strip()
+        if not content:
+            continue
+        if role not in {"user", "assistant", "system"}:
+            role = "user"
+        history.append({"role": role, "content": content})
+    if history and history[-1]["role"] == "user" and history[-1]["content"] == query:
+        history = history[:-1]
+    history = history[-3:]
+    history_hint = ""
+    if history:
+        history_lines = [f"- {item['role']}: {item['content']}" for item in history]
+        history_hint = "최근 대화 기록:\n" + "\n".join(history_lines)
     context_hint = (
         "문맥 정보: "
         f"이전 장소={last_place or '없음'}, "
-        f"이전 카테고리={last_mode or '없음'}"
+        f"이전 카테고리={last_mode or '없음'}, "
+        f"이전 정규화 쿼리={last_normalized_query or '없음'}"
     )
 
     messages = [
@@ -27,6 +45,7 @@ async def rewrite_query_node(state: GraphState) -> Dict:
             "system",
             "너는 사용자의 질문을 검색 엔진과 의도 분류기가 이해하기 쉽게 '완결된 문장'으로 재구성하는 전문가야.\n"
             f"{context_hint}\n"
+            f"{history_hint}\n"
             "핵심 규칙:\n"
             "1. **생략된 맥락 복원**: 사용자가 '카페는?', '맛집은?'처럼 장소 없이 묻는다면 문맥 정보의 '이전 장소'를 결합해 '강남역 근처 카페 추천'처럼 바꿔라.\n"
             "2. **의도 명확화**: 단순히 '장소+맛집' 형식(예: 도봉구 맛집)으로 질문하면, '도봉구 맛집 추천해줘'처럼 추천 의도가 명확히 드러나게 문장을 완성하라.\n"
