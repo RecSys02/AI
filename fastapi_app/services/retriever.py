@@ -290,7 +290,6 @@ def retrieve(
     debug: bool = False,
     anchor_centers: Optional[List[List[float]]] = None,
     anchor_radius_km: Optional[float] = None,
-    admin_term: Optional[str] = None,
     timings: Optional[Dict[str, float]] = None,
 ) -> List[Dict]:
     if mode not in MODE_CONFIG:
@@ -303,7 +302,7 @@ def retrieve(
         timings["load_split_ms"] = round((t1 - t0) * 1000, 2)
     id_to_idx = {int(keys[i][2]): i for i in range(len(keys))}
 
-    # pre-filter by anchor/admin before scoring
+    # pre-filter by anchor before scoring
     t0 = time.perf_counter()
     candidate_idxs = list(range(len(keys)))
     filtered_pids = None
@@ -317,21 +316,6 @@ def retrieve(
                 continue
             dist = _distance_to_centers_km(lat, lng, anchor_centers)
             if dist is not None and dist <= anchor_radius_km:
-                filtered_pids.append(pid)
-    elif admin_term:
-        filter_applied = True
-        term = str(admin_term).lower()
-        filtered_pids = []
-        for pid, meta in id_to_meta.items():
-            addr_parts = [
-                str(meta.get("city") or ""),
-                str(meta.get("district") or ""),
-                str(meta.get("dong") or ""),
-                str(meta.get("road") or ""),
-                str(meta.get("address") or meta.get("location", {}).get("addr1") or ""),
-            ]
-            addr_blob = " ".join(addr_parts).lower()
-            if term in addr_blob:
                 filtered_pids.append(pid)
     if filter_applied:
         if not filtered_pids:

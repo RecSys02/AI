@@ -1,0 +1,19 @@
+flowchart TD
+    rewrite_query[rewrite_query] --> route((route))
+    route -->|intent == recommend| extract_place[extract_place]
+    route -->|intent != recommend| general_answer[general_answer]
+
+    extract_place --> correct_place[correct_place]
+
+    correct_place -->|expand_request| expand_radius[expand_radius]
+    correct_place -->|else| resolve_anchor[resolve_anchor]
+
+    expand_radius -->|expand_failed| answer[answer]
+    expand_radius -->|ok| retrieve[retrieve]
+
+    resolve_anchor --> retrieve
+    retrieve --> apply_location_filter[apply_location_filter]
+    apply_location_filter --> rerank[rerank]
+    rerank --> answer
+    answer --> END((END))
+    general_answer --> END

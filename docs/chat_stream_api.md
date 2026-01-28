@@ -45,7 +45,6 @@
     "last_mode": "restaurant",
     "last_query": "강남 맛집 추천해줘",
     "last_resolved_name": "서울특별시 강남역사거리",
-    "last_admin_term": null,
     "last_place": {"place": "강남"},
     "last_filter_applied": true
   }
@@ -94,7 +93,6 @@
   "last_mode": "restaurant",
   "last_query": "강남 맛집 추천해줘",
   "last_resolved_name": "서울특별시 강남역사거리",
-  "last_admin_term": null,
   "last_place": {"place": "강남"},
   "last_filter_applied": true
 }
@@ -111,12 +109,10 @@
   - 마지막 사용자 질의
 - **last_resolved_name** (string | null)
   - 실제 필터가 적용된 기준 지명
-- **last_admin_term** (string | null)
-  - 행정구 텍스트 필터 기준(있는 경우)
 - **last_place** (PlaceRef | null)
   - 마지막으로 해석된 장소 (구조는 3.5 PlaceRef 참고)
 - **last_filter_applied** (bool | null)
-  - 앵커/행정구 필터가 실제 적용되었는지 여부
+  - 앵커 필터가 실제 적용되었는지 여부
 
 ---
 
@@ -179,7 +175,7 @@ event: final
 data: 서울특별시 강남역사거리 기준으로 추천드립니다. ...
 
 event: context
-data: {"last_anchor": {"centers": [[37.4979052,127.0275777]], "radius_by_intent": {"restaurant":2.0,"cafe":2.0,"tourspot":3.0}, "source":"anchor_cache"}, "last_radius_km": 2.0, "last_mode": "restaurant", "last_query": "강남 맛집 추천해줘", "last_resolved_name": "서울특별시 강남역사거리", "last_admin_term": null, "last_place": {"place": "강남"}, "last_filter_applied": true}
+data: {"last_anchor": {"centers": [[37.4979052,127.0275777]], "radius_by_intent": {"restaurant":2.0,"cafe":2.0,"tourspot":3.0}, "source":"anchor_cache"}, "last_radius_km": 2.0, "last_mode": "restaurant", "last_query": "강남 맛집 추천해줘", "last_resolved_name": "서울특별시 강남역사거리", "last_place": {"place": "강남"}, "last_filter_applied": true}
 
 event: done
 data: ok

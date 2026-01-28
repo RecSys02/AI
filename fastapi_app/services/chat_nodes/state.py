@@ -10,7 +10,7 @@ class GraphState(TypedDict):
     place: Dict | None
     place_original: Dict | None
     anchor: Dict | None
-    admin_term: str | None
+    anchor_failed: bool | None
     input_place: str | None
     resolved_name: str | None
     last_radius_km: float | None
@@ -45,14 +45,12 @@ def slim_retrievals(items: List[dict]) -> List[dict]:
 
 def build_context(state: GraphState) -> Dict:
     anchor = state.get("anchor")
-    admin_term = state.get("admin_term")
     return {
         "last_anchor": anchor or None,
         "last_radius_km": state.get("last_radius_km"),
         "last_mode": state.get("mode"),
         "last_query": state.get("query"),
         "last_resolved_name": state.get("resolved_name"),
-        "last_admin_term": admin_term,
         "last_place": state.get("place"),
-        "last_filter_applied": bool(anchor or admin_term),
+        "last_filter_applied": bool(anchor),
     }

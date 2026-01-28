@@ -24,9 +24,8 @@ async def retrieve_node(state: GraphState) -> Dict:
     history_ids = state.get("history_place_ids") or []
 
     debug_flag = bool(state.get("debug"))
-    # Use location constraints if an anchor/admin term is available.
+    # Use location constraints if an anchor is available.
     anchor = state.get("anchor") or {}
-    admin_term = state.get("admin_term")
     centers = anchor.get("centers") or []
     radius_by_intent = anchor.get("radius_by_intent") or {}
     radius_km = float(radius_by_intent.get(mode_used, 2.0)) if centers else None
@@ -39,7 +38,6 @@ async def retrieve_node(state: GraphState) -> Dict:
         debug=debug_flag,
         anchor_centers=centers or None,
         anchor_radius_km=radius_km,
-        admin_term=admin_term,
         timings=timings,
     )
     result = {

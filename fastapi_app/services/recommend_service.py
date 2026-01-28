@@ -62,10 +62,7 @@ class RecommendService:
         self.expand_distance_max_km = float(
             os.getenv("RECOMMEND_EXPAND_MAX_KM", "10.0")
         )
-        self.default_anchor_coords = (
-            float(os.getenv("DEFAULT_ANCHOR_LAT", "37.4979")),
-            float(os.getenv("DEFAULT_ANCHOR_LNG", "127.0276")),
-        )
+        self.default_anchor_coords = (37.4979, 127.0276)
 
         # CSV 로깅 설정
         self.enable_csv_logging = os.getenv("RERANK_CSV_LOG", "false").lower() == "true"
@@ -565,21 +562,9 @@ ranked_indices는 위 후보 목록의 index 값들을 재정렬한 배열입니
                             break
                 # 좌표를 못 찾으면 distance_place_ids로 대체 후 필요 시 fallback
                 if anchor_coords is None:
-                    distance_place_ids = [{"place_id": 1, "category": "tourspot", "province": "seoul"}]
-                    for scorer in self.scorers:
-                        if scorer.name == "tourspot" and hasattr(scorer, "get_coords"):
-                            anchor_coords = scorer.get_coords(1)
-                            break
-                    if anchor_coords is None:
-                        anchor_coords = self.default_anchor_coords
+                    distance_place_ids = []
         else:
-            distance_place_ids = [{"place_id": 1, "category": "tourspot", "province": "seoul"}]
-            for scorer in self.scorers:
-                if scorer.name == "tourspot" and hasattr(scorer, "get_coords"):
-                    anchor_coords = scorer.get_coords(1)
-                    break
-            if anchor_coords is None:
-                anchor_coords = self.default_anchor_coords
+            anchor_coords = self.default_anchor_coords
 
         for scorer in self.scorers:
             builder = self.text_builders.get(scorer.name)

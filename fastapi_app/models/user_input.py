@@ -22,7 +22,7 @@ class UserInput(BaseModel):
     preferred_moods: Optional[List[str]] = None
     preferred_restaurant_types: Optional[List[str]] = None
     preferred_cafe_types: Optional[List[str]] = None
-    avoid: List[str] = Field(default_factory=list)
+    avoid: Optional[List[str]] = None
     activity_level: Optional[str] = None  # "거의 안걷기" | "적당히" | "오래 걸어도" | "오래 걷는것 선호"
 
     # 일정 생성 시 입력
