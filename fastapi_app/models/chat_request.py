@@ -49,5 +49,5 @@ class ChatRequest(BaseModel):
     preferred_moods: Optional[List[str]] = None
     preferred_restaurant_types: Optional[List[str]] = None
     preferred_cafe_types: Optional[List[str]] = None
-    avoid: List[str] = Field(default_factory=list)
+    avoid: Optional[List[str]] = None
     activity_level: Optional[str] = None
