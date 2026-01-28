@@ -15,6 +15,7 @@
 - 추천 서비스: 기본 anchor 좌표를 env로 설정, 좌표 실패 시 기본 anchor로 fallback.
 - Gemini 적용: `llm_clients`가 GEMINI 키 감지 시 Gemini 사용, 기본 모델 `gemini-2.0-flash`.
 - 문서: `docs/chat_graph.mmd`, `docs/chat_stream_api.md` 업데이트.
+- Langfuse: state 입력 슬림화, query/final 중심 출력, retrievals 요약 기록 추가.
 
 ### 설정/환경변수
 - `GEMINI_API_KEY`, `RERANK_PROVIDER=gemini`, `GEMINI_RERANK_MODEL=gemini-2.0-flash`

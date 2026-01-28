@@ -278,5 +278,33 @@
       "tourspot": 3.0
     },
     "source": "google_autocomplete+geocode"
+  },
+  "망원동": {
+    "lat": 37.5554884,
+    "lng": 126.8998606,
+    "address": "대한민국 서울특별시 마포구 망원동",
+    "query": "망원동",
+    "resolved_name": "대한민국 서울특별시 마포구 망원동",
+    "place_id": "ChIJI-q5LTCZfDUREx5aEFE-fXM",
+    "radius_by_intent": {
+      "restaurant": 2.0,
+      "cafe": 2.0,
+      "tourspot": 3.0
+    },
+    "source": "google_autocomplete+geocode"
+  },
+  "강남구코엑스": {
+    "lat": 37.5116828,
+    "lng": 127.059151,
+    "address": "대한민국 서울특별시 강남구 영동대로 513",
+    "query": "강남구 코엑스",
+    "resolved_name": "대한민국 서울특별시 강남구 영동대로 코엑스",
+    "place_id": "ChIJl4xz5DalfDUR5J-cZDd1bDM",
+    "radius_by_intent": {
+      "restaurant": 2.0,
+      "cafe": 2.0,
+      "tourspot": 3.0
+    },
+    "source": "google_autocomplete+geocode"
   }
 }

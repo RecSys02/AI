@@ -8,6 +8,7 @@ from fastapi import APIRouter, Query, Request
 from sse_starlette.sse import EventSourceResponse
 
 from services.chat_graph import chat_app
+from services.chat_nodes.callbacks import update_langfuse_trace, wrap_langfuse_callback
 from utils.geo import append_node_trace
 from models.chat_request import ChatRequest
 
@@ -34,12 +35,13 @@ def _build_langfuse_callbacks(session_id: Optional[str] = None) -> List[object] 
     module_name = getattr(CallbackHandler, "__module__", "")
     if module_name.startswith("langfuse.langchain"):
         # Langfuse v3 LangChain handler reads keys/host from environment.
+        # Disable auto trace updates so we can control input/output payloads.
         try:
-            handler = CallbackHandler(update_trace=True)
+            handler = CallbackHandler(update_trace=False)
         except TypeError:
-            handler = CallbackHandler(public_key=public_key, update_trace=True)
+            handler = CallbackHandler(public_key=public_key, update_trace=False)
     else:
-        kwargs = {"public_key": public_key, "secret_key": secret_key}
+        kwargs = {"public_key": public_key, "secret_key": secret_key, "update_trace": False}
         host = os.getenv("LANGFUSE_HOST") or os.getenv("LANGFUSE_BASE_URL")
         if host:
             kwargs["host"] = host
@@ -51,7 +53,7 @@ def _build_langfuse_callbacks(session_id: Optional[str] = None) -> List[object] 
             handler = CallbackHandler(public_key=public_key, secret_key=secret_key)
     if handler is None:
         return None
-    return [handler]
+    return [wrap_langfuse_callback(handler)]
 
 def _parse_history(raw: Optional[str]) -> List[int]:
     if not raw:
@@ -127,6 +129,8 @@ async def chat_stream(
         final_sent = False
         context_sent = False
         cancelled = False
+        final_text = None
+        final_context = None
         try:
             async for event in chat_app.astream_events(initial_state, config=config, version="v2"):
                 kind = event.get("event")
@@ -141,6 +145,7 @@ async def chat_stream(
                         yield {"event": "debug", "data": json.dumps(data["debug"], ensure_ascii=False)}
                     if "context" in data and not context_sent:
                         context_sent = True
+                        final_context = data["context"]
                         yield {"event": "context", "data": json.dumps(data["context"], ensure_ascii=False)}
                     if "token" in data:
                         any_event = True
@@ -148,12 +153,14 @@ async def chat_stream(
                     if "final" in data and not final_sent:
                         any_event = True
                         final_sent = True
+                        final_text = str(data["final"])
                         yield {"event": "final", "data": str(data["final"])}
             if not any_event:
                 final_state = chat_app.invoke(initial_state, config=config)
                 final_text = None
                 if isinstance(final_state, dict):
                     final_text = final_state.get("final") or final_state.get("answer")
+                    final_context = final_state.get("context") or final_context
                 if final_text and not final_sent:
                     final_sent = True
                     yield {"event": "token", "data": str(final_text)}
@@ -163,6 +170,12 @@ async def chat_stream(
             cancelled = True
             raise
         finally:
+            output_payload = {}
+            if final_text:
+                output_payload["final"] = final_text
+            if final_context:
+                output_payload["context"] = final_context
+            update_langfuse_trace(callbacks, input_state=initial_state, output=output_payload or None)
             logger.info(
                 "chat_stream done req_id=%s any_event=%s final_sent=%s cancelled=%s",
                 req_id,
@@ -214,6 +227,8 @@ async def chat_stream_post(req: ChatRequest, request: Request):
         final_sent = False
         context_sent = False
         cancelled = False
+        final_text = None
+        final_context = None
         try:
             async for event in chat_app.astream_events(initial_state, config=config, version="v2"):
                 kind = event.get("event")
@@ -228,6 +243,7 @@ async def chat_stream_post(req: ChatRequest, request: Request):
                         yield {"event": "debug", "data": json.dumps(data["debug"], ensure_ascii=False)}
                     if "context" in data and not context_sent:
                         context_sent = True
+                        final_context = data["context"]
                         yield {"event": "context", "data": json.dumps(data["context"], ensure_ascii=False)}
                     if "token" in data:
                         any_event = True
@@ -235,12 +251,14 @@ async def chat_stream_post(req: ChatRequest, request: Request):
                     if "final" in data and not final_sent:
                         any_event = True
                         final_sent = True
+                        final_text = str(data["final"])
                         yield {"event": "final", "data": str(data["final"])}
             if not any_event:
                 final_state = chat_app.invoke(initial_state, config=config, version="v2")
                 final_text = None
                 if isinstance(final_state, dict):
                     final_text = final_state.get("final") or final_state.get("answer")
+                    final_context = final_state.get("context") or final_context
                 if final_text and not final_sent:
                     final_sent = True
                     yield {"event": "token", "data": str(final_text)}
@@ -250,6 +268,12 @@ async def chat_stream_post(req: ChatRequest, request: Request):
             cancelled = True
             raise
         finally:
+            output_payload = {}
+            if final_text:
+                output_payload["final"] = final_text
+            if final_context:
+                output_payload["context"] = final_context
+            update_langfuse_trace(callbacks, input_state=initial_state, output=output_payload or None)
             logger.info(
                 "chat_stream_post done req_id=%s any_event=%s final_sent=%s cancelled=%s",
                 req_id,

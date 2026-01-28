@@ -160,3 +160,139 @@ query=잠실은?	node=apply_location_filter
 query=잠실은?	node=rerank
 query=잠실은?	node=answer
 query=잠실은?	node=answer
+query=망원동 맛집 추천해줘	node=rewrite_query
+query=망원동 맛집 추천해줘	node=route
+query=망원동 맛집 추천해줘	node=extract_place
+query=망원동 맛집 추천해줘	node=correct_place
+query=망원동 맛집 추천해줘	node=resolve_anchor
+query=망원동 맛집 추천해줘	node=retrieve
+query=망원동 맛집 추천해줘	node=apply_location_filter
+query=망원동 맛집 추천해줘	node=rerank
+query=망원동 맛집 추천해줘	node=answer
+query=망원동 맛집 추천해줘	node=answer
+query=코엑스 근처 맛집 추천해줘	node=rewrite_query
+query=코엑스 근처 맛집 추천해줘	node=route
+query=코엑스 근처 맛집 추천해줘	node=extract_place
+query=코엑스 근처 맛집 추천해줘	node=correct_place
+query=코엑스 근처 맛집 추천해줘	node=resolve_anchor
+query=코엑스 근처 맛집 추천해줘	node=retrieve
+query=코엑스 근처 맛집 추천해줘	node=apply_location_filter
+query=코엑스 근처 맛집 추천해줘	node=rerank
+query=코엑스 근처 맛집 추천해줘	node=answer
+query=코엑스 근처 맛집 추천해줘	node=answer
+query=코엑스 근처 맛집 추천해줘	node=rewrite_query
+query=코엑스 근처 맛집 추천해줘	node=route
+query=코엑스 근처 맛집 추천해줘	node=extract_place
+query=코엑스 근처 맛집 추천해줘	node=correct_place
+query=코엑스 근처 맛집 추천해줘	node=resolve_anchor
+query=코엑스 근처 맛집 추천해줘	node=retrieve
+query=코엑스 근처 맛집 추천해줘	node=apply_location_filter
+query=코엑스 근처 맛집 추천해줘	node=rerank
+query=코엑스 근처 맛집 추천해줘	node=answer
+query=코엑스 근처 맛집 추천해줘	node=answer
+query=코엑스 근처 맛집 추천해줘	node=rewrite_query
+query=코엑스 근처 맛집 추천해줘	node=route
+query=코엑스 근처 맛집 추천해줘	node=extract_place
+query=코엑스 근처 맛집 추천해줘	node=correct_place
+query=코엑스 근처 맛집 추천해줘	node=resolve_anchor
+query=코엑스 근처 맛집 추천해줘	node=retrieve
+query=코엑스 근처 맛집 추천해줘	node=apply_location_filter
+query=코엑스 근처 맛집 추천해줘	node=rerank
+query=코엑스 근처 맛집 추천해줘	node=answer
+query=코엑스 근처 맛집 추천해줘	node=answer
+query=코엑스 근처 맛집 추천해줘	node=rewrite_query
+query=코엑스 근처 맛집 추천해줘	node=route
+query=코엑스 근처 맛집 추천해줘	node=extract_place
+query=코엑스 근처 맛집 추천해줘	node=correct_place
+query=코엑스 근처 맛집 추천해줘	node=resolve_anchor
+query=코엑스 근처 맛집 추천해줘	node=retrieve
+query=코엑스 근처 맛집 추천해줘	node=rewrite_query
+query=코엑스 근처 맛집 추천해줘	node=route
+query=코엑스 근처 맛집 추천해줘	node=extract_place
+query=코엑스 근처 맛집 추천해줘	node=correct_place
+query=코엑스 근처 맛집 추천해줘	node=resolve_anchor
+query=코엑스 근처 맛집 추천해줘	node=retrieve
+query=코엑스 근처 맛집 추천해줘	node=apply_location_filter
+query=코엑스 근처 맛집 추천해줘	node=rerank
+query=코엑스 근처 맛집 추천해줘	node=answer
+query=코엑스 근처 맛집 추천해줘	node=answer
+query=코엑스 근처 맛집 추천해줘	node=rewrite_query
+query=코엑스 근처 맛집 추천해줘	node=route
+query=코엑스 근처 맛집 추천해줘	node=extract_place
+query=코엑스 근처 맛집 추천해줘	node=correct_place
+query=코엑스 근처 맛집 추천해줘	node=resolve_anchor
+query=코엑스 근처 맛집 추천해줘	node=retrieve
+query=코엑스 근처 맛집 추천해줘	node=apply_location_filter
+query=코엑스 근처 맛집 추천해줘	node=rerank
+query=코엑스 근처 맛집 추천해줘	node=answer
+query=코엑스 근처 맛집 추천해줘	node=answer
+query=코엑스 근처 카페	node=rewrite_query
+query=코엑스 근처 카페	node=route
+query=코엑스 근처 카페	node=extract_place
+query=코엑스 근처 카페	node=correct_place
+query=코엑스 근처 카페	node=resolve_anchor
+query=코엑스 근처 카페	node=retrieve
+query=코엑스 근처 카페	node=apply_location_filter
+query=코엑스 근처 카페	node=rerank
+query=코엑스 근처 카페	node=answer
+query=코엑스 근처 카페	node=answer
+query=코엑스 근처 카페1	node=rewrite_query
+query=코엑스 근처 카페1	node=route
+query=코엑스 근처 카페1	node=extract_place
+query=코엑스 근처 카페1	node=correct_place
+query=코엑스 근처 카페1	node=resolve_anchor
+query=코엑스 근처 카페1	node=retrieve
+query=코엑스 근처 카페1	node=apply_location_filter
+query=코엑스 근처 카페1	node=rerank
+query=코엑스 근처 카페1	node=answer
+query=코엑스 근처 카페1	node=answer
+query=코엑스 근처 카페1	node=rewrite_query
+query=코엑스 근처 카페1	node=route
+query=코엑스 근처 카페1	node=extract_place
+query=코엑스 근처 카페1	node=correct_place
+query=코엑스 근처 카페1	node=resolve_anchor
+query=코엑스 근처 카페1	node=retrieve
+query=코엑스 근처 카페1	node=apply_location_filter
+query=코엑스 근처 카페1	node=rerank
+query=코엑스 근처 카페1	node=answer
+query=코엑스 근처 카페1	node=answer
+query=잠실 근처 카페1	node=rewrite_query
+query=잠실 근처 카페1	node=route
+query=잠실 근처 카페1	node=extract_place
+query=잠실 근처 카페1	node=correct_place
+query=잠실 근처 카페1	node=resolve_anchor
+query=잠실 근처 카페1	node=retrieve
+query=잠실 근처 카페1	node=apply_location_filter
+query=잠실 근처 카페1	node=rerank
+query=잠실 근처 카페1	node=answer
+query=잠실 근처 카페1	node=answer
+query=잠실 근처 카페1	node=rewrite_query
+query=잠실 근처 카페1	node=route
+query=잠실 근처 카페1	node=extract_place
+query=잠실 근처 카페1	node=correct_place
+query=잠실 근처 카페1	node=resolve_anchor
+query=잠실 근처 카페1	node=retrieve
+query=잠실 근처 카페1	node=apply_location_filter
+query=잠실 근처 카페1	node=rerank
+query=잠실 근처 카페1	node=answer
+query=잠실 근처 카페1	node=answer
+query=잠실 근처 카페1222	node=rewrite_query
+query=잠실 근처 카페1222	node=route
+query=잠실 근처 카페1222	node=extract_place
+query=잠실 근처 카페1222	node=correct_place
+query=잠실 근처 카페1222	node=resolve_anchor
+query=잠실 근처 카페1222	node=retrieve
+query=잠실 근처 카페1222	node=apply_location_filter
+query=잠실 근처 카페1222	node=rerank
+query=잠실 근처 카페1222	node=answer
+query=잠실 근처 카페1222	node=answer
+query=잠실 근처 카페1222	node=rewrite_query
+query=잠실 근처 카페1222	node=route
+query=잠실 근처 카페1222	node=extract_place
+query=잠실 근처 카페1222	node=correct_place
+query=잠실 근처 카페1222	node=resolve_anchor
+query=잠실 근처 카페1222	node=retrieve
+query=잠실 근처 카페1222	node=apply_location_filter
+query=잠실 근처 카페1222	node=rerank
+query=잠실 근처 카페1222	node=answer
+query=잠실 근처 카페1222	node=answer
