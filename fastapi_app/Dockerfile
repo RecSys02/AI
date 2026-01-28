@@ -25,6 +25,10 @@ RUN uv pip install --system --no-cache -r pyproject.toml
 # 6. 소스 코드 복사
 COPY . /app
 
+# [추가] AI 모델 미리 다운로드 (이미지 빌드 시점에 포함)
+# 8Gi 사양을 주었으므로 빌드 및 실행 시 여유가 생깁니다.
+RUN python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('BAAI/bge-m3')"
+
 # Cloud Run에서 GCS를 마운트할 경로 확인용 (선택 사항)
 # VOLUME 설정은 Cloud Run의 GCS FUSE 마운트와는 별개로 작동하므로 생략 가능합니다.
 

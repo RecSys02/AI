@@ -62,7 +62,7 @@ resource "google_cloud_run_v2_service" "ai_service" {
 
       volume_mounts {
         name       = "embeddings-storage"
-        mount_path = "/app/data"
+        mount_path = "/data"
       }
     }
 
@@ -91,4 +91,11 @@ output "repository_url" {
 
 output "bucket_name" {
   value = google_storage_bucket.data_bucket.name
+}
+
+resource "google_cloud_run_v2_service_iam_member" "public_access" {
+  location = google_cloud_run_v2_service.ai_service.location
+  name     = google_cloud_run_v2_service.ai_service.name
+  role     = "roles/run.invoker"
+  member   = "allUsers"
 }
