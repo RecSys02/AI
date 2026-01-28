@@ -1,0 +1,78 @@
+name: Build and Deploy to Cloud Run
+
+on:
+  push:
+    # park_research 브랜치에 푸시될 때 실행되도록 설정합니다.
+    branches: [ "park_research" ]
+
+env:
+  PROJECT_ID: gen-lang-client-0492042254
+  REGION: asia-northeast3
+  REPO_NAME: ai-server
+  SERVICE_NAME: ai-server-service
+  IMAGE_NAME: app
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # 1. Google Cloud 인증
+      # GitHub Secrets에 저장한 GCP_SA_KEY를 사용합니다.
+      - id: 'auth'
+        uses: 'google-github-actions/auth@v2'
+        with:
+          credentials_json: '${{ secrets.GCP_SA_KEY }}'
+
+      # 2. Docker 설정 및 Artifact Registry 인증
+      - name: Docker Auth
+        run: |-
+          gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev
+
+      # 3. Docker 이미지 빌드 및 푸시
+      # fastapi_app 폴더를 빌드 컨텍스트로 사용합니다.
+      - name: Build and Push Container
+        run: |-
+          docker build -t ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPO_NAME }}/${{ env.IMAGE_NAME }}:latest ./fastapi_app
+          docker push ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPO_NAME }}/${{ env.IMAGE_NAME }}:latest
+
+      # 4. Cloud Run에 배포
+      - name: Deploy to Cloud Run
+        id: deploy
+        uses: 'google-github-actions/deploy-cloudrun@v2'
+        with:
+          service: ${{ env.SERVICE_NAME }}
+          region: ${{ env.REGION }}
+          image: ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPO_NAME }}/${{ env.IMAGE_NAME }}:latest
+          # 아래 env_vars 섹션에 모든 설정을 추가합니다.
+          env_vars: |
+            # [보안 키] - GitHub Secrets에 등록 필수
+            GCP_SA_KEY=${{ secrets.GCP_SA_KEY }}
+            GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }}
+            GOOGLE_GEOCODE_KEY=${{ secrets.GOOGLE_GEOCODE_KEY }}
+            GOOGLE_PLACES_KEY=${{ secrets.GOOGLE_PLACES_KEY }}
+            LANGFUSE_PUBLIC_KEY=${{ secrets.LANGFUSE_PUBLIC_KEY }}
+            LANGFUSE_SECRET_KEY=${{ secrets.LANGFUSE_SECRET_KEY }}
+            OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}
+
+
+            # [모델 및 서비스 설정]
+            CHAT_MODEL=gpt-4.1-mini
+            DETECT_MODEL=gpt-4.1-mini
+            LANGFUSE_BASE_URL=https://us.cloud.langfuse.com
+            RERANK_PROVIDER=gemini
+            GEMINI_RERANK_MODEL=gemini-2.0-flash
+            GEMINI_CHAT_MODEL=gemini-2.0-flash
+            RERANK_METRICS_LOG=true
+            LANGFUSE_DEBUG=1
+            
+            # [기본 시스템 설정]
+            PYTHONUNBUFFERED=1
+            PYTHONDONTWRITEBYTECODE=1
+
+
+      # 5. 배포된 서비스 URL 출력
+      - name: Show Output
+        run: echo ${{ steps.deploy.outputs.url }}
