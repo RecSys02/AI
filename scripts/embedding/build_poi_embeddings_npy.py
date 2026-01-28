@@ -24,7 +24,6 @@ OUT_DIR = ROOT / "data" / "embeddings"
 MODEL_NAME = "BAAI/bge-m3"
 BATCH_SIZE = 16
 
-
 # =========================
 # Utils
 # =========================

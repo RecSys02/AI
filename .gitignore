@@ -41,3 +41,4 @@ poi_with_id_region*.json
 *.jsonl
 *.csv
 *.log
+*.txt
