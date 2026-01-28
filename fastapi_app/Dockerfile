@@ -15,7 +15,7 @@ WORKDIR /app
 
 # 4. 의존성 파일 먼저 복사 (캐싱 효율화)
 # uv.lock 파일이 로컬에 있다면 함께 복사하는 것이 좋습니다.
-COPY pyproject.toml uv.lock* README.md /app/
+COPY pyproject.toml uv.lock* /app/
 
 # 5. 패키지 설치
 # --system 옵션을 사용하여 컨테이너의 시스템 파이썬에 직접 설치합니다.
