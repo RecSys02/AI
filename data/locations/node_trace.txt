@@ -78,3 +78,17 @@ query=신사동 맛집	node=apply_location_filter
 query=신사동 맛집	node=rerank
 query=신사동 맛집	node=answer
 query=신사동 맛집	node=answer
+query=도봉구 맛집	node=rewrite_query
+query=도봉구 맛집	node=route
+query=도봉구 맛집	node=general_answer
+query=도봉구 맛집	node=general_answer
+query=도봉구 맛집	node=rewrite_query
+query=도봉구 맛집	node=route
+query=도봉구 맛집	node=extract_place
+query=도봉구 맛집	node=correct_place
+query=도봉구 맛집	node=resolve_anchor
+query=도봉구 맛집	node=retrieve
+query=도봉구 맛집	node=apply_location_filter
+query=도봉구 맛집	node=rerank
+query=도봉구 맛집	node=answer
+query=도봉구 맛집	node=answer
