@@ -44,6 +44,7 @@ resource "google_cloud_run_v2_service" "ai_service" {
   ingress  = "INGRESS_TRAFFIC_ALL"
 
   template {
+    timeout = "600s"
     containers {
       image = "asia-northeast3-docker.pkg.dev/gen-lang-client-0492042254/ai-server/app:latest"
     resources {
