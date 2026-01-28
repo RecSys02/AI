@@ -35,13 +35,12 @@ def _build_langfuse_callbacks(session_id: Optional[str] = None) -> List[object] 
     module_name = getattr(CallbackHandler, "__module__", "")
     if module_name.startswith("langfuse.langchain"):
         # Langfuse v3 LangChain handler reads keys/host from environment.
-        # Disable auto trace updates so we can control input/output payloads.
         try:
-            handler = CallbackHandler(update_trace=False)
+            handler = CallbackHandler(update_trace=True)
         except TypeError:
-            handler = CallbackHandler(public_key=public_key, update_trace=False)
+            handler = CallbackHandler(public_key=public_key, update_trace=True)
     else:
-        kwargs = {"public_key": public_key, "secret_key": secret_key, "update_trace": False}
+        kwargs = {"public_key": public_key, "secret_key": secret_key, "update_trace": True}
         host = os.getenv("LANGFUSE_HOST") or os.getenv("LANGFUSE_BASE_URL")
         if host:
             kwargs["host"] = host
@@ -131,6 +130,7 @@ async def chat_stream(
         cancelled = False
         final_text = None
         final_context = None
+        token_parts: List[str] = []
         try:
             async for event in chat_app.astream_events(initial_state, config=config, version="v2"):
                 kind = event.get("event")
@@ -149,7 +149,10 @@ async def chat_stream(
                         yield {"event": "context", "data": json.dumps(data["context"], ensure_ascii=False)}
                     if "token" in data:
                         any_event = True
-                        yield {"event": "token", "data": str(data["token"])}
+                        token = str(data["token"])
+                        if not final_text:
+                            token_parts.append(token)
+                        yield {"event": "token", "data": token}
                     if "final" in data and not final_sent:
                         any_event = True
                         final_sent = True
@@ -165,6 +168,8 @@ async def chat_stream(
                     final_sent = True
                     yield {"event": "token", "data": str(final_text)}
                     yield {"event": "final", "data": str(final_text)}
+            if not final_text and token_parts:
+                final_text = "".join(token_parts)
             yield {"event": "done", "data": "ok"}
         except asyncio.CancelledError:
             cancelled = True
@@ -229,6 +234,7 @@ async def chat_stream_post(req: ChatRequest, request: Request):
         cancelled = False
         final_text = None
         final_context = None
+        token_parts: List[str] = []
         try:
             async for event in chat_app.astream_events(initial_state, config=config, version="v2"):
                 kind = event.get("event")
@@ -247,7 +253,10 @@ async def chat_stream_post(req: ChatRequest, request: Request):
                         yield {"event": "context", "data": json.dumps(data["context"], ensure_ascii=False)}
                     if "token" in data:
                         any_event = True
-                        yield {"event": "token", "data": str(data["token"])}
+                        token = str(data["token"])
+                        if not final_text:
+                            token_parts.append(token)
+                        yield {"event": "token", "data": token}
                     if "final" in data and not final_sent:
                         any_event = True
                         final_sent = True
@@ -263,6 +272,8 @@ async def chat_stream_post(req: ChatRequest, request: Request):
                     final_sent = True
                     yield {"event": "token", "data": str(final_text)}
                     yield {"event": "final", "data": str(final_text)}
+            if not final_text and token_parts:
+                final_text = "".join(token_parts)
             yield {"event": "done", "data": "ok"}
         except asyncio.CancelledError:
             cancelled = True
