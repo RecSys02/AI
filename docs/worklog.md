@@ -17,6 +17,10 @@
 - 문서: `docs/chat_graph.mmd`, `docs/chat_stream_api.md` 업데이트.
 - Langfuse: state 입력 슬림화, query/final 중심 출력, retrievals 요약 기록 추가.
 
+### 추가 작업
+- embedding_json 위경도 누락 점검/보정 워크플로우 정리 및 스크립트 운영.
+- `scripts/poi/update_backend_db.py` 추가: `data/embedding_json` → `data/backend_db/merged_poi.json` 변환 병합.
+
 ### 설정/환경변수
 - `GEMINI_API_KEY`, `RERANK_PROVIDER=gemini`, `GEMINI_RERANK_MODEL=gemini-2.0-flash`
 - 선택: `GEMINI_CHAT_MODEL`, `DEFAULT_ANCHOR_LAT`, `DEFAULT_ANCHOR_LNG`

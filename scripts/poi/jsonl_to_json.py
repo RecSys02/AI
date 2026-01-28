@@ -12,7 +12,6 @@ def main():
             line = line.strip()
             if not line:
                 continue
-
             try:
                 obj = json.loads(line)
                 data.append(obj)
@@ -21,7 +20,6 @@ def main():
 
     with open(OUTPUT_PATH, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
-
     print(f"✅ Converted {len(data)} POIs → {OUTPUT_PATH}")
 
 if __name__ == "__main__":
