@@ -1,8 +1,7 @@
-import json
 from typing import Dict
 
 from services.chat_nodes.callbacks import build_callbacks_config
-from services.chat_nodes.llm_clients import detect_llm, max_tokens_kwargs
+from services.chat_nodes.llm_clients import detect_llm, max_tokens_kwargs, parse_json_response
 
 
 async def llm_extract_place(query: str, callbacks: list | None = None) -> Dict | None:
@@ -25,7 +24,7 @@ async def llm_extract_place(query: str, callbacks: list | None = None) -> Dict |
     try:
         resp = await detect_llm.ainvoke(messages, **max_tokens_kwargs(40), config=config)
         raw = (resp.content or "").strip()
-        data = json.loads(raw)
+        data = parse_json_response(raw)
         if not isinstance(data, dict):
             return None
         area = data.get("area")
@@ -62,7 +61,7 @@ async def llm_correct_place(
     try:
         resp = await detect_llm.ainvoke(messages, **max_tokens_kwargs(60), config=config)
         raw = (resp.content or "").strip()
-        data = json.loads(raw)
+        data = parse_json_response(raw)
         if not isinstance(data, dict):
             return None
         changed = bool(data.get("changed"))

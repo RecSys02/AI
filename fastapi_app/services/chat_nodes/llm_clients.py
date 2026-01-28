@@ -1,4 +1,6 @@
+import json
 import os
+import re
 
 
 def _provider() -> str:
@@ -23,11 +25,40 @@ def _gemini_models() -> tuple[str, str]:
 
 provider = _provider()
 _MAX_TOKENS_KEY = "max_output_tokens" if provider == "gemini" else "max_tokens"
+_JSON_FENCE_RE = re.compile(r"^```(?:json)?\\s*|\\s*```$", re.IGNORECASE)
 
 
 def max_tokens_kwargs(max_tokens: int) -> dict:
     """Return the provider-appropriate max token argument."""
     return {_MAX_TOKENS_KEY: max_tokens}
+
+
+def parse_json_response(raw: str):
+    """Best-effort JSON parser for LLM responses (handles code fences/extraneous text)."""
+    if not raw:
+        return None
+    text = raw.strip()
+    if "```" in text:
+        text = _JSON_FENCE_RE.sub("", text).strip()
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError:
+        pass
+    obj_start = text.find("{")
+    obj_end = text.rfind("}")
+    if obj_start >= 0 and obj_end > obj_start:
+        try:
+            return json.loads(text[obj_start : obj_end + 1])
+        except json.JSONDecodeError:
+            pass
+    arr_start = text.find("[")
+    arr_end = text.rfind("]")
+    if arr_start >= 0 and arr_end > arr_start:
+        try:
+            return json.loads(text[arr_start : arr_end + 1])
+        except json.JSONDecodeError:
+            pass
+    return None
 if provider == "gemini":
     try:
         from langchain_google_genai import ChatGoogleGenerativeAI
