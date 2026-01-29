@@ -436,3 +436,23 @@ query=잠실역 근방 맛집 추천해줘	node=apply_location_filter
 query=잠실역 근방 맛집 추천해줘	node=rerank
 query=잠실역 근방 맛집 추천해줘	node=answer
 query=잠실역 근방 맛집 추천해줘	node=answer
+query=강남말고 동작구에서	node=rewrite_query
+query=강남말고 동작구에서	node=route
+query=강남말고 동작구에서	node=extract_place
+query=강남말고 동작구에서	node=correct_place
+query=강남말고 동작구에서	node=resolve_anchor
+query=강남말고 동작구에서	node=retrieve
+query=강남말고 동작구에서	node=apply_location_filter
+query=강남말고 동작구에서	node=rerank
+query=강남말고 동작구에서	node=answer
+query=강남말고 동작구에서	node=answer
+query=강남말고 동작구에서	node=rewrite_query
+query=강남말고 동작구에서	node=route
+query=강남말고 동작구에서	node=extract_place
+query=강남말고 동작구에서	node=correct_place
+query=강남말고 동작구에서	node=resolve_anchor
+query=강남말고 동작구에서	node=retrieve
+query=강남말고 동작구에서	node=apply_location_filter
+query=강남말고 동작구에서	node=rerank
+query=강남말고 동작구에서	node=answer
+query=강남말고 동작구에서	node=answer

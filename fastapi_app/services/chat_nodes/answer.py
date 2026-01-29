@@ -10,10 +10,15 @@ from utils.geo import append_node_trace_result
 async def answer_node(state: GraphState):
     """Generate the final response or clarification based on retrieval results."""
     
-    # 1. 예외 케이스 처리 (위치 검색 실패 등)
+    # 1. 원본 쿼리와 정제된 쿼리 설정
+    raw_query = state.get("query", "")
+    normalized_query = state.get("normalized_query")
+    target_query = normalized_query if normalized_query else raw_query
+    
+    # 2. 예외 케이스 처리 (위치 검색 실패 등)
     if state.get("expand_failed"):
         final_text = "이전에 사용한 기준 위치가 없어서 범위를 넓힐 수 없어요. 기준 장소를 알려주세요."
-        append_node_trace_result(state.get("query", ""), "answer", {"final": final_text})
+        append_node_trace_result(raw_query, "answer", {"final": final_text})
         yield {"final": final_text}
         yield {"context": build_context(state)}
         return
@@ -25,24 +30,23 @@ async def answer_node(state: GraphState):
             place = place_info.get("point") or place_info.get("area")
         
         final_text = f"'{place}' 위치를 찾지 못했어요. 지점/역/건물명을 알려주세요." if place else "위치를 찾지 못했어요. 기준이 될 지점/역/건물명을 알려주세요."
-        append_node_trace_result(state.get("query", ""), "answer", {"final": final_text})
+        append_node_trace_result(raw_query, "answer", {"final": final_text})
         yield {"final": final_text}
         yield {"context": build_context(state)}
         return
 
-    query = state.get("query", "")
     callbacks = state.get("callbacks")
     config = build_callbacks_config(callbacks)
 
-    # 주변 추천 의도인데 기준점이 없는 경우
-    if is_nearby_query(query) and not state.get("anchor"):
+    # 주변 추천 의도(정제된 쿼리 기준)인데 기준점이 없는 경우
+    if is_nearby_query(target_query) and not state.get("anchor"):
         place = state.get("resolved_name") or state.get("input_place")
         if not place:
             place_info = state.get("place") or {}
             place = place_info.get("point") or place_info.get("area")
         
         final_text = f"'{place}'가 어느 지점을 말하는지 알려주세요. 기준 위치를 알려주시면 그 근처로 추천할게요." if place else "근처/주변 추천을 하려면 기준 위치가 필요해요. 지점/역/건물명을 알려주세요."
-        append_node_trace_result(state.get("query", ""), "answer", {"final": final_text})
+        append_node_trace_result(raw_query, "answer", {"final": final_text})
         yield {"final": final_text}
         yield {"context": build_context(state)}
         return
@@ -67,7 +71,7 @@ async def answer_node(state: GraphState):
     if state.get("debug"):
         yield {"debug": retrievals}
 
-    # 2. 컨텍스트 구성 방식 개선 (태그 기반 구조화)
+    # 3. 컨텍스트 구성 방식 (태그 기반 구조화)
     def _build_ctx(r: dict) -> str:
         meta = r.get("meta") or {}
         name = meta.get("name") or meta.get("title") or "장소"
@@ -87,7 +91,7 @@ async def answer_node(state: GraphState):
 
     context_str = "\n".join([f"- {_build_ctx(r)}" for r in retrievals])
 
-    # 1. 출력 형식 및 기본 지침 정의
+    # 4. 출력 형식 및 기본 지침 정의
     resolved_name = state.get("resolved_name") if bool(state.get("anchor")) else "서울"
     
     FORMAT_INSTRUCTION = (
@@ -104,16 +108,16 @@ async def answer_node(state: GraphState):
         f"3. {FORMAT_INSTRUCTION}"
     )
 
-    # 2. 유동적인 제약 조건 추가 (데이트 의도 등)
+    # 5. 유동적인 제약 조건 추가 (정제된 쿼리 기준)
     constraints = []
-    if is_date_query(query):
+    if is_date_query(target_query):
         constraints.append("- 데이트 의도에 맞춰 로맨틱하고 분위기 좋은 점을 강조하여 추천 이유를 작성할 것.")
     if state.get("mode_unknown"):
         constraints.append("- 카테고리가 불분명하므로 관광지 위주로 추천했음을 알리고, 맛집/카페 등 선호 타입을 물어볼 것.")
 
     full_system_prompt = system_base + "\n" + "\n".join(constraints)
 
-    # 3. Few-shot 예시와 함께 메시지 구성
+    # 6. Few-shot 예시와 함께 메시지 구성
     messages = [
         ("system", full_system_prompt),
         ("system", f"후보 목록:\n{context_str}"),
@@ -127,7 +131,7 @@ async def answer_node(state: GraphState):
             "   - 특징: 푸짐한 전골 요리\n"
             "   - 추천 이유: 곱창전골 등 다양한 메뉴와 푸짐한 밑반찬이 제공되어 가족 식사에 적합합니다."
         )),
-        ("user", query)
+        ("user", target_query) # LLM에게 정제된 쿼리 전달
     ]
 
     parts: List[str] = []
@@ -139,6 +143,6 @@ async def answer_node(state: GraphState):
         yield {"token": content}
 
     final_text = "".join(parts)
-    append_node_trace_result(state.get("query", ""), "answer", {"final": final_text})
+    append_node_trace_result(raw_query, "answer", {"final": final_text})
     yield {"final": final_text}
     yield {"context": build_context(state)}

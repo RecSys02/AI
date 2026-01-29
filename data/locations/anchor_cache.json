@@ -320,5 +320,19 @@
       "tourspot": 3.0
     },
     "source": "google_autocomplete+geocode"
+  },
+  "동작구": {
+    "lat": 37.4988794,
+    "lng": 126.9516345,
+    "address": "대한민국 서울특별시 동작구",
+    "query": "동작구",
+    "resolved_name": "대한민국 서울특별시 동작구",
+    "place_id": "ChIJgYYqF3iffDURmGQzSoStNBU",
+    "radius_by_intent": {
+      "restaurant": 2.0,
+      "cafe": 2.0,
+      "tourspot": 3.0
+    },
+    "source": "google_autocomplete+geocode"
   }
 }

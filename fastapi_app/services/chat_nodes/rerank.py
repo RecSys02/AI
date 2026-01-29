@@ -16,6 +16,11 @@ async def rerank_node(state: GraphState) -> Dict:
         append_node_trace_result(state.get("query", ""), "rerank", result)
         return result
 
+    # 1. 쿼리 설정: 정제된 normalized_query가 있다면 우선 사용
+    raw_query = state.get("query", "")
+    normalized_query = state.get("normalized_query")
+    target_query = normalized_query if normalized_query else raw_query
+
     # desired_k is bounded by available candidates and request top_k.
     desired_k = max(1, min(state.get("top_k") or RERANK_K, len(retrievals)))
 
@@ -52,7 +57,6 @@ async def rerank_node(state: GraphState) -> Dict:
         return " ".join([p for p in parts if p])
 
     candidates_txt = "\n".join([f"[id={i}] {_build_ctx(r)}" for i, r in enumerate(retrievals)])
-    user_query = state.get("query", "")
     config = build_callbacks_config(state.get("callbacks"))
     messages = [
         (
@@ -61,7 +65,9 @@ async def rerank_node(state: GraphState) -> Dict:
             "id만 JSON 배열로 반환해. 예: [0,2]. 다른 텍스트는 넣지 말 것.",
         ),
     ]
-    if is_date_query(user_query):
+    
+    # 2. 의도 파악 시에도 target_query 사용
+    if is_date_query(target_query):
         messages.append(
             (
                 "system",
@@ -71,7 +77,7 @@ async def rerank_node(state: GraphState) -> Dict:
     messages.extend(
         [
             ("system", f"후보:\n{candidates_txt}"),
-            ("user", user_query),
+            ("user", target_query), # 정제된 쿼리 전달
         ]
     )
 
@@ -98,7 +104,7 @@ async def rerank_node(state: GraphState) -> Dict:
                     selected.extend(remaining[: max(0, desired_k - len(selected))])
                 result = {"retrievals": selected}
                 append_node_trace_result(
-                    state.get("query", ""),
+                    raw_query, # 추적 로그에는 원본 질문 기록
                     "rerank",
                     {
                         "raw": raw,
@@ -114,7 +120,7 @@ async def rerank_node(state: GraphState) -> Dict:
     selected = retrievals[:desired_k]
     result = {"retrievals": selected}
     append_node_trace_result(
-        state.get("query", ""),
+        raw_query,
         "rerank",
         {
             "raw": raw,
