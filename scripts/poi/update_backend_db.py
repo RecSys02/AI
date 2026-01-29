@@ -14,14 +14,16 @@ def load_json(path: Path) -> list:
     return data
 
 
-def _normalize_images(item: dict) -> object:
+def _normalize_images(item: dict) -> list:
+    # 1. 관광지(tourspot)인 경우 기존 로직 유지
     if item.get("category") == "tourspot":
         media = item.get("media") or {}
         first = media.get("firstimage")
-        if first:
-            return [first]
-        return []
-    return item.get("images") if "images" in item else item.get("imglinks")
+        return [first] if first else []
+    
+    # 2. 그 외(cafe, restaurant 등)는 무조건 imglinks만 가져옴
+    # 값이 없으면 빈 리스트([])를 반환하여 데이터 타입을 일관되게 유지합니다.
+    return item.get("imglinks") or []
 
 
 def _normalize_address(item: dict) -> str:

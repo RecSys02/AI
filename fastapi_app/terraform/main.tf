@@ -1,3 +1,9 @@
+# Compute Engine API 활성화 리소스 추가
+resource "google_project_service" "compute_engine" {
+  service            = "compute.googleapis.com"
+  disable_on_destroy = false
+}
+
 resource "google_project_service" "artifact_registry" {
   service            = "artifactregistry.googleapis.com"
   disable_on_destroy = false
@@ -98,4 +104,62 @@ resource "google_cloud_run_v2_service_iam_member" "public_access" {
   name     = google_cloud_run_v2_service.ai_service.name
   role     = "roles/run.invoker"
   member   = "allUsers"
+}
+
+# Airflow 서버를 위한 VM 인스턴스
+resource "google_compute_instance" "airflow_vm" {
+  name         = "airflow-server"
+  machine_type = "e2-medium" # Airflow 실행을 위한 최소 권장 사양
+  zone         = "asia-northeast3-a"
+
+  boot_disk {
+    initialize_params {
+      image = "ubuntu-os-cloud/ubuntu-2204-lts"
+      size  = 30 # 디스크 용량 (GB)
+    }
+  }
+
+  network_interface {
+    network = "default"
+    access_config {
+      # 외부 IP를 할당하여 SSH 접속이 가능하게 함
+    }
+  }
+
+  # VM에 GCS 및 API 호출 권한 부여 (이미 만들어진 서비스 계정이 있다면 해당 이메일 사용)
+  service_account {
+    scopes = ["cloud-platform"]
+  }
+
+  # [중요] VM 시작 시 Docker 및 Docker Compose 자동 설치 스크립트
+  metadata_startup_script = <<-EOF
+    #!/bin/bash
+    sudo apt-get update
+    sudo apt-get install -y apt-transport-https ca-certificates curl gnupg lsb-release
+    curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
+    echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | sudo tee /etc/local/sources.list.d/docker.list > /dev/null
+    sudo apt-get update
+    sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
+    sudo usermod -aG docker $USER
+  EOF
+
+  # 외부에서 Airflow 웹 UI(8080 포트)에 접속할 수 있도록 태그 추가
+  tags = ["airflow-web"]
+
+  depends_on = [google_project_service.compute_engine]
+}
+
+# 방화벽 설정 (8080 포트 개방)
+resource "google_compute_firewall" "airflow_firewall" {
+  name    = "allow-airflow-web"
+  network = "default"
+
+  allow {
+    protocol = "tcp"
+    ports    = ["8080"]
+  }
+
+  source_ranges = ["0.0.0.0/0"] # 실제 운영 시에는 본인 IP만 허용하는 것이 안전합니다.
+  target_tags   = ["airflow-web"]
+  depends_on = [google_project_service.compute_engine]
 }

@@ -1,0 +1,41 @@
+name: Sync Airflow DAGs to VM
+
+on:
+  push:
+    branches: [ "park_research" ]
+    # dags 폴더가 수정될 때만 실행
+    paths:
+      - "scripts/airflow/dags/**"
+      - "scripts/airflow/docker-compose.yml"
+      - ".github/workflows/deploy-airflow.yml"
+
+jobs:
+  deploy-dags:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Copy DAGs to VM
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.VM_HOST }}
+          username: ${{ secrets.VM_USER }}
+          key: ${{ secrets.VM_SSH_KEY }}
+          # scripts/airflow/dags 폴더 안의 내용만 복사합니다.
+          source: "scripts/airflow/dags/*"
+          # VM 내의 airflow dags 폴더로 경로를 잡습니다.
+          target: "~/airflow/dags"
+          strip_components: 3 # 'scripts/airflow/dags' 경로를 떼고 파일만 전송
+
+      # 복사 후 필요한 경우 Docker 컨테이너 재시작 없이도 Airflow는 DAG를 자동 인식하지만,
+      # 혹시 모를 권한 체크나 스크립트 실행이 필요하다면 아래 명령 추가
+      - name: Post Deploy Task
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VM_HOST }}
+          username: ${{ secrets.VM_USER }}
+          key: ${{ secrets.VM_SSH_KEY }}
+          script: |
+            echo "DAG Sync Completed."
+            ls -al ~/airflow/dags
