@@ -110,9 +110,10 @@ resource "google_cloud_run_v2_service_iam_member" "public_access" {
 # Airflow 서버를 위한 VM 인스턴스
 resource "google_compute_instance" "airflow_vm" {
   name         = "airflow-server"
-  machine_type = "e2-medium"
+  machine_type = "e2-standard-2"
   zone         = "asia-northeast3-a"
 
+  allow_stopping_for_update = true
   boot_disk {
     initialize_params {
       image = "ubuntu-os-cloud/ubuntu-2204-lts"
