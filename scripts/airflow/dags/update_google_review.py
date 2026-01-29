@@ -7,7 +7,7 @@ from airflow.operators.python import PythonOperator
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.models import Variable
 import requests
-
+##
 # [중요] 테라폼에서 정의한 값과 일치시킵니다.
 BUCKET_NAME = 'ai-park-embeddings-data'
 # Cloud Run에서 /data/embedding_tourspot.json으로 접근한다면 아래와 같이 설정
