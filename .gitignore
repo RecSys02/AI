@@ -85,3 +85,7 @@ terraform.rc
 *.py[cod]
 .venv/
 fastapi_app/uv.lock  # 팀 정책에 따라 다를 수 있지만 보통은 포함하지 않기도 함
+
+# SSH Keys (보안을 위해 절대 Push 금지)
+id_rsa_gcp
+id_rsa_gcp.pub

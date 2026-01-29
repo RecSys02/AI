@@ -8,7 +8,7 @@ on:
       - "scripts/airflow/dags/**"
       - "scripts/airflow/docker-compose.yml"
       - ".github/workflows/deploy-airflow.yml"
-
+  workflow_dispatch:
 jobs:
   deploy-dags:
     runs-on: ubuntu-latest

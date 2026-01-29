@@ -107,45 +107,60 @@ resource "google_cloud_run_v2_service_iam_member" "public_access" {
 }
 
 # Airflow 서버를 위한 VM 인스턴스
+# Airflow 서버를 위한 VM 인스턴스
 resource "google_compute_instance" "airflow_vm" {
   name         = "airflow-server"
-  machine_type = "e2-medium" # Airflow 실행을 위한 최소 권장 사양
+  machine_type = "e2-medium"
   zone         = "asia-northeast3-a"
 
   boot_disk {
     initialize_params {
       image = "ubuntu-os-cloud/ubuntu-2204-lts"
-      size  = 30 # 디스크 용량 (GB)
+      size  = 30
     }
   }
 
   network_interface {
     network = "default"
-    access_config {
-      # 외부 IP를 할당하여 SSH 접속이 가능하게 함
-    }
+    access_config {}
   }
 
-  # VM에 GCS 및 API 호출 권한 부여 (이미 만들어진 서비스 계정이 있다면 해당 이메일 사용)
   service_account {
     scopes = ["cloud-platform"]
   }
-
-  # [중요] VM 시작 시 Docker 및 Docker Compose 자동 설치 스크립트
+    metadata = {
+        "ssh-keys" = "roto9379:${file("./id_rsa_gcp.pub")}"
+    }
+  # [개선된] Docker 공식 저장소 등록 및 최신 패키지 설치 스크립트
   metadata_startup_script = <<-EOF
     #!/bin/bash
+    set -e  # 에러 발생 시 즉시 중단
+
+    # 1. 필수 패키지 설치 및 GPG 키 등록 준비
     sudo apt-get update
-    sudo apt-get install -y apt-transport-https ca-certificates curl gnupg lsb-release
-    curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
-    echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | sudo tee /etc/local/sources.list.d/docker.list > /dev/null
+    sudo apt-get install -y ca-certificates curl gnupg
+
+    # 2. Docker 공식 GPG 키 추가
+    sudo install -m 0755 -d /etc/apt/keyrings
+    curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg --yes
+    sudo chmod a+r /etc/apt/keyrings/docker.gpg
+
+    # 3. Docker 저장소 추가
+    echo \
+      "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
+      $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | \
+      sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+
+    # 4. 최신 Docker 패키지 설치
     sudo apt-get update
-    sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
-    sudo usermod -aG docker $USER
+    sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+
+    # 5. 사용자 그룹 권한 부여 (VM 접속 계정명 확인 필요, 여기서는 roto9379를 예시로 추가)
+    sudo groupadd docker || true
+    sudo usermod -aG docker roto9379
   EOF
 
-  # 외부에서 Airflow 웹 UI(8080 포트)에 접속할 수 있도록 태그 추가
   tags = ["airflow-web"]
-
   depends_on = [google_project_service.compute_engine]
 }
 
