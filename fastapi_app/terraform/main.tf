@@ -1,3 +1,9 @@
+# 외부 정적 IP 주소 예약
+resource "google_compute_address" "airflow_static_ip" {
+  name   = "airflow-static-ip"
+  region = "asia-northeast3"
+}
+
 # Compute Engine API 활성화 리소스 추가
 resource "google_project_service" "compute_engine" {
   service            = "compute.googleapis.com"
@@ -123,7 +129,9 @@ resource "google_compute_instance" "airflow_vm" {
 
   network_interface {
     network = "default"
-    access_config {}
+    access_config {
+      nat_ip = google_compute_address.airflow_static_ip.address
+    }
   }
 
   service_account {
