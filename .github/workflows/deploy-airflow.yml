@@ -16,26 +16,38 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Copy DAGs to VM
+      - name: Copy Files to VM
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.VM_HOST }}
           username: ${{ secrets.VM_USER }}
           key: ${{ secrets.VM_SSH_KEY }}
-          # scripts/airflow/dags 폴더 안의 내용만 복사합니다.
-          source: "scripts/airflow/dags/*"
-          # VM 내의 airflow dags 폴더로 경로를 잡습니다.
-          target: "~/airflow/dags"
-          strip_components: 3 # 'scripts/airflow/dags' 경로를 떼고 파일만 전송
+          # dags와 docker-compose.yml을 모두 복사해야 합니다.
+          source: "scripts/airflow/**"
+          target: "~/airflow"
+          strip_components: 2 # 'scripts/airflow' 경로를 떼고 파일 전송
 
-      # 복사 후 필요한 경우 Docker 컨테이너 재시작 없이도 Airflow는 DAG를 자동 인식하지만,
-      # 혹시 모를 권한 체크나 스크립트 실행이 필요하다면 아래 명령 추가
-      - name: Post Deploy Task
+      - name: Post Deploy Task (Start Airflow)
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.VM_HOST }}
           username: ${{ secrets.VM_USER }}
           key: ${{ secrets.VM_SSH_KEY }}
           script: |
-            echo "DAG Sync Completed."
-            ls -al ~/airflow/dags
+            cd ~/airflow
+            
+            # 1. Airflow 실행에 필요한 환경 변수 세팅
+            if [ ! -f .env ]; then
+              echo "AIRFLOW_UID=$(id -u)" > .env
+            fi
+            
+            # 2. (최초 1회 필수) Airflow DB 초기화
+            # 이미 초기화된 경우에도 실행해도 무방하지만, 리소스를 위해 필요 시에만 수행
+            docker compose up airflow-init
+            
+            # 3. Airflow 전체 서비스 백그라운드 기동
+            docker compose up -d
+            
+            # 4. 결과 확인
+            echo "Successfully deployed and started Airflow!"
+            docker ps
