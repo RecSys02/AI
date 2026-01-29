@@ -36,18 +36,16 @@ jobs:
           script: |
             cd ~/airflow
             
-            # 1. 환경 변수 설정 (UID 주입)
+            # 1. 환경 변수 설정
             if [ ! -f .env ]; then
               echo "AIRFLOW_UID=$(id -u)" > .env
             fi
             
-            # 2. 도커 권한을 즉시 적용하여 실행
-            # sg docker -c 명령어를 사용하여 그룹 변경 사항을 재로그인 없이 반영합니다.
-            sg docker -c "
-              docker compose up airflow-init && \
-              docker compose up -d
-            "
+            # 2. sudo를 사용하여 도커 명령어 실행
+            # sg 대신 sudo를 쓰면 비밀번호 입력 단계 없이 바로 실행됩니다.
+            sudo docker compose up airflow-init
+            sudo docker compose up -d
             
             # 3. 배포 결과 최종 확인
             echo "Checking Airflow container status..."
-            sg docker -c "docker ps"
+            sudo docker ps
