@@ -7,10 +7,9 @@ from airflow.operators.python import PythonOperator
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.models import Variable
 import requests
-###
+
 # [중요] 테라폼에서 정의한 값과 일치시킵니다.
 BUCKET_NAME = 'ai-park-embeddings-data'
-# Cloud Run에서 /data/embedding_tourspot.json으로 접근한다면 아래와 같이 설정
 OBJECT_NAME = 'embedding_tourspot.json' 
 
 default_args = {
@@ -52,23 +51,23 @@ def update_embeddings_on_gcs(**context):
     gcs_hook = GCSHook(gcp_conn_id='google_cloud_default')
     api_key = Variable.get("google_api_key")
 
-    # 1. GCS에서 현재 데이터 다운로드
+    # 1. GCS에서 현재 데이터 다운로드 (메서드 수정 완료)
     try:
-        file_content = gcs_hook.download_as_bytearray(BUCKET_NAME, OBJECT_NAME)
+        # download_as_bytearray 대신 download를 사용합니다.
+        file_content = gcs_hook.download(bucket_name=BUCKET_NAME, object_name=OBJECT_NAME)
         data = json.loads(file_content.decode('utf-8'))
     except Exception as e:
         logging.error(f"GCS Download Error: {e}")
-        return
+        # 에러 발생 시 태스크를 실패 처리하기 위해 raise를 던지는 것을 추천합니다.
+        raise e
 
     updated_count = 0
-    # 비용/성능을 위해 한 번에 100개씩 업데이트 (조절 가능)
     limit = 100 
 
     for item in data:
         if updated_count >= limit:
             break
             
-        # 수집 대상 판별: google 필드가 없거나 place_id가 없는 경우
         google_info = item.get('google', {})
         if not google_info or not google_info.get('place_id'):
             name = item.get('name')
@@ -103,7 +102,7 @@ def update_embeddings_on_gcs(**context):
 with DAG(
     dag_id="sync_gcs_embeddings_with_google_api",
     default_args=default_args,
-    schedule_interval="@weekly", # 매주 실행
+    schedule_interval="@weekly",
     catchup=False,
     tags=['gcs', 'cloud_run', 'places_api']
 ) as dag:
