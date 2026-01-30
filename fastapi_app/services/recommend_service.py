@@ -23,9 +23,12 @@ from utils.user_text_builder import (
     build_tourspot_text,
 )
 
+MODEL_NAME = "dragonkue/multilingual-e5-small-ko"
+E5_QUERY_PREFIX = "query: "
+
 class RecommendService:
     def __init__(self):
-        self.model = SentenceTransformer("BAAI/bge-m3")
+        self.model = SentenceTransformer(MODEL_NAME)
         self.scorers = [
             build_tourspot_scorer(),
             build_cafe_scorer(),
@@ -666,7 +669,7 @@ ranked_indices는 위 후보 목록의 index 값들을 재정렬한 배열입니
             builder = self.text_builders.get(scorer.name)
             user_text = builder(user) if builder else ""
             user_vec = self.model.encode(
-                [user_text],
+                [f"{E5_QUERY_PREFIX}{user_text}"],
                 normalize_embeddings=True,
             )[0]
             # recency 보너스는 같은 카테고리의 방문 이력 기준

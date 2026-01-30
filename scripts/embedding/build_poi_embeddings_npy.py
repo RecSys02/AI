@@ -21,7 +21,7 @@ DEFAULT_RESTAURANT_PATH = ROOT / "data" / "embedding_json" / "embedding_restaura
 DEFAULT_CAFE_PATH = ROOT / "data" / "embedding_json" / "embedding_cafe.json"
 OUT_DIR = ROOT / "data" / "embeddings"
 
-MODEL_NAME = "BAAI/bge-m3"
+MODEL_NAME = "dragonkue/multilingual-e5-small-ko"
 BATCH_SIZE = 16
 
 # =========================
@@ -178,8 +178,9 @@ def main():
     print(f"[INFO] mode={args.mode} input={input_path} count={len(pois)}")
 
     # 임베딩 텍스트
-    texts = [builder(p) for p in pois]
-
+    # texts = [builder(p) for p in pois]
+    texts = [f"passage: {builder(p)}" for p in pois]
+    
     # 키 (province, category, place_id)
     poi_keys = np.array(
         [(p.get("province"), p.get("category"), int(p.get("place_id"))) for p in pois],

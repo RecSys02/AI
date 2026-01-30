@@ -13,7 +13,8 @@ from sentence_transformers import SentenceTransformer
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 EMBEDDING_DIR = PROJECT_ROOT / "data" / "embeddings"
 EMBEDDING_JSON_DIR = PROJECT_ROOT / "data" / "embedding_json"
-MODEL_NAME = "BAAI/bge-m3"
+MODEL_NAME = "dragonkue/multilingual-e5-small-ko"
+E5_QUERY_PREFIX = "query: "
 ALPHA_DENSE = 0.6  # dense vs BM25 가중치
 
 SYNONYMS = {
@@ -342,8 +343,9 @@ def retrieve(
 
     # 쿼리 텍스트를 history 정보로 강화
     qtext = _build_query_text(query, mode, history_place_ids, id_to_meta)
+    qtext_embed = f"{E5_QUERY_PREFIX}{qtext}"
     t0 = time.perf_counter()
-    qvec = model.encode([qtext], normalize_embeddings=True)[0]
+    qvec = model.encode([qtext_embed], normalize_embeddings=True)[0]
     t1 = time.perf_counter()
     if timings is not None:
         timings["encode_ms"] = round((t1 - t0) * 1000, 2)
