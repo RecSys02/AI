@@ -46,7 +46,15 @@ class MilvusStore:
     ) -> list[tuple[int, float]]:
         collection = self._get_collection(category)
         collection.load()
-        search_params = params or {"metric_type": "IP", "params": {"ef": 64}}
+        search_params = params.copy() if params else {"metric_type": "IP", "params": {}}
+        if "metric_type" not in search_params:
+            search_params["metric_type"] = "IP"
+        inner_params = dict(search_params.get("params") or {})
+        ef = inner_params.get("ef")
+        min_ef = max(64, top_k)
+        if ef is None or ef < min_ef:
+            inner_params["ef"] = min_ef
+        search_params["params"] = inner_params
         results = collection.search(
             [vector],
             "embedding",
