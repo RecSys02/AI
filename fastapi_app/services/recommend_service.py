@@ -42,28 +42,24 @@ class RecommendService:
                 "recent_weight": 0.3,
                 "distance_weight": 0.1,
                 "distance_scale_km": 5.0,
+                "popularity_weight": 0.1,
             },
             "restaurant": {
                 "recent_weight": 0.3,
                 "distance_weight": 0.3, # 식당은 거리 영향↑
                 "distance_scale_km": 2.0, # 가까운 곳을 더 선호
+                "popularity_weight": 0.1,
             },
             "cafe": {
                 "recent_weight": 0.3,
                 "distance_weight": 0.3,  # 카페는 거리 영향↑
                 "distance_scale_km": 2.0, # 가까운 곳을 더 선호
+                "popularity_weight": 0.1,
             },
         }
         # OpenAI 클라이언트 초기화 (없으면 지연 생성)
         openai_key = os.getenv("OPENAI_API_KEY")
         self.openai_client = OpenAI(api_key=openai_key) if openai_key else None
-        # 거리 확장 설정 (후보 부족 시 자동 확장)
-        self.expand_distance_step_km = float(
-            os.getenv("RECOMMEND_EXPAND_STEP_KM", "1.0")
-        )
-        self.expand_distance_max_km = float(
-            os.getenv("RECOMMEND_EXPAND_MAX_KM", "10.0")
-        )
         self.default_anchor_coords = (
             float(os.getenv("DEFAULT_ANCHOR_LAT", "37.4979")),
             float(os.getenv("DEFAULT_ANCHOR_LNG", "127.0276")),
@@ -684,37 +680,22 @@ ranked_indices는 위 후보 목록의 index 값들을 재정렬한 배열입니
             # 임베딩 기반으로 top-15 추출 (reranking을 위한 후보군)
             # 음식 종류는 임베딩 텍스트에 포함되어 자연스럽게 가중치 반영
             initial_k = max(top_k_per_category * 2, 15)
-            candidates = []
-            max_km = distance_max_km
-            while True:
-                per_category[scorer.name] = scorer.topk(
-                    user_vec,
-                    top_k=initial_k,
-                    recent_place_ids=recent_place_ids,
-                    distance_place_ids=distance_place_ids,
-                    anchor_coords=anchor_coords,
-                    recent_weight=weights.get("recent_weight", 0.3),
-                    distance_weight=weights.get("distance_weight", 0.2),
-                    distance_scale_km=weights.get("distance_scale_km", 5.0),
-                    distance_max_km=max_km,
-                    debug=debug,
-                    include_meta=True,  # LLM reranking을 위해 메타데이터 포함
-                )
-                # 방문 이력(place_id 기준) 제외 + 비유효 점수 제거
-                candidates = self._filter_candidates(per_category[scorer.name], history_ids)
-                if len(candidates) >= top_k_per_category:
-                    break
-                if max_km is None:
-                    break
-                if (
-                    self.expand_distance_step_km <= 0
-                    or self.expand_distance_max_km <= max_km
-                ):
-                    break
-                max_km = min(
-                    max_km + self.expand_distance_step_km,
-                    self.expand_distance_max_km,
-                )
+            per_category[scorer.name] = scorer.topk(
+                user_vec,
+                top_k=initial_k,
+                recent_place_ids=recent_place_ids,
+                distance_place_ids=distance_place_ids,
+                anchor_coords=anchor_coords,
+                recent_weight=weights.get("recent_weight", 0.3),
+                distance_weight=weights.get("distance_weight", 0.2),
+                distance_scale_km=weights.get("distance_scale_km", 5.0),
+                distance_max_km=distance_max_km,
+                popularity_weight=weights.get("popularity_weight", 0.0),
+                debug=debug,
+                include_meta=True,  # LLM reranking을 위해 메타데이터 포함
+            )
+            # 방문 이력(place_id 기준) 제외 + 비유효 점수 제거
+            candidates = self._filter_candidates(per_category[scorer.name], history_ids)
 
             # LLM reranking으로 최종 top-10 선택
             per_category[scorer.name] = self._llm_rerank(

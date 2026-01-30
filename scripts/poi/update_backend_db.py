@@ -1,4 +1,5 @@
 import json
+import os
 from pathlib import Path
 
 # 이 스크립트는 여러 POI(관광지, 음식점, 카페 등) JSON 파일을 병합하여 백엔드 데이터베이스에 적합한 형식으로 변환하는 작업을 수행합니다.
@@ -57,8 +58,36 @@ def _normalize_duration(item: dict) -> object:
 def _normalize_keyword(item: dict) -> object:
     return item.get("keywords") or item.get("keyword")
 
+def _get_google_rating_count(item: dict) -> tuple[float | None, float | None]:
+    google = item.get("google") if isinstance(item.get("google"), dict) else {}
+    rating = google.get("rating")
+    count = google.get("user_ratings_total")
+    if rating is None or count is None:
+        return None, None
+    try:
+        rating_val = float(rating)
+        count_val = float(count)
+    except (TypeError, ValueError):
+        return None, None
+    if rating_val <= 0 or count_val <= 0:
+        return None, None
+    return rating_val, count_val
 
-def to_backend_schema(item: dict) -> dict:
+
+def _compute_popularity_score(
+    item: dict, global_mean: float | None, min_votes: float
+) -> object:
+    rating_val, count_val = _get_google_rating_count(item)
+    if rating_val is None or count_val is None or global_mean is None:
+        return None
+    min_votes = max(float(min_votes), 1.0)
+    weighted = (count_val / (count_val + min_votes)) * rating_val + (
+        min_votes / (count_val + min_votes)
+    ) * global_mean
+    return max(min(weighted / 5.0, 1.0), 0.0)
+
+
+def to_backend_schema(item: dict, global_mean: float | None, min_votes: float) -> dict:
     lat, lng = _normalize_lat_lng(item)
     return {
         "place_id": item.get("place_id"),
@@ -72,6 +101,7 @@ def to_backend_schema(item: dict) -> dict:
         "latitude": lat,
         "longitude": lng,
         "keyword": _normalize_keyword(item),
+        "popularity_score": _compute_popularity_score(item, global_mean, min_votes),
     }
 
 
@@ -90,12 +120,26 @@ def main() -> None:
 
     merged = []
     counts = {}
+    all_items = []
 
     for filename in input_files:
         path = src_dir / filename
         items = load_json(path)
-        merged.extend([to_backend_schema(item) for item in items])
+        all_items.extend(items)
         counts[filename] = len(items)
+
+    ratings = []
+    for item in all_items:
+        rating_val, count_val = _get_google_rating_count(item)
+        if rating_val is not None and count_val is not None:
+            ratings.append(rating_val)
+    global_mean = sum(ratings) / len(ratings) if ratings else None
+    try:
+        min_votes = float(os.getenv("POPULARITY_IMDB_MIN_VOTES", "50"))
+    except ValueError:
+        min_votes = 50.0
+
+    merged.extend([to_backend_schema(item, global_mean, min_votes) for item in all_items])
 
     with OUTPUT_PATH.open("w", encoding="utf-8") as f:
         json.dump(merged, f, ensure_ascii=False, indent=2)

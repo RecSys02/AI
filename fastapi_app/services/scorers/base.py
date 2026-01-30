@@ -1,5 +1,6 @@
 import json
 import math
+import os
 from pathlib import Path
 from typing import Optional
 
@@ -89,6 +90,37 @@ def _haversine_km(lat1, lon1, lat2, lon2):
     return 6371 * 2 * np.arcsin(np.sqrt(a))
 
 
+def _get_google_rating_count(meta: dict) -> tuple[Optional[float], Optional[float]]:
+    if not meta:
+        return None, None
+    google = meta.get("google") if isinstance(meta.get("google"), dict) else {}
+    rating = google.get("rating")
+    count = google.get("user_ratings_total")
+    if rating is None or count is None:
+        return None, None
+    try:
+        rating_val = float(rating)
+        count_val = float(count)
+    except (TypeError, ValueError):
+        return None, None
+    if rating_val <= 0 or count_val <= 0:
+        return None, None
+    return rating_val, count_val
+
+
+def _compute_popularity_score(
+    meta: dict, global_mean: Optional[float], min_votes: float
+) -> Optional[float]:
+    rating_val, count_val = _get_google_rating_count(meta)
+    if rating_val is None or count_val is None or global_mean is None:
+        return None
+    min_votes = max(float(min_votes), 1.0)
+    weighted = (count_val / (count_val + min_votes)) * rating_val + (
+        min_votes / (count_val + min_votes)
+    ) * global_mean
+    return max(min(weighted / 5.0, 1.0), 0.0)
+
+
 class EmbeddingScorer:
     def __init__(
         self,
@@ -108,6 +140,7 @@ class EmbeddingScorer:
         self._lng = None
         self._coords_by_place_id = None
         self._meta_by_place_id = None
+        self._popularity = None
 
     def _load(self):
         if self._embeddings is None:
@@ -155,8 +188,20 @@ class EmbeddingScorer:
                         print(f"[SCORER] skip invalid coords place_id={obj.get('place_id')} lat={lat} lng={lng}")
                     continue
                 self._coords_by_place_id[place_id] = (lat_f, lng_f)
+            ratings = []
+            for meta in self._meta_by_place_id.values():
+                rating_val, count_val = _get_google_rating_count(meta)
+                if rating_val is not None and count_val is not None:
+                    ratings.append(rating_val)
+            global_mean = sum(ratings) / len(ratings) if ratings else None
+            try:
+                min_votes = float(os.getenv("POPULARITY_IMDB_MIN_VOTES", "50"))
+            except ValueError:
+                min_votes = 50.0
+
             lats = []
             lngs = []
+            popularity_scores = []
             for k in self._keys:
                 pid = int(k[2])
                 coord = self._coords_by_place_id.get(pid)
@@ -166,8 +211,22 @@ class EmbeddingScorer:
                 else:
                     lats.append(math.nan)
                     lngs.append(math.nan)
+                popularity_scores.append(
+                    _compute_popularity_score(
+                        self._meta_by_place_id.get(pid, {}),
+                        global_mean,
+                        min_votes,
+                    )
+                    or 0.0
+                )
             self._lat = np.array(lats)
             self._lng = np.array(lngs)
+            if popularity_scores:
+                pop_max = max(popularity_scores)
+                if pop_max > 0:
+                    self._popularity = np.array([score / pop_max for score in popularity_scores], dtype=float)
+                else:
+                    self._popularity = np.zeros(len(popularity_scores), dtype=float)
             print(f"[SCORER] loaded coords: {len(self._coords_by_place_id)} / keys={len(self._keys)}")
 
     def get_coords(self, place_id: int) -> Optional[tuple[float, float]]:
@@ -231,6 +290,7 @@ class EmbeddingScorer:
         distance_weight: float = 0.2,
         distance_scale_km: float = 5.0,
         distance_max_km: float | None = None,
+        popularity_weight: float = 0.0,
         debug: bool = False,
         include_meta: bool = False,
     ):
@@ -239,6 +299,7 @@ class EmbeddingScorer:
         scores = base_scores.copy()
         recent_component = np.zeros_like(scores)
         distance_component = np.zeros_like(scores)
+        popularity_component = np.zeros_like(scores)
         distance_km = None
 
         # recency by embedding
@@ -261,6 +322,10 @@ class EmbeddingScorer:
                 dist_bonus = np.where(np.isnan(dist_bonus), 0.0, dist_bonus)
                 distance_component = distance_weight * dist_bonus
                 scores += distance_component
+
+        if popularity_weight != 0 and self._popularity is not None:
+            popularity_component = popularity_weight * self._popularity
+            scores += popularity_component
 
         # 거리 필터를 먼저 적용한 뒤 정렬
         if distance_km is not None and distance_max_km is not None:
@@ -304,6 +369,7 @@ class EmbeddingScorer:
                     "score_base": float(base_scores[i]),
                     "score_recent": float(recent_component[i]),
                     "score_distance": float(distance_component[i]),
+                    "score_popularity": float(popularity_component[i]),
                     "distance_km": float(distance_km[i]) if distance_km is not None else None,
                 })
                 # debug=True일 때는 메타데이터도 포함
