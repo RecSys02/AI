@@ -10,7 +10,7 @@ import requests
 
 # [중요] 테라폼에서 정의한 값과 일치시킵니다.
 BUCKET_NAME = 'ai-park-embeddings-data'
-OBJECT_NAME = 'embedding_tourspot.json' 
+OBJECT_NAME = 'embedding_json/embedding_tourspot.json'
 
 default_args = {
     'owner': 'developer',
