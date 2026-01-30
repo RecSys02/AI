@@ -1,21 +1,18 @@
-import json
-import re
 import time
 from functools import lru_cache
-from pathlib import Path
 from typing import Callable, Dict, List, Optional, Tuple
 
 import numpy as np
-from rank_bm25 import BM25Okapi
 from sentence_transformers import SentenceTransformer
 
-# 프로젝트 루트 (AI/)
-PROJECT_ROOT = Path(__file__).resolve().parents[2]
-EMBEDDING_DIR = PROJECT_ROOT / "data" / "embeddings"
-EMBEDDING_JSON_DIR = PROJECT_ROOT / "data" / "embedding_json"
+from services.stores import get_milvus_store, get_postgres_store
+
 MODEL_NAME = "dragonkue/multilingual-e5-small-ko"
 E5_QUERY_PREFIX = "query: "
 ALPHA_DENSE = 0.6  # dense vs BM25 가중치
+DENSE_CANDIDATE_MULTIPLIER = 50
+BM25_CANDIDATE_MULTIPLIER = 50
+MAX_CANDIDATES = 1000
 
 SYNONYMS = {
     # 수족관/해양
@@ -189,23 +186,19 @@ def _load_model() -> SentenceTransformer:
     return model
 
 
-def _load_json(path: Path) -> List[Dict]:
-    with path.open("r", encoding="utf-8") as f:
-        data = json.load(f)
-    if not isinstance(data, list):
-        raise ValueError("입력 JSON은 list 형태여야 합니다.")
-    return data
-
-
-def _tokenize(text: str) -> List[str]:
-    return text.lower().replace("\n", " ").split()
-
-
 def _get_lat_lng(meta: Dict):
     lat = meta.get("lat") or meta.get("latitude")
     lng = meta.get("lng") or meta.get("lon") or meta.get("longitude")
+    nested = meta.get("meta") if isinstance(meta.get("meta"), dict) else None
+    if (lat is None or lng is None) and nested:
+        lat = lat or nested.get("lat") or nested.get("latitude")
+        lng = lng or nested.get("lng") or nested.get("lon") or nested.get("longitude")
     if (lat is None or lng is None) and isinstance(meta.get("location"), dict):
         loc = meta["location"]
+        lat = loc.get("lat") or loc.get("latitude") or lat
+        lng = loc.get("lng") or loc.get("lon") or loc.get("longitude") or lng
+    if (lat is None or lng is None) and nested and isinstance(nested.get("location"), dict):
+        loc = nested["location"]
         lat = loc.get("lat") or loc.get("latitude") or lat
         lng = loc.get("lng") or loc.get("lon") or loc.get("longitude") or lng
     try:
@@ -261,24 +254,9 @@ def _has_any_keyword(meta: Dict, terms: List[str]) -> bool:
     return any(t.lower() in blob for t in terms)
 
 
-@lru_cache(maxsize=None)
-def _load_split(mode: str):
-    builder, _ = MODE_CONFIG[mode]
-    emb = np.load(EMBEDDING_DIR / f"embeddings_{mode}.npy")
-    keys = np.load(EMBEDDING_DIR / f"keys_{mode}.npy", allow_pickle=True)
-    meta_list = _load_json(EMBEDDING_JSON_DIR / f"embedding_{mode}.json")
-    id_to_meta = {int(item["place_id"]): item for item in meta_list if "place_id" in item}
-    texts = [builder(m) for m in meta_list]
-    tokenized = [_tokenize(t) for t in texts]
-    bm25 = BM25Okapi(tokenized) if tokenized else None
-    return emb, keys, id_to_meta, bm25
-
-
-def _build_query_text(query: str, mode: str, history_place_ids: Optional[List[int]], id_to_meta: Dict[int, Dict]) -> str:
-    history_place_ids = history_place_ids or []
-    names = [id_to_meta[pid]["name"] for pid in history_place_ids if pid in id_to_meta and id_to_meta[pid].get("name")]
-    if names:
-        recent = ", ".join(names[:5])
+def _build_query_text(query: str, history_names: List[str]) -> str:
+    if history_names:
+        recent = ", ".join(history_names[:5])
         return f"{query} (최근 방문: {recent})"
     return query
 
@@ -297,44 +275,11 @@ def retrieve(
         raise ValueError(f"지원하지 않는 mode: {mode}")
     t_start = time.perf_counter()
     t0 = time.perf_counter()
-    embeddings, keys, id_to_meta, bm25 = _load_split(mode)
+    milvus = get_milvus_store()
+    pg = get_postgres_store()
     t1 = time.perf_counter()
     if timings is not None:
-        timings["load_split_ms"] = round((t1 - t0) * 1000, 2)
-    id_to_idx = {int(keys[i][2]): i for i in range(len(keys))}
-
-    # pre-filter by anchor before scoring
-    t0 = time.perf_counter()
-    candidate_idxs = list(range(len(keys)))
-    filtered_pids = None
-    filter_applied = False
-    if anchor_centers and anchor_radius_km is not None:
-        filter_applied = True
-        filtered_pids = []
-        for pid, meta in id_to_meta.items():
-            lat, lng = _get_lat_lng(meta)
-            if lat is None or lng is None:
-                continue
-            dist = _distance_to_centers_km(lat, lng, anchor_centers)
-            if dist is not None and dist <= anchor_radius_km:
-                filtered_pids.append(pid)
-    if filter_applied:
-        if not filtered_pids:
-            t1 = time.perf_counter()
-            if timings is not None:
-                timings["pre_filter_ms"] = round((t1 - t0) * 1000, 2)
-                timings["total_ms"] = round((t1 - t_start) * 1000, 2)
-            return []
-        candidate_idxs = [id_to_idx[pid] for pid in filtered_pids if pid in id_to_idx]
-        if not candidate_idxs:
-            t1 = time.perf_counter()
-            if timings is not None:
-                timings["pre_filter_ms"] = round((t1 - t0) * 1000, 2)
-                timings["total_ms"] = round((t1 - t_start) * 1000, 2)
-            return []
-    t1 = time.perf_counter()
-    if timings is not None:
-        timings["pre_filter_ms"] = round((t1 - t0) * 1000, 2)
+        timings["load_store_ms"] = round((t1 - t0) * 1000, 2)
     t0 = time.perf_counter()
     model = _load_model()
     t1 = time.perf_counter()
@@ -342,7 +287,9 @@ def retrieve(
         timings["load_model_ms"] = round((t1 - t0) * 1000, 2)
 
     # 쿼리 텍스트를 history 정보로 강화
-    qtext = _build_query_text(query, mode, history_place_ids, id_to_meta)
+    history_place_ids = history_place_ids or []
+    history_names = pg.fetch_names(history_place_ids, category=mode)
+    qtext = _build_query_text(query, history_names)
     qtext_embed = f"{E5_QUERY_PREFIX}{qtext}"
     t0 = time.perf_counter()
     qvec = model.encode([qtext_embed], normalize_embeddings=True)[0]
@@ -350,26 +297,55 @@ def retrieve(
     if timings is not None:
         timings["encode_ms"] = round((t1 - t0) * 1000, 2)
     t0 = time.perf_counter()
-    dense_scores = embeddings[candidate_idxs] @ qvec
-    dense_norm = (dense_scores + 1.0) / 2.0  # [-1,1] -> [0,1]
+    dense_k = min(max(top_k * DENSE_CANDIDATE_MULTIPLIER, top_k), MAX_CANDIDATES)
+    dense_hits = milvus.search(mode, qvec, top_k=dense_k)
     t1 = time.perf_counter()
     if timings is not None:
-        timings["dense_score_ms"] = round((t1 - t0) * 1000, 2)
+        timings["dense_search_ms"] = round((t1 - t0) * 1000, 2)
+    if not dense_hits:
+        if timings is not None:
+            timings["total_ms"] = round((time.perf_counter() - t_start) * 1000, 2)
+        return []
+    dense_score_by_id = {pid: score for pid, score in dense_hits}
 
     t0 = time.perf_counter()
-    bm25_scores = None
-    bm25_norm = np.zeros_like(dense_norm)
-    if bm25 is not None:
-        bm25_scores = bm25.get_scores(_tokenize(qtext))
-        max_bm25 = bm25_scores.max() if bm25_scores is not None else 0.0
-        if max_bm25 > 0:
-            bm25_norm = bm25_scores / max_bm25
-        bm25_norm = bm25_norm[candidate_idxs]
+    bm25_k = min(max(top_k * BM25_CANDIDATE_MULTIPLIER, top_k), MAX_CANDIDATES)
+    bm25_score_by_id = pg.fts_scores(qtext, mode, limit=bm25_k)
     t1 = time.perf_counter()
     if timings is not None:
         timings["bm25_ms"] = round((t1 - t0) * 1000, 2)
 
     t0 = time.perf_counter()
+    candidate_ids = list(dict.fromkeys(list(dense_score_by_id.keys()) + list(bm25_score_by_id.keys())))
+    if not candidate_ids:
+        if timings is not None:
+            timings["total_ms"] = round((time.perf_counter() - t_start) * 1000, 2)
+        return []
+    meta_map = pg.fetch_meta(candidate_ids, category=mode)
+    distance_by_id = {}
+    if anchor_centers and anchor_radius_km is not None:
+        filtered_ids = []
+        for pid in candidate_ids:
+            row = meta_map.get(pid, {})
+            lat, lng = _get_lat_lng(row or {})
+            if lat is None or lng is None:
+                continue
+            dist = _distance_to_centers_km(lat, lng, anchor_centers)
+            if dist is None:
+                continue
+            distance_by_id[pid] = dist
+            if dist <= anchor_radius_km:
+                filtered_ids.append(pid)
+        candidate_ids = filtered_ids
+        if not candidate_ids:
+            if timings is not None:
+                timings["total_ms"] = round((time.perf_counter() - t_start) * 1000, 2)
+            return []
+    dense_scores = np.array([dense_score_by_id.get(pid, 0.0) for pid in candidate_ids], dtype=float)
+    dense_norm = (dense_scores + 1.0) / 2.0
+    bm25_scores = np.array([bm25_score_by_id.get(pid, 0.0) for pid in candidate_ids], dtype=float)
+    max_bm25 = bm25_scores.max() if bm25_scores.size else 0.0
+    bm25_norm = bm25_scores / max_bm25 if max_bm25 > 0 else np.zeros_like(bm25_scores)
     scores = ALPHA_DENSE * dense_norm + (1 - ALPHA_DENSE) * bm25_norm
     idxs_all = scores.argsort()[::-1]
     t1 = time.perf_counter()
@@ -382,8 +358,9 @@ def retrieve(
     filtered_idxs = []
     if use_filter:
         for i in idxs_all:
-            pid = int(keys[candidate_idxs[i]][2])
-            meta = id_to_meta.get(pid, {})
+            pid = int(candidate_ids[i])
+            meta_row = meta_map.get(pid, {})
+            meta = meta_row.get("meta") if isinstance(meta_row, dict) else {}
             if _has_any_keyword(meta, terms):
                 filtered_idxs.append(i)
             if len(filtered_idxs) >= top_k:
@@ -406,9 +383,9 @@ def retrieve(
     t0 = time.perf_counter()
     results: List[Dict] = []
     for i in idxs:
-        base_i = candidate_idxs[i]
-        pid = int(keys[base_i][2])
-        meta = id_to_meta.get(pid, {})
+        pid = int(candidate_ids[i])
+        meta_row = meta_map.get(pid, {})
+        meta = meta_row.get("meta") if isinstance(meta_row, dict) else {}
         results.append(
             {
                 "place_id": pid,
@@ -417,7 +394,8 @@ def retrieve(
                 **(
                     {
                         "score_dense": float(dense_scores[i]),
-                        "score_bm25": float(bm25_scores[base_i]) if bm25_scores is not None else None,
+                        "score_bm25": float(bm25_scores[i]) if bm25_scores.size else None,
+                        "distance_km": float(distance_by_id.get(pid)) if distance_by_id else None,
                     }
                     if debug
                     else {}

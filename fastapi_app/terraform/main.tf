@@ -20,6 +20,11 @@ resource "google_project_service" "cloud_run" {
   disable_on_destroy = false
 }
 
+resource "google_project_service" "sqladmin" {
+  service            = "sqladmin.googleapis.com"
+  disable_on_destroy = false
+}
+
 terraform {
   required_providers {
     google = {
@@ -32,6 +37,21 @@ terraform {
 provider "google" {
   project = "gen-lang-client-0492042254"
   region  = "asia-northeast3"
+}
+
+variable "db_user" {
+  type    = string
+  default = "poi_user"
+}
+
+variable "db_password" {
+  type      = string
+  sensitive = true
+}
+
+variable "db_name" {
+  type    = string
+  default = "poi_meta"
 }
 
 # 1. Docker 이미지 저장소
@@ -47,6 +67,36 @@ resource "google_storage_bucket" "data_bucket" {
   name          = "ai-park-embeddings-data"
   location      = "ASIA-NORTHEAST3"
   force_destroy = true
+}
+
+# Cloud SQL (Postgres)
+resource "google_sql_database_instance" "poi_postgres" {
+  name             = "poi-postgres"
+  database_version = "POSTGRES_15"
+  region           = "asia-northeast3"
+  deletion_protection = false
+
+  settings {
+    tier      = "db-custom-1-3840"
+    disk_type = "PD_SSD"
+    disk_size = 20
+    ip_configuration {
+      ipv4_enabled = true
+    }
+  }
+
+  depends_on = [google_project_service.sqladmin]
+}
+
+resource "google_sql_database" "poi_db" {
+  name     = var.db_name
+  instance = google_sql_database_instance.poi_postgres.name
+}
+
+resource "google_sql_user" "poi_user" {
+  name     = var.db_user
+  password = var.db_password
+  instance = google_sql_database_instance.poi_postgres.name
 }
 
 # 3. Cloud Run 서비스 정의
@@ -103,6 +153,18 @@ output "repository_url" {
 
 output "bucket_name" {
   value = google_storage_bucket.data_bucket.name
+}
+
+output "cloudsql_instance_connection_name" {
+  value = google_sql_database_instance.poi_postgres.connection_name
+}
+
+output "cloudsql_db_name" {
+  value = var.db_name
+}
+
+output "cloudsql_db_user" {
+  value = var.db_user
 }
 
 resource "google_cloud_run_v2_service_iam_member" "public_access" {
@@ -173,6 +235,49 @@ resource "google_compute_instance" "airflow_vm" {
   depends_on = [google_project_service.compute_engine]
 }
 
+# Milvus 서버 VM
+resource "google_compute_instance" "milvus_vm" {
+  name         = "milvus-server"
+  machine_type = "e2-standard-4"
+  zone         = "asia-northeast3-a"
+
+  allow_stopping_for_update = true
+  boot_disk {
+    initialize_params {
+      image = "ubuntu-os-cloud/ubuntu-2204-lts"
+      size  = 200
+    }
+  }
+
+  network_interface {
+    network = "default"
+    access_config {}
+  }
+
+  service_account {
+    scopes = ["cloud-platform"]
+  }
+
+  metadata_startup_script = <<-EOF
+    #!/bin/bash
+    set -e
+    sudo apt-get update
+    sudo apt-get install -y ca-certificates curl gnupg
+    sudo install -m 0755 -d /etc/apt/keyrings
+    curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg --yes
+    sudo chmod a+r /etc/apt/keyrings/docker.gpg
+    echo \
+      "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
+      $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | \
+      sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+    sudo apt-get update
+    sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+  EOF
+
+  tags = ["milvus"]
+  depends_on = [google_project_service.compute_engine]
+}
+
 # 방화벽 설정 (8080 포트 개방)
 resource "google_compute_firewall" "airflow_firewall" {
   name    = "allow-airflow-web"
@@ -185,5 +290,20 @@ resource "google_compute_firewall" "airflow_firewall" {
 
   source_ranges = ["0.0.0.0/0"] # 실제 운영 시에는 본인 IP만 허용하는 것이 안전합니다.
   target_tags   = ["airflow-web"]
+  depends_on = [google_project_service.compute_engine]
+}
+
+# Milvus 포트 개방 (19530/9091)
+resource "google_compute_firewall" "milvus_firewall" {
+  name    = "allow-milvus"
+  network = "default"
+
+  allow {
+    protocol = "tcp"
+    ports    = ["19530", "9091"]
+  }
+
+  source_ranges = ["0.0.0.0/0"]
+  target_tags   = ["milvus"]
   depends_on = [google_project_service.compute_engine]
 }

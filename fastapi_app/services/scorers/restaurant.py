@@ -1,8 +1,12 @@
 # fastapi_app/services/scorers/restaurant.py
 from .base import EMBEDDING_JSON_DIR, EMBEDDINGS_DIR, EmbeddingScorer
+from .milvus import MilvusScorer
+from .utils import use_milvus
 
 
 def build_restaurant_scorer():
+    if use_milvus():
+        return MilvusScorer(name="restaurant")
     return EmbeddingScorer(
         name="restaurant",
         embedding_path=EMBEDDINGS_DIR / "embeddings_restaurant.npy",

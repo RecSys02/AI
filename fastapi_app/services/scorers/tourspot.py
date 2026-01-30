@@ -1,7 +1,11 @@
 # services/scorers/tourspot.py
 from .base import EMBEDDING_JSON_DIR, EMBEDDINGS_DIR, EmbeddingScorer
+from .milvus import MilvusScorer
+from .utils import use_milvus
 
 def build_tourspot_scorer():
+    if use_milvus():
+        return MilvusScorer(name="tourspot")
     return EmbeddingScorer(
         name="tourspot",
         embedding_path=EMBEDDINGS_DIR / "embeddings_tourspot.npy",

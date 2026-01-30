@@ -50,6 +50,11 @@ jobs:
           image: ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPO_NAME }}/${{ env.IMAGE_NAME }}:latest
           # 아래 env_vars 섹션에 모든 설정을 추가합니다.
           env_vars: |
+            DATABASE_URL=${{ secrets.DATABASE_URL }}
+            MILVUS_HOST=${{ secrets.MILVUS_HOST }}
+            MILVUS_PORT=19530
+            USE_MILVUS=true
+            LLM_PROVIDER=gemini
             GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }}
             GOOGLE_GEOCODE_KEY=${{ secrets.GOOGLE_GEOCODE_KEY }}
             GOOGLE_PLACES_KEY=${{ secrets.GOOGLE_PLACES_KEY }}
