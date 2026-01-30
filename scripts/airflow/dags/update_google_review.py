@@ -93,7 +93,6 @@ def update_embeddings_on_gcs(**context):
             bucket_name=BUCKET_NAME,
             object_name=OBJECT_NAME,
             data=updated_json,
-            content_type='application/json'
         )
         logging.info(f"Successfully updated {updated_count} items in GCS.")
     else:
