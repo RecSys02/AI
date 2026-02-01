@@ -3,7 +3,7 @@ import json
 import math
 import os
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import List
 
@@ -68,6 +68,39 @@ class RecommendService:
             float(os.getenv("DEFAULT_ANCHOR_LNG", "127.0276")),
         )
         self._accom_anchor_cache: dict[str, dict[str, float | str]] = {}
+        self.history_half_life_days = self._get_env_float("HISTORY_HALF_LIFE_DAYS", 30.0)
+        self.behavior_half_life_days = self._get_env_float("BEHAVIOR_HALF_LIFE_DAYS", 14.0)
+        self.behavior_dwell_min_seconds = self._get_env_float("BEHAVIOR_DWELL_MIN_SECONDS", 5.0)
+        self.behavior_dwell_ref_seconds = self._get_env_float("BEHAVIOR_DWELL_REF_SECONDS", 60.0)
+        self.behavior_dwell_min_weight = self._get_env_float("BEHAVIOR_DWELL_MIN_WEIGHT", 0.1)
+        self.behavior_dwell_max_weight = self._get_env_float("BEHAVIOR_DWELL_MAX_WEIGHT", 0.3)
+        self.behavior_event_weights = {
+            "click": self._get_env_float("BEHAVIOR_WEIGHT_CLICK", 0.2),
+            "view": self._get_env_float("BEHAVIOR_WEIGHT_VIEW", 0.2),
+            "like": self._get_env_float("BEHAVIOR_WEIGHT_LIKE", 0.6),
+            "bookmark": self._get_env_float("BEHAVIOR_WEIGHT_BOOKMARK", 0.6),
+            "hide": self._get_env_float("BEHAVIOR_WEIGHT_HIDE", -0.8),
+            "dislike": self._get_env_float("BEHAVIOR_WEIGHT_DISLIKE", -1.0),
+            "skip": self._get_env_float("BEHAVIOR_WEIGHT_SKIP", -0.7),
+        }
+        self.behavior_event_aliases = {
+            "detail_view": "view",
+            "detailview": "view",
+            "click": "click",
+            "view": "view",
+            "dwell": "dwell",
+            "dwell_time": "dwell",
+            "dwelltime": "dwell",
+            "stay": "dwell",
+            "scroll": "dwell",
+            "like": "like",
+            "favorite": "bookmark",
+            "bookmark": "bookmark",
+            "save": "bookmark",
+            "hide": "hide",
+            "dislike": "dislike",
+            "skip": "skip",
+        }
 
         # CSV 로깅 설정
         self.enable_csv_logging = os.getenv("RERANK_CSV_LOG", "false").lower() == "true"
@@ -111,6 +144,93 @@ class RecommendService:
     # 음식 종류 강제 필터링 제거: 복수 선호 타입 지원 및 유연한 추천을 위해
     # 임베딩 텍스트(user_text_builder.py)에 "세계음식 > 양식" 형태로 선호도 포함
     # LLM reranking에서 선호도를 고려하여 자연스럽게 가중치 반영
+
+    @staticmethod
+    def _get_env_float(name: str, default: float) -> float:
+        value = os.getenv(name)
+        if value is None or value == "":
+            return default
+        try:
+            return float(value)
+        except (TypeError, ValueError):
+            return default
+
+    @staticmethod
+    def _as_utc_naive(value: datetime | None) -> datetime | None:
+        if value is None:
+            return None
+        if value.tzinfo is None:
+            return value
+        return value.astimezone(timezone.utc).replace(tzinfo=None)
+
+    def _time_decay(self, occurred_at: datetime | None, half_life_days: float) -> float:
+        if occurred_at is None or half_life_days <= 0:
+            return 1.0
+        event_time = self._as_utc_naive(occurred_at)
+        if event_time is None:
+            return 1.0
+        delta = (datetime.utcnow() - event_time).total_seconds() / 86400.0
+        if delta < 0:
+            delta = 0.0
+        return math.exp(-delta / half_life_days)
+
+    def _dwell_weight(self, dwell_seconds: float | None) -> float:
+        if dwell_seconds is None:
+            return 0.0
+        try:
+            dwell = float(dwell_seconds)
+        except (TypeError, ValueError):
+            return 0.0
+        if dwell < self.behavior_dwell_min_seconds:
+            return 0.0
+        ref = max(self.behavior_dwell_ref_seconds, 1.0)
+        scaled = math.log1p(min(dwell, ref)) / math.log1p(ref)
+        return self.behavior_dwell_min_weight + (
+            self.behavior_dwell_max_weight - self.behavior_dwell_min_weight
+        ) * scaled
+
+    def _event_weight(self, event_type: str | None, dwell_seconds: float | None) -> float:
+        if not event_type:
+            return 0.0
+        normalized = event_type.strip().lower()
+        canonical = self.behavior_event_aliases.get(normalized, normalized)
+        if canonical == "dwell":
+            return self._dwell_weight(dwell_seconds)
+        return self.behavior_event_weights.get(canonical, 0.0)
+
+    @staticmethod
+    def _accumulate_weight(weights: dict[int, float], place_id: int | None, weight: float) -> None:
+        if place_id is None or weight == 0.0 or not math.isfinite(weight):
+            return
+        try:
+            pid = int(place_id)
+        except (TypeError, ValueError):
+            return
+        weights[pid] = weights.get(pid, 0.0) + weight
+
+    def _build_recent_place_weights(self, user, category: str) -> dict[int, float]:
+        weights: dict[int, float] = {}
+        history = getattr(user, "history_places", None) or []
+        for poi in history:
+            if getattr(poi, "category", None) != category:
+                continue
+            weight = 1.0
+            visited_at = getattr(poi, "visited_at", None)
+            weight *= self._time_decay(visited_at, self.history_half_life_days)
+            self._accumulate_weight(weights, getattr(poi, "place_id", None), weight)
+
+        events = getattr(user, "behavior_events", None) or []
+        for event in events:
+            if getattr(event, "category", None) != category:
+                continue
+            weight = self._event_weight(getattr(event, "event_type", None), getattr(event, "dwell_seconds", None))
+            if weight == 0.0:
+                continue
+            occurred_at = getattr(event, "occurred_at", None)
+            weight *= self._time_decay(occurred_at, self.behavior_half_life_days)
+            self._accumulate_weight(weights, getattr(event, "place_id", None), weight)
+
+        return {pid: w for pid, w in weights.items() if abs(w) > 1e-6}
 
     def _log_rerank_to_csv(self, user, category: str, candidates: List[dict], reranked: List[dict], ranked_indices: List[int], top_k: int):
         """CSV 파일에 리랭킹 비교 로그 저장"""
@@ -678,6 +798,7 @@ ranked_indices는 위 후보 목록의 index 값들을 재정렬한 배열입니
                 for poi in history_all
                 if getattr(poi, "category", None) == scorer.name and getattr(poi, "place_id", None) is not None
             ]
+            recent_place_weights = self._build_recent_place_weights(user, scorer.name)
 
             weights = self.category_weights.get(scorer.name, {})
             # 임베딩 기반으로 top-15 추출 (reranking을 위한 후보군)
@@ -687,6 +808,7 @@ ranked_indices는 위 후보 목록의 index 값들을 재정렬한 배열입니
                 user_vec,
                 top_k=initial_k,
                 recent_place_ids=recent_place_ids,
+                recent_place_weights=recent_place_weights or None,
                 distance_place_ids=distance_place_ids,
                 anchor_coords=anchor_coords,
                 recent_weight=weights.get("recent_weight", 0.3),

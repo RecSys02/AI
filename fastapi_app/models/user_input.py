@@ -1,4 +1,5 @@
 # models/user_input.py
+from datetime import datetime
 from typing import List, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -9,6 +10,16 @@ from models.poi_ref import PoiRef
 def to_camel(string: str) -> str:
     parts = string.split("_")
     return parts[0] + "".join(word.capitalize() for word in parts[1:])
+
+
+class BehaviorEvent(BaseModel):
+    model_config = ConfigDict(populate_by_name=True, alias_generator=to_camel)
+
+    place_id: int
+    category: str
+    event_type: str
+    occurred_at: Optional[datetime] = None
+    dwell_seconds: Optional[float] = None
 
 
 class UserInput(BaseModel):
@@ -36,4 +47,7 @@ class UserInput(BaseModel):
 
     # 마지막 선택된 장소들 (신호 강화)
     selected_places: Optional[List[PoiRef]] = Field(default=None, alias="selectedPlaces")
+
+    # 행동 로그 (클릭/체류/찜/숨김 등)
+    behavior_events: Optional[List[BehaviorEvent]] = Field(default=None, alias="behaviorEvents")
     

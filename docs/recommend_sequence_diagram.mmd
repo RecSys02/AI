@@ -1,7 +1,7 @@
 
 sequenceDiagram
     autonumber
-    participant C as Client
+    participant S as Spring
     participant API as FastAPI
     participant RS as RecommendService
     participant AR as Anchor Resolver
@@ -11,7 +11,7 @@ sequenceDiagram
     participant DB as Cloud SQL
     participant LLM as Gemini (LLM Rerank)
 
-    C->>API: POST /recommend
+    S->>API: POST /recommend
     API->>RS: recommend(user, top_k, ...)
 
     Note over RS,AR: Anchor resolution
@@ -20,8 +20,10 @@ sequenceDiagram
         AR->>RS: last selected coords
     else accomAddress 있음
         AR->>DB: Google Geocode coords
-    else Default
-        AR->>RS: region/default coords
+    else region provided
+        AR->>RS: region coords (geo_centers)
+    else default
+        AR->>RS: default coords (env)
     end
 
     loop category tourspot/cafe/restaurant
@@ -33,6 +35,7 @@ sequenceDiagram
         MV-->>SC: candidate_ids + dense_scores
         SC->>DB: fetch_meta (lat/lng/meta/popularity)
 
+        SC->>SC: recency_vec = normalize(history_vec + behavior_vec (time decay))
         SC->>SC: score=base+recency+distance+popularity
         SC->>SC: distance filter + meta validation
         SC-->>RS: candidates
@@ -43,4 +46,4 @@ sequenceDiagram
     end
 
     RS-->>API: final recommendations
-    API-->>C: response
+    API-->>S: response

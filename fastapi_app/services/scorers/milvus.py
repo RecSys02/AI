@@ -49,6 +49,31 @@ class MilvusScorer:
         norm = np.linalg.norm(avg)
         return avg / norm if norm > 0 else avg
 
+    def _recent_vector_weighted(self, place_weights: dict[int, float]) -> np.ndarray | None:
+        if not place_weights:
+            return None
+        vecs = self._milvus.get_vectors(self.name, list(place_weights.keys()))
+        if not vecs:
+            return None
+        weighted = None
+        for pid, vec in vecs.items():
+            weight = place_weights.get(pid)
+            if weight is None:
+                try:
+                    weight = place_weights.get(int(pid))
+                except (TypeError, ValueError):
+                    weight = None
+            if weight is None or not math.isfinite(weight) or weight == 0.0:
+                continue
+            if weighted is None:
+                weighted = vec * weight
+            else:
+                weighted = weighted + (vec * weight)
+        if weighted is None:
+            return None
+        norm = np.linalg.norm(weighted)
+        return weighted / norm if norm > 0 else weighted
+
     def _distance_from_recent_centroid(
         self, recent_place_ids: list[int], candidate_ids: list[int], meta_map: dict[int, dict]
     ) -> Optional[np.ndarray]:
@@ -102,6 +127,7 @@ class MilvusScorer:
         user_vec: np.ndarray,
         top_k: int = 10,
         recent_place_ids: list[int] | None = None,
+        recent_place_weights: dict[int, float] | None = None,
         distance_place_ids: list[int] | None = None,
         anchor_coords: tuple[float, float] | None = None,
         recent_weight: float = 0.3,
@@ -128,7 +154,11 @@ class MilvusScorer:
 
         meta_map = self._pg.fetch_meta(candidate_ids, category=self.name)
 
-        recent_vec = self._recent_vector(recent_place_ids)
+        recent_vec = None
+        if recent_place_weights:
+            recent_vec = self._recent_vector_weighted(recent_place_weights)
+        if recent_vec is None:
+            recent_vec = self._recent_vector(recent_place_ids)
         if recent_vec is not None and recent_weight != 0:
             vec_map = self._milvus.get_vectors(self.name, candidate_ids)
             recent_component = np.array(

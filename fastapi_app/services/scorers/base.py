@@ -248,6 +248,28 @@ class EmbeddingScorer:
         norm = np.linalg.norm(avg)
         return avg / norm if norm > 0 else avg
 
+    def _recent_vector_weighted(self, place_weights: dict[int, float]) -> np.ndarray | None:
+        if not place_weights:
+            return None
+        self._load()
+        idxs = []
+        weights = []
+        for pid, weight in place_weights.items():
+            if not math.isfinite(weight) or weight == 0.0:
+                continue
+            idx = self._idx_by_place_id.get(int(pid))
+            if idx is None:
+                continue
+            idxs.append(idx)
+            weights.append(weight)
+        if not idxs:
+            return None
+        vecs = self._embeddings[idxs]
+        w = np.array(weights, dtype=float)
+        weighted = (vecs * w[:, None]).sum(axis=0)
+        norm = np.linalg.norm(weighted)
+        return weighted / norm if norm > 0 else weighted
+
     def _distance_from_recent_centroid(self, recent_place_ids: list[int]) -> Optional[np.ndarray]:
         if not recent_place_ids or self._lat is None or self._lng is None:
             return None
@@ -284,6 +306,7 @@ class EmbeddingScorer:
         user_vec: np.ndarray,
         top_k: int = 10,
         recent_place_ids: list[int] | None = None,
+        recent_place_weights: dict[int, float] | None = None,
         distance_place_ids: list[int] | None = None,
         anchor_coords: tuple[float, float] | None = None,
         recent_weight: float = 0.3,
@@ -303,7 +326,11 @@ class EmbeddingScorer:
         distance_km = None
 
         # recency by embedding
-        recent_vec = self._recent_vector(recent_place_ids or [])
+        recent_vec = None
+        if recent_place_weights:
+            recent_vec = self._recent_vector_weighted(recent_place_weights)
+        if recent_vec is None:
+            recent_vec = self._recent_vector(recent_place_ids or [])
         if recent_vec is not None and recent_weight != 0:
             recent_component = recent_weight * np.dot(self._embeddings, recent_vec)
             scores += recent_component
