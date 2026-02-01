@@ -1,7 +1,7 @@
 from services.chat_nodes.callbacks import build_callbacks_config
 from services.chat_nodes.llm_clients import detect_llm, max_tokens_kwargs
 
-
+#
 def detect_mode(mode_hint: str | None, query: str) -> str:
     # 직접적으로 모드가 주어지면 우선 사용
     if mode_hint in {"tourspot", "cafe", "restaurant"}:

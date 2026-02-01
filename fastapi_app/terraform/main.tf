@@ -108,6 +108,10 @@ resource "google_cloud_run_v2_service" "ai_service" {
   template {
     timeout = "600s"
 
+    scaling {
+      min_instance_count = 1
+    }
+
     containers {
       image = "asia-northeast3-docker.pkg.dev/gen-lang-client-0492042254/ai-server/app:latest"
 
@@ -116,6 +120,7 @@ resource "google_cloud_run_v2_service" "ai_service" {
           memory = "8Gi"
           cpu    = "4"
         }
+        cpu_idle = false
       }
 
       ports {
@@ -126,6 +131,11 @@ resource "google_cloud_run_v2_service" "ai_service" {
         name       = "embeddings-storage"
         mount_path = "/data"
       }
+
+      volume_mounts {
+        name       = "cloudsql"
+        mount_path = "/cloudsql"
+      }
     }
 
     volumes {
@@ -133,6 +143,13 @@ resource "google_cloud_run_v2_service" "ai_service" {
       gcs {
         bucket    = google_storage_bucket.data_bucket.name
         read_only = false
+      }
+    }
+
+    volumes {
+      name = "cloudsql"
+      cloud_sql_instance {
+        instances = [google_sql_database_instance.poi_postgres.connection_name]
       }
     }
   } # template 블록 끝
