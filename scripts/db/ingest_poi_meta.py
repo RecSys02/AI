@@ -2,6 +2,7 @@
 """
 Load embedding JSON into Cloud SQL (Postgres) with FTS.
 """
+# 실행법 : python ingest_poi_meta.py --mode tourspot
 
 import argparse
 import json

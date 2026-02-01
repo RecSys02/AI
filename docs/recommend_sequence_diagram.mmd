@@ -1,0 +1,46 @@
+
+sequenceDiagram
+    autonumber
+    participant C as Client
+    participant API as FastAPI
+    participant RS as RecommendService
+    participant AR as Anchor Resolver
+    participant SC as Scorer.topk
+    participant EMB as Embedding Model (SentenceTransformer)
+    participant MV as Milvus
+    participant DB as Cloud SQL
+    participant LLM as Gemini (LLM Rerank)
+
+    C->>API: POST /recommend
+    API->>RS: recommend(user, top_k, ...)
+
+    Note over RS,AR: Anchor resolution
+    RS->>AR: resolve anchor
+    alt last selected coords available
+        AR->>RS: last selected coords
+    else accomAddress 있음
+        AR->>DB: Google Geocode coords
+    else Default
+        AR->>RS: region/default coords
+    end
+
+    loop category tourspot/cafe/restaurant
+        RS->>EMB: encode(user_text)
+        EMB-->>RS: user_vec
+
+        RS->>SC: topk(initial_k=max(top_k*2,15))
+        SC->>MV: vector search (candidate_k = min(max(initial_k*20,100),1000))
+        MV-->>SC: candidate_ids + dense_scores
+        SC->>DB: fetch_meta (lat/lng/meta/popularity)
+
+        SC->>SC: score=base+recency+distance+popularity
+        SC->>SC: distance filter + meta validation
+        SC-->>RS: candidates
+
+        RS->>RS: remove history
+        RS->>LLM: rerank(candidates)
+        LLM-->>RS: top_k results
+    end
+
+    RS-->>API: final recommendations
+    API-->>C: response

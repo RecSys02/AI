@@ -637,15 +637,11 @@ ranked_indices는 위 후보 목록의 index 값들을 재정렬한 배열입니
         # 거리 계산은 마지막 선택 장소 좌표 기준(같은 카테고리에서만 좌표 찾기)
         distance_place_ids = []
         anchor_coords = None
-        accom_anchor, accom_debug = self._resolve_accom_anchor(
-            getattr(user, "accom_address", None)
-        )
+        accom_anchor = None
+        accom_debug = None
         region_anchor = self._resolve_region_anchor(getattr(user, "region", None))
         anchor_source = None
-        if accom_anchor:
-            anchor_coords = accom_anchor
-            anchor_source = "accom_address"
-        elif selected_all:
+        if selected_all:
             last = selected_all[-1]
             if getattr(last, "place_id", None) is not None:
                 last_category = getattr(last, "category", None)
@@ -654,14 +650,18 @@ ranked_indices는 위 후보 목록의 index 값들을 재정렬한 배열입니
                         if scorer.name == last_category and hasattr(scorer, "get_coords"):
                             anchor_coords = scorer.get_coords(last.place_id)
                             break
-                # 좌표를 못 찾으면 distance_place_ids로 대체 후 필요 시 fallback
-                if anchor_coords is None:
-                    distance_place_ids = []
-                    anchor_coords = region_anchor or self.default_anchor_coords
-                    anchor_source = "region" if region_anchor else "default"
-                else:
+                if anchor_coords is not None:
                     anchor_source = "last_selected_place"
-        else:
+
+        if anchor_coords is None:
+            accom_anchor, accom_debug = self._resolve_accom_anchor(
+                getattr(user, "accom_address", None)
+            )
+            if accom_anchor:
+                anchor_coords = accom_anchor
+                anchor_source = "accom_address"
+
+        if anchor_coords is None:
             anchor_coords = region_anchor or self.default_anchor_coords
             anchor_source = "region" if region_anchor else "default"
 

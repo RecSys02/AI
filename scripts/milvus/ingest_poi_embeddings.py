@@ -2,7 +2,7 @@
 """
 Load embeddings into Milvus collections.
 """
-
+# 실행법 : python ingest_poi_embeddings.py --mode tourspot
 import argparse
 import os
 from pathlib import Path
