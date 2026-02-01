@@ -1,15 +1,15 @@
 flowchart TD
-    A([start]) --> B[POST /chat/stream (SSE)]
-    B --> C[start astream_events(initial_state)]
+    A([start]) --> B["POST /chat/stream (SSE)"]
+    B --> C["start astream_events(initial_state)"]
     C --> D[rewrite_query]
-    D --> E{route: intent == recommend?}
+    D --> E{"route: intent == recommend?"}
 
     E -- yes --> F[extract_place]
     F --> G[correct_place]
-    G --> H{expand_request?}
+    G --> H{"expand_request?"}
     H -- yes --> I[expand_radius]
-    I --> J{expand_failed?}
-    J -- yes --> K[answer (anchor missing 안내)]
+    I --> J{"expand_failed?"}
+    J -- yes --> K["answer (anchor missing 안내)"]
     J -- no --> L[resolve_anchor]
     H -- no --> L
     L --> M[retrieve]
@@ -17,74 +17,100 @@ flowchart TD
     N --> O[rerank]
     O --> P[answer]
 
-    E -- no --> Q[general_answer (uses retrieve)]
+    E -- no --> Q["general_answer (uses retrieve)"]
 
-    K --> R[SSE stream (token/final/context/done)]
+    K --> R["SSE stream (token/final/context/done)"]
     P --> R
     Q --> R
     R --> Z([end])
 
-## Node-by-node 설명
-### rewrite_query
-- 대화 문맥/컨텍스트(이전 장소/모드/최근 대화)를 반영해 사용자의 원문을 정규화한다.
-- 불필요한 수식/중복 표현을 제거하고 핵심 의도/키워드를 유지한 문장으로 변환한다.
-- Gemini(LLM)에 요청해 JSON 형태의 `normalized_query`를 반환받는다.
-- `normalized_query`는 이후 route/retrieve의 기준이 된다.
-- 맥락이 부족하면 원문을 최대한 보존한다.
+## Node-by-node
 
-### route
-- `normalized_query` 기반으로 intent(추천/일반)와 expand 요청 여부를 판별한다.
-- Gemini(LLM)에 질의해 `{"intent","expand_request"}` JSON을 받아 라우팅한다.
-- LLM 응답이 비정상이면 룰 기반 키워드 판별로 fallback한다.
-- intent가 recommend면 장소/앵커/검색 파이프라인으로 분기한다.
-- expand는 이전 anchor 존재 여부와 함께 처리된다.
+## Node-by-node
+> rewrite_query — 원문 정규화
+- 입력: query, context, messages
+- 출력: normalized_query
+- 핵심: Gemini(LLM)로 문맥 복원 + 의도 명확화
+- 예시: "카페는?" → "강남역 근처 카페 추천"
 
-### extract_place (recommend 경로)
-- LLM이 지명/랜드마크/지역 표현을 추출해 구조화한다.
-- 결과는 `area`/`point` 로 표현되며 anchor 후보로 전달된다.
-- 추출 실패 시 이후 단계에서 anchor 해석 실패로 이어질 수 있다.
+> route — 의도 분기
+- 입력: normalized_query (원문 query도 참고)
+- 출력: intent, expand_request
+- 핵심: Gemini(LLM) 분류 + 실패 시 룰 기반 fallback
+- 예시: "범위 더 넓혀줘" → recommend, true
 
-### correct_place (recommend 경로)
-- LLM이 오탈자 교정을 시도한다.
-- Google Places autocomplete로 유효성 검증 후 정규 표기를 확보한다.
-- 정규 표기는 별칭 캐시에 저장돼 재사용된다.
+> extract_place — 장소 추출 (recommend)
+- 입력: normalized_query
+- 출력: place (area/point)
+- 핵심: LLM이 지명/랜드마크를 구조화
+- 예시: "홍대 근처 맛집" → area=홍대
 
-### expand_radius (recommend 경로)
-- 사용자가 "범위 확대"를 요청했을 때만 이전 anchor 반경을 확장한다.
-- 이전 anchor가 없으면 `expand_failed`로 판단해 안내 응답 경로로 이동한다.
-- 확장 성공 시 업데이트된 반경을 컨텍스트에 반영한다.
+> correct_place — 오탈자 교정 (recommend)
+- 입력: place 문자열
+- 출력: 정규 표기/별칭
+- 핵심: LLM 교정 + Google Places autocomplete 검증 + 캐시 저장
+- 예시: "합정역 카패" → "합정역 카페"
 
-### resolve_anchor (recommend 경로)
-- alias/geo_centers/캐시/자동완성/지오코딩을 이용해 anchor 좌표를 확정한다.
-- 우선순위 높은 소스를 먼저 사용해 응답 지연을 줄인다.
-- 좌표 확정 실패 시 `anchor_failed`를 설정한다.
+> expand_radius — 범위 확장 (recommend)
+- 입력: expand_request, context(last_anchor)
+- 출력: 업데이트된 anchor/반경 또는 expand_failed
+- 핵심: 이전 anchor가 있을 때만 반경 확장
+- 예시: 2km → "더 넓혀줘" 입력 시 3km
 
-### retrieve (recommend 경로)
-- 쿼리를 임베딩하고 Milvus dense 검색을 수행한다.
-- Postgres BM25 점수와 메타 정보를 조회해 후보를 보강한다.
-- dense/BM25 결과를 결합해 최종 후보 풀을 만든다.
-- 필요 시 date 의도 보강, mode 탐지, history 반영을 수행한다.
+> resolve_anchor — 좌표 확정 (recommend)
+- 입력: place/alias
+- 출력: anchor coords 또는 anchor_failed
+- 핵심: alias/geo_centers/캐시/자동완성/지오코딩 순으로 해결
+- 예시: "강남" → geo_centers 좌표 확정
 
-### apply_location_filter (recommend 경로)
-- anchor 반경을 기준으로 후보를 거리 필터링한다.
-- 필터 결과가 부족하면 후속 단계에서 fallback 처리될 수 있다.
+> retrieve — 후보 검색 (recommend)
+- 입력: normalized_query, mode, history_place_ids
+- 출력: retrievals
+- 핵심: 임베딩+Milvus dense + BM25/메타 결합
+- 예시: "성수 카페" → dense 후보 + BM25 결합 풀
 
-### rerank (recommend 경로)
-- LLM이 후보 요약/메타를 읽고 인덱스 배열(JSON)을 반환한다.
-- 반환된 순서대로 후보를 재정렬한다.
-- 파싱 실패 시 기존 순서를 유지한다.
+> apply_location_filter — 거리 필터 (recommend)
+- 입력: retrievals, anchor
+- 출력: filtered retrievals
+- 핵심: anchor 반경 기준 필터링, 부족 시 fallback
+- 예시: 반경 3km 밖 후보 제거
 
-### answer (recommend 경로)
-- 실패/예외 케이스(앵커 없음, expand 실패 등)를 우선 처리한다.
-- 후보 정보를 구조화해 LLM이 최종 답변을 생성한다.
-- 응답은 사용자 요청 형식(추천 리스트/설명)에 맞춰 출력된다.
+> rerank — 재정렬 (recommend)
+- 입력: retrievals, normalized_query
+- 출력: reranked retrievals
+- 핵심: LLM이 인덱스 배열로 재정렬, 파싱 실패 시 원순서 유지
+- 예시: 디저트 키워드 일치 후보를 상단 배치
 
-### general_answer (일반 경로)
-- 내부적으로 `retrieve()`를 호출해 후보를 만든 뒤 답변을 생성한다.
-- 추천 경로의 anchor/거리 제약은 사용하지 않는다.
-- 검색 결과가 없으면 고정 메시지를 반환한다.
+> answer — 최종 응답 (recommend)
+- 입력: retrievals, anchor/실패 상태
+- 출력: final, context
+- 핵심: 예외 케이스 처리 후 LLM 포맷 응답 생성
+- 예시: `{기준 위치} 주변...` 서두 + `번호. [장소명] / 특징 / 추천 이유` 형식 응답
 
-### SSE 응답
-- FastAPI가 `token`, `final`, `context`, `done` 이벤트를 스트리밍한다.
-- Spring이 SSE 스트림을 수신해 클라이언트로 전달한다.
-- 토큰 단위 스트리밍과 최종 응답이 같은 채널로 전달된다.
+> general_answer — 일반 응답
+- 입력: query
+- 출력: final, context
+- 핵심: retrieve 호출 + LLM 답변, anchor 제약 없음
+- 예시: "파르나스 몰은 어떤 곳이야?" → 일반 설명
+
+> SSE 응답 — 스트리밍 이벤트
+- 입력: 그래프 이벤트
+- 출력: token/final/context/done
+- 핵심: context는 상태 스냅샷(last_anchor/반경/모드/정규화 쿼리 등)
+- 예시: token → token → final → done
+
+<Notion 표>
+| 노드 | 입력 | 출력 | 핵심 | 예시 |
+| --- | --- | --- | --- | --- |
+| rewrite_query — 원문 정규화 | query, context, messages | normalized_query | Gemini(LLM)로 문맥 복원 + 의도 명확화 | "카페는?" → "강남역 근처 카페 추천" |
+| route — 의도 분기 | normalized_query (원문 query도 참고) | intent, expand_request | Gemini(LLM) 분류 + 실패 시 룰 기반 fallback | "범위 더 넓혀줘" → recommend, true |
+| extract_place — 장소 추출 (recommend) | normalized_query | place (area/point) | LLM이 지명/랜드마크를 구조화 | "홍대 근처 맛집" → area=홍대 |
+| correct_place — 오탈자 교정 (recommend) | place 문자열 | 정규 표기/별칭 | LLM 교정 + Google Places autocomplete 검증 + 캐시 저장 | "합정역 카패" → "합정역 카페" |
+| expand_radius — 범위 확장 (recommend) | expand_request, context(last_anchor) | 업데이트된 anchor/반경 또는 expand_failed | 이전 anchor가 있을 때만 반경 확장 | 2km → "더 넓혀줘" 입력 시 3km |
+| resolve_anchor — 좌표 확정 (recommend) | place/alias | anchor coords 또는 anchor_failed | alias/geo_centers/캐시/자동완성/지오코딩 순으로 해결 | "강남" → geo_centers 좌표 확정 |
+| retrieve — 후보 검색 (recommend) | normalized_query, mode, history_place_ids | retrievals | 임베딩+Milvus dense + BM25/메타 결합 | "성수 카페" → dense 후보 + BM25 결합 풀 |
+| apply_location_filter — 거리 필터 (recommend) | retrievals, anchor | filtered retrievals | anchor 반경 기준 필터링, 부족 시 fallback | 반경 3km 밖 후보 제거 |
+| rerank — 재정렬 (recommend) | retrievals, normalized_query | reranked retrievals | LLM이 인덱스 배열로 재정렬, 파싱 실패 시 원순서 유지 | 디저트 키워드 일치 후보를 상단 배치 |
+| answer — 최종 응답 (recommend) | retrievals, anchor/실패 상태 | final, context | 예외 케이스 처리 후 LLM 포맷 응답 생성 | `{기준 위치} 주변...` 서두 + `번호. [장소명] / 특징 / 추천 이유` |
+| general_answer — 일반 응답 | query | final, context | retrieve 호출 + LLM 답변, anchor 제약 없음 | "파르나스 몰은 어떤 곳이야?" → 일반 설명 |
+| SSE 응답 — 스트리밍 이벤트 | 그래프 이벤트 | token/final/context/done | context는 상태 스냅샷(last_anchor/반경/모드/정규화 쿼리 등) | token → token → final → done |
