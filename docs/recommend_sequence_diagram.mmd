@@ -8,6 +8,7 @@ sequenceDiagram
     participant SC as Scorer.topk
     participant EMB as Embedding Model (SentenceTransformer)
     participant MV as Milvus
+    participant GC as Google Geocode API
     participant DB as Cloud SQL
     participant LLM as Gemini (LLM Rerank)
 
@@ -19,7 +20,7 @@ sequenceDiagram
     alt last selected coords available
         AR->>RS: last selected coords
     else accomAddress 있음
-        AR->>DB: Google Geocode coords
+        AR->>GC: Google Geocode coords
     else region provided
         AR->>RS: region coords (geo_centers)
     else default
@@ -30,7 +31,7 @@ sequenceDiagram
         RS->>EMB: encode(user_text)
         EMB-->>RS: user_vec
 
-        RS->>SC: topk(initial_k=max(top_k*2,15))
+        RS->>SC: topk(initial_k=max(top_k*2,15), exclude_place_ids=history_ids)
         SC->>MV: vector search (candidate_k = min(max(initial_k*20,100),1000))
         MV-->>SC: candidate_ids + dense_scores
         SC->>DB: fetch_meta (lat/lng/meta/popularity)
@@ -40,10 +41,45 @@ sequenceDiagram
         SC->>SC: distance filter + meta validation
         SC-->>RS: candidates
 
-        RS->>RS: remove history
+        RS->>RS: filter invalid scores (NaN/inf)
         RS->>LLM: rerank(candidates)
         LLM-->>RS: top_k results
     end
 
     RS-->>API: final recommendations
     API-->>S: response
+
+## Stage 0: 요청/Anchor 결정 (1-7)
+- (1) Spring이 `/recommend` 요청을 보내면 FastAPI가 수신한다.
+- (2) FastAPI가 `RecommendService.recommend()`를 호출한다.
+- (3) RecommendService가 Anchor Resolver에 anchor 해석을 요청한다.
+- (4) 마지막 선택 장소 좌표가 있으면 해당 좌표를 사용한다.
+- (5) 숙소 주소가 있으면 Google Geocode API로 좌표를 얻는다.
+- (6) region이 있으면 `geo_centers` 기반 좌표를 사용한다.
+- (7) 위 조건이 없으면 기본 좌표(env)를 사용한다.
+- (4~7)은 alt 분기 중 하나만 실행된다.
+
+## Stage 1: 후보 생성 (8-13)
+- (8) 카테고리별 사용자 텍스트는 기본 프로필(지역/동행/예산/활동/회피), 선호(테마/분위기/음식·카페 타입), 방문 이력/마지막 선택을 조합해 생성한다.
+- (9) `SentenceTransformer` 모델(`dragonkue/multilingual-e5-small-ko`)에 `query: {user_text}` 형식으로 전달하고 정규화 임베딩(`user_vec`)을 받는다.
+- (10) `topk(initial_k=max(top_k*2,15))`로 후보 추출을 요청한다(현재 top_k는 10으로 고정 사용, 수식은 디버깅용으로 유지; 방문 이력 place_id는 `exclude_place_ids`로 전달).
+- (11) Milvus에서 user_vec 기준 IP 유사도 검색으로 candidate_k개(현재 400개) 후보를 가져온다.
+- (12) Milvus가 후보 ID와 dense(임베딩 기반 점수) 점수를 반환한다.
+- (13) Postgres에서 후보 메타/좌표/인기도를 조회한다.
+
+## Stage 2: 점수 계산/필터링 (14-17)
+- (14) `recency_vec = normalize(history_vec + behavior_vec(time decay))`를 계산한다.
+방문 이력과 행동 로그의 POI 임베딩을 시간감쇠 가중치로 합산한 뒤 정규화해 recency_vec을 만든다(현재는 행동 로그는 없으므로 history만 사용).
+- (15) `score = base + recency + distance + popularity`로 합산한다(base= user_vec와 후보 임베딩 유사도, recency= recency_vec 유사도, distance= 거리 보너스, popularity= 인기도 보정값).
+- (16) 거리 필터(`distance_max_km`)를 먼저 적용한 뒤, 정렬된 후보 중 최대 `top_k*3`개만 메타 유효성 검증(이름/금칙어/content 등)을 수행한다.
+- (17) scorer가 후보 리스트를 RecommendService에 반환한다.
+
+## Stage 3: 최종 재정렬 (18-20)
+- (18) RecommendService에서 `_filter_candidates`로 비정상 점수(NaN/inf)를 제거한다.
+- (20) LLM이 사용자 프로필/후보 요약을 입력으로 받아 JSON(`ranked_indices`)을 반환하고, 해당 순서대로 top_k를 재정렬한다(응답이 비정상이면 원래 순서 유지).
+
+## Stage 4: 응답 반환 (21-22)
+- (21) RecommendService가 최종 추천을 FastAPI에 반환한다.
+- (22) FastAPI가 Spring에 응답을 반환한다.
+
+- (8~20)은 카테고리(tourspot/cafe/restaurant)별로 반복된다.

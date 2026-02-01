@@ -307,6 +307,7 @@ class EmbeddingScorer:
         top_k: int = 10,
         recent_place_ids: list[int] | None = None,
         recent_place_weights: dict[int, float] | None = None,
+        exclude_place_ids: list[int] | set[int] | None = None,
         distance_place_ids: list[int] | None = None,
         anchor_coords: tuple[float, float] | None = None,
         recent_weight: float = 0.3,
@@ -367,6 +368,14 @@ class EmbeddingScorer:
             # 정렬된 인덱스 (높은 점수부터)
             sorted_idxs = scores.argsort()[::-1]
 
+        exclude_set: set[int] = set()
+        if exclude_place_ids:
+            for pid in exclude_place_ids:
+                try:
+                    exclude_set.add(int(pid))
+                except (TypeError, ValueError):
+                    continue
+
         results = []
         filtered_count = 0
         checked_count = 0
@@ -375,6 +384,9 @@ class EmbeddingScorer:
         for i in sorted_idxs[:max_check]:
             checked_count += 1
             place_id = int(self._keys[i][2])
+            if place_id in exclude_set:
+                filtered_count += 1
+                continue
 
             # 메타데이터 유효성 검증
             meta = self._meta_by_place_id.get(place_id, {}) if self._meta_by_place_id else {}

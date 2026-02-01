@@ -1,5 +1,5 @@
 import math
-from typing import Optional
+from typing import Iterable, Optional
 
 import numpy as np
 
@@ -128,6 +128,7 @@ class MilvusScorer:
         top_k: int = 10,
         recent_place_ids: list[int] | None = None,
         recent_place_weights: dict[int, float] | None = None,
+        exclude_place_ids: Iterable[int] | None = None,
         distance_place_ids: list[int] | None = None,
         anchor_coords: tuple[float, float] | None = None,
         recent_weight: float = 0.3,
@@ -143,6 +144,11 @@ class MilvusScorer:
         dense_hits = self._milvus.search(self.name, user_vec, top_k=candidate_k)
         if not dense_hits:
             return []
+        exclude_set = {int(pid) for pid in exclude_place_ids} if exclude_place_ids else set()
+        if exclude_set:
+            dense_hits = [(pid, score) for pid, score in dense_hits if int(pid) not in exclude_set]
+            if not dense_hits:
+                return []
 
         candidate_ids = [pid for pid, _ in dense_hits]
         base_scores = np.array([score for _, score in dense_hits], dtype=float)

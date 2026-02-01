@@ -645,12 +645,9 @@ ranked_indices는 위 후보 목록의 index 값들을 재정렬한 배열입니
                 return []
         ranked_indices = result.get("ranked_indices", [])
         return ranked_indices if isinstance(ranked_indices, list) else []
-    def _filter_candidates(self, items: List[dict], history_ids: set[int]) -> List[dict]:
+    def _filter_candidates(self, items: List[dict]) -> List[dict]:
         filtered = []
         for item in items:
-            place_id = item.get("place_id")
-            if place_id in history_ids:
-                continue
             score = item.get("score")
             if score is not None and not math.isfinite(score):
                 continue
@@ -809,6 +806,7 @@ ranked_indices는 위 후보 목록의 index 값들을 재정렬한 배열입니
                 top_k=initial_k,
                 recent_place_ids=recent_place_ids,
                 recent_place_weights=recent_place_weights or None,
+                exclude_place_ids=history_ids,
                 distance_place_ids=distance_place_ids,
                 anchor_coords=anchor_coords,
                 recent_weight=weights.get("recent_weight", 0.3),
@@ -820,7 +818,7 @@ ranked_indices는 위 후보 목록의 index 값들을 재정렬한 배열입니
                 include_meta=True,  # LLM reranking을 위해 메타데이터 포함
             )
             # 방문 이력(place_id 기준) 제외 + 비유효 점수 제거
-            candidates = self._filter_candidates(per_category[scorer.name], history_ids)
+            candidates = self._filter_candidates(per_category[scorer.name])
 
             # LLM reranking으로 최종 top-10 선택
             per_category[scorer.name] = self._llm_rerank(
