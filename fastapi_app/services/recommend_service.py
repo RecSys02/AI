@@ -61,7 +61,7 @@ class RecommendService:
             },
         }
         # OpenAI 클라이언트 초기화 (없으면 지연 생성)
-        openai_key = os.getenv("OPENAI_API_KEY")
+        openai_key = os.getenv("CLOVA_KEY")
         self.openai_client = OpenAI(api_key=openai_key) if openai_key else None
         self.default_anchor_coords = (
             float(os.getenv("DEFAULT_ANCHOR_LAT", "37.4979")),
