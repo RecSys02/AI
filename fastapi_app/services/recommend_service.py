@@ -488,7 +488,7 @@ class RecommendService:
 ranked_indices는 위 후보 목록의 index 값들을 재정렬한 배열입니다."""
 
         try:
-            model_name = "HCX-007"
+            model_name = "HCX-DASH-002"
             provider="openai"
             start_time = time.perf_counter()
             ranked_indices, usage = self._request_ranked_indices(prompt)
@@ -551,7 +551,7 @@ ranked_indices는 위 후보 목록의 index 값들을 재정렬한 배열입니
         except Exception as e:
             # LLM 호출 실패 시 원본 순서 유지 (내부 메타데이터 제거)
             print(f"[RERANK] LLM reranking failed for {category}: {e}")
-            model_name = "HCX-007"
+            model_name = "HCX-DASH-002"
             start_time = locals().get("start_time")
             latency_ms = 0.0
             if isinstance(start_time, float):
@@ -585,7 +585,7 @@ ranked_indices는 위 후보 목록의 index 값들을 재정렬한 배열입니
         if not self.openai_client:
             raise RuntimeError("OPENAI_API_KEY is required for OpenAI rerank.")
         response = self.openai_client.chat.completions.create(
-            model="HCX-007",
+            model="HCX-DASH-002",
             messages=[
                 {"role": "system", "content": "당신은 여행 POI 추천 전문가입니다. 사용자의 선호도를 분석하여 최적의 장소를 추천합니다."},
                 {"role": "user", "content": prompt},
