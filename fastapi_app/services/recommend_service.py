@@ -63,7 +63,7 @@ class RecommendService:
         # OpenAI 클라이언트 초기화 (없으면 지연 생성)
         openai_key = os.getenv("CLOVA_KEY")
         self.openai_client = OpenAI(
-            api_key="CLOVA_STUDIO_API_KEY",  # CLOVA Studio API 키
+            api_key="CLOVA_KEY",  # CLOVA Studio API 키
             base_url="https://clovastudio.stream.ntruss.com/v1/openai"  # CLOVA Studio 오픈AI 호환 API URL 
         )
 
