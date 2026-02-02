@@ -1,21 +1,25 @@
-flowchart TD
+flowchart LR
     A([start]) --> B["POST /chat/stream (SSE)"]
     B --> C["start astream_events(initial_state)"]
     C --> D[rewrite_query]
     D --> E{"route: intent == recommend?"}
 
-    E -- yes --> F[extract_place]
-    F --> G[correct_place]
-    G --> H{"expand_request?"}
-    H -- yes --> I[expand_radius]
-    I --> J{"expand_failed?"}
-    J -- yes --> K["answer (anchor missing 안내)"]
-    J -- no --> L[resolve_anchor]
-    H -- no --> L
-    L --> M[retrieve]
-    M --> N[apply_location_filter]
-    N --> O[rerank]
-    O --> P[answer]
+    E -- yes --> REC[recommend_flow]
+
+    subgraph Recommend Flow
+        REC --> F[extract_place]
+        F --> G[correct_place]
+        G --> H{"expand_request?"}
+        H -- yes --> I[expand_radius]
+        I --> J{"expand_failed?"}
+        J -- yes --> K["answer (anchor missing 안내)"]
+        J -- no --> L[resolve_anchor]
+        H -- no --> L
+        L --> M[retrieve]
+        M --> N[apply_location_filter]
+        N --> O[rerank]
+        O --> P[answer]
+    end
 
     E -- no --> Q["general_answer (uses retrieve)"]
 
