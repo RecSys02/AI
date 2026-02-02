@@ -484,10 +484,8 @@ class RecommendService:
 ranked_indices는 위 후보 목록의 index 값들을 재정렬한 배열입니다."""
 
         try:
-            provider = os.getenv("RERANK_PROVIDER", "openai").lower()
             model_name = os.getenv("CHAT_MODEL", "gpt-4o-mini")
-            if provider == "gemini":
-                model_name = os.getenv("GEMINI_RERANK_MODEL", "gemini-2.0-flash")
+            provider="openai"
             start_time = time.perf_counter()
             ranked_indices, usage = self._request_ranked_indices(prompt)
             latency_ms = (time.perf_counter() - start_time) * 1000.0
@@ -549,10 +547,7 @@ ranked_indices는 위 후보 목록의 index 값들을 재정렬한 배열입니
         except Exception as e:
             # LLM 호출 실패 시 원본 순서 유지 (내부 메타데이터 제거)
             print(f"[RERANK] LLM reranking failed for {category}: {e}")
-            provider = os.getenv("RERANK_PROVIDER", "openai").lower()
             model_name = os.getenv("CHAT_MODEL", "gpt-4o-mini")
-            if provider == "gemini":
-                model_name = os.getenv("GEMINI_RERANK_MODEL", "gemini-2.0-flash")
             start_time = locals().get("start_time")
             latency_ms = 0.0
             if isinstance(start_time, float):
@@ -591,7 +586,7 @@ ranked_indices는 위 후보 목록의 index 값들을 재정렬한 배열입니
                 {"role": "system", "content": "당신은 여행 POI 추천 전문가입니다. 사용자의 선호도를 분석하여 최적의 장소를 추천합니다."},
                 {"role": "user", "content": prompt},
             ],
-            temperature=0.3,
+            temperature=0.1,
             response_format={"type": "json_object"},
         )
         content = response.choices[0].message.content or ""
