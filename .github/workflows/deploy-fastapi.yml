@@ -63,10 +63,10 @@ jobs:
             LANGFUSE_SECRET_KEY=${{ secrets.LANGFUSE_SECRET_KEY }}
             OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}
 
-            CHAT_MODEL=gpt-4.1-mini
-            DETECT_MODEL=gpt-4.1-mini
+            CHAT_MODEL=HCX-007
+            DETECT_MODEL=HCX-007
             LANGFUSE_BASE_URL=https://us.cloud.langfuse.com
-            RERANK_PROVIDER=gemini
+            RERANK_PROVIDER=openai
             GEMINI_RERANK_MODEL=gemini-2.0-flash
             GEMINI_CHAT_MODEL=gemini-2.0-flash
             RERANK_METRICS_LOG=true
