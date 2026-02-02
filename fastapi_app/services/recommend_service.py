@@ -63,7 +63,7 @@ class RecommendService:
         # OpenAI 클라이언트 초기화 (없으면 지연 생성)
         openai_key = os.getenv("CLOVA_KEY")
         self.openai_client = OpenAI(
-            api_key="CLOVA_KEY",  # CLOVA Studio API 키
+            api_key=openai_key,  # CLOVA Studio API 키
             base_url="https://clovastudio.stream.ntruss.com/v1/openai"  # CLOVA Studio 오픈AI 호환 API URL 
         )
 
@@ -590,8 +590,7 @@ ranked_indices는 위 후보 목록의 index 값들을 재정렬한 배열입니
                 {"role": "system", "content": "당신은 여행 POI 추천 전문가입니다. 사용자의 선호도를 분석하여 최적의 장소를 추천합니다."},
                 {"role": "user", "content": prompt},
             ],
-            temperature=0.1,
-            response_format={"type": "json_object"},
+            temperature=0.1
         )
         content = response.choices[0].message.content or ""
         usage = {}
