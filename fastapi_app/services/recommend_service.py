@@ -61,8 +61,12 @@ class RecommendService:
             },
         }
         # OpenAI 클라이언트 초기화 (없으면 지연 생성)
-        openai_key = os.getenv("OPENAI_API_KEY")
-        self.openai_client = OpenAI(api_key=openai_key) if openai_key else None
+        openai_key = os.getenv("CLOVA_KEY")
+        self.openai_client = OpenAI(
+            api_key=openai_key,  # CLOVA Studio API 키
+            base_url="https://clovastudio.stream.ntruss.com/v1/openai"  # CLOVA Studio 오픈AI 호환 API URL 
+        )
+
         self.default_anchor_coords = (
             float(os.getenv("DEFAULT_ANCHOR_LAT", "37.4979")),
             float(os.getenv("DEFAULT_ANCHOR_LNG", "127.0276")),
@@ -484,10 +488,8 @@ class RecommendService:
 ranked_indices는 위 후보 목록의 index 값들을 재정렬한 배열입니다."""
 
         try:
-            provider = os.getenv("RERANK_PROVIDER", "openai").lower()
-            model_name = os.getenv("CHAT_MODEL", "gpt-4o-mini")
-            if provider == "gemini":
-                model_name = os.getenv("GEMINI_RERANK_MODEL", "gemini-2.0-flash")
+            model_name = "HCX-DASH-002"
+            provider="openai"
             start_time = time.perf_counter()
             ranked_indices, usage = self._request_ranked_indices(prompt)
             latency_ms = (time.perf_counter() - start_time) * 1000.0
@@ -549,10 +551,7 @@ ranked_indices는 위 후보 목록의 index 값들을 재정렬한 배열입니
         except Exception as e:
             # LLM 호출 실패 시 원본 순서 유지 (내부 메타데이터 제거)
             print(f"[RERANK] LLM reranking failed for {category}: {e}")
-            provider = os.getenv("RERANK_PROVIDER", "openai").lower()
-            model_name = os.getenv("CHAT_MODEL", "gpt-4o-mini")
-            if provider == "gemini":
-                model_name = os.getenv("GEMINI_RERANK_MODEL", "gemini-2.0-flash")
+            model_name = "HCX-DASH-002"
             start_time = locals().get("start_time")
             latency_ms = 0.0
             if isinstance(start_time, float):
@@ -577,7 +576,7 @@ ranked_indices는 위 후보 목록의 index 값들을 재정렬한 배열입니
             return result
 
     def _request_ranked_indices(self, prompt: str) -> tuple[list[int], dict]:
-        provider = os.getenv("RERANK_PROVIDER", "openai").lower()
+        provider = "openai"
         if provider == "gemini":
             return self._request_ranked_indices_gemini(prompt)
         return self._request_ranked_indices_openai(prompt)
@@ -586,13 +585,12 @@ ranked_indices는 위 후보 목록의 index 값들을 재정렬한 배열입니
         if not self.openai_client:
             raise RuntimeError("OPENAI_API_KEY is required for OpenAI rerank.")
         response = self.openai_client.chat.completions.create(
-            model=os.getenv("CHAT_MODEL", "gpt-4o-mini"),
+            model="HCX-DASH-002",
             messages=[
                 {"role": "system", "content": "당신은 여행 POI 추천 전문가입니다. 사용자의 선호도를 분석하여 최적의 장소를 추천합니다."},
                 {"role": "user", "content": prompt},
             ],
-            temperature=0.3,
-            response_format={"type": "json_object"},
+            temperature=0.1
         )
         content = response.choices[0].message.content or ""
         usage = {}
