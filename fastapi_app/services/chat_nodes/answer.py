@@ -101,6 +101,7 @@ async def answer_node(state: GraphState):
         "번호. [장소 이름]\n"
         "   - 특징: 한 줄 요약\n"
         "   - 추천 이유: 상세 설명\n"
+        "마크다운 금지: **, *, _, `, # 등 강조/코드/헤더 사용 금지. 텍스트만 출력.\n"
     )
 
     system_base = (
