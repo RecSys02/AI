@@ -128,6 +128,7 @@ async def chat_stream(
         final_sent = False
         context_sent = False
         cancelled = False
+        error = None
         final_text = None
         final_context = None
         token_parts: List[str] = []
@@ -173,7 +174,10 @@ async def chat_stream(
             yield {"event": "done", "data": "ok"}
         except asyncio.CancelledError:
             cancelled = True
-            raise
+            return
+        except Exception as exc:
+            error = repr(exc)
+            logger.exception("chat_stream error req_id=%s", req_id)
         finally:
             output_payload = {}
             if final_text:
@@ -182,11 +186,12 @@ async def chat_stream(
                 output_payload["context"] = final_context
             update_langfuse_trace(callbacks, input_state=initial_state, output=output_payload or None)
             logger.info(
-                "chat_stream done req_id=%s any_event=%s final_sent=%s cancelled=%s",
+                "chat_stream done req_id=%s any_event=%s final_sent=%s cancelled=%s error=%s",
                 req_id,
                 any_event,
                 final_sent,
                 cancelled,
+                error,
             )
 
 
@@ -232,6 +237,7 @@ async def chat_stream_post(req: ChatRequest, request: Request):
         final_sent = False
         context_sent = False
         cancelled = False
+        error = None
         final_text = None
         final_context = None
         token_parts: List[str] = []
@@ -277,7 +283,10 @@ async def chat_stream_post(req: ChatRequest, request: Request):
             yield {"event": "done", "data": "ok"}
         except asyncio.CancelledError:
             cancelled = True
-            raise
+            return
+        except Exception as exc:
+            error = repr(exc)
+            logger.exception("chat_stream_post error req_id=%s", req_id)
         finally:
             output_payload = {}
             if final_text:
@@ -286,11 +295,12 @@ async def chat_stream_post(req: ChatRequest, request: Request):
                 output_payload["context"] = final_context
             update_langfuse_trace(callbacks, input_state=initial_state, output=output_payload or None)
             logger.info(
-                "chat_stream_post done req_id=%s any_event=%s final_sent=%s cancelled=%s",
+                "chat_stream_post done req_id=%s any_event=%s final_sent=%s cancelled=%s error=%s",
                 req_id,
                 any_event,
                 final_sent,
                 cancelled,
+                error,
             )
 
     return EventSourceResponse(event_gen(), media_type="text/event-stream")
