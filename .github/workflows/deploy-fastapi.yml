@@ -55,23 +55,21 @@ jobs:
             MILVUS_HOST=${{ secrets.MILVUS_HOST }}
             MILVUS_PORT=19530
             USE_MILVUS=true
-            LLM_PROVIDER=gemini
+            DETECT_MODEL=gemini-2.0-flash
             GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }}
             GOOGLE_GEOCODE_KEY=${{ secrets.GOOGLE_GEOCODE_KEY }}
             GOOGLE_PLACES_KEY=${{ secrets.GOOGLE_PLACES_KEY }}
             LANGFUSE_PUBLIC_KEY=${{ secrets.LANGFUSE_PUBLIC_KEY }}
             LANGFUSE_SECRET_KEY=${{ secrets.LANGFUSE_SECRET_KEY }}
-            OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}
             CLOVA_KEY=${{ secrets.CLOVA_KEY }}
-            CHAT_MODEL=HCX-007
-            DETECT_MODEL=HCX-007
             LANGFUSE_BASE_URL=https://us.cloud.langfuse.com
-            RERANK_PROVIDER=openai
-            GEMINI_RERANK_MODEL=gemini-2.0-flash
-            GEMINI_CHAT_MODEL=gemini-2.0-flash
             RERANK_METRICS_LOG=true
             LANGFUSE_DEBUG=1
-            
+            RERANK_PROVIDER=clova
+            RERANK_MODEL=HCX-DASH-002
+            CHAT_PROVIDER=clova
+            CHAT_MODEL=HCX-007
+      
             PYTHONUNBUFFERED=1
             PYTHONDONTWRITEBYTECODE=1
 

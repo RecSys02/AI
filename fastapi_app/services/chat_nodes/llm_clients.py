@@ -3,24 +3,78 @@ import os
 import re
 
 
-def _provider() -> str:
-    provider = (os.getenv("LLM_PROVIDER") or os.getenv("CHAT_PROVIDER") or "").lower()
-    if provider:
-        return provider
-    if os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY"):
+def _normalize_provider(value: str) -> str:
+    normalized = value.strip().lower().replace("-", "_")
+    if normalized in {"openai", "open_ai"}:
+        return "openai"
+    if normalized == "clova":
+        return "clova"
+    if normalized == "gemini":
         return "gemini"
-    return "openai"
+    return ""
 
 
-def _gemini_models() -> tuple[str, str]:
-    chat_model = (
-        os.getenv("GEMINI_CHAT_MODEL")
-        or os.getenv("GEMINI_MODEL")
-        or os.getenv("GEMINI_RERANK_MODEL")
-        or "gemini-2.0-flash"
-    )
-    detect_model = os.getenv("GEMINI_DETECT_MODEL") or chat_model
+def _provider() -> str:
+    provider = _normalize_provider(os.getenv("CHAT_PROVIDER") or "")
+    if not provider:
+        raise RuntimeError("CHAT_PROVIDER must be set to one of: openai, clova, gemini")
+    return provider
+
+
+def _models() -> tuple[str, str]:
+    chat_model = os.getenv("CHAT_MODEL")
+    if not chat_model:
+        raise RuntimeError("CHAT_MODEL must be set.")
+    detect_model = os.getenv("DETECT_MODEL") or chat_model
     return chat_model, detect_model
+
+
+def _openai_config(provider: str) -> tuple[str, str | None]:
+    if provider == "clova":
+        api_key = os.getenv("CLOVA_KEY")
+        if not api_key:
+            raise RuntimeError("CLOVA_KEY is required for Clova chat models.")
+        base_url = os.getenv(
+            "CLOVA_BASE_URL",
+            "https://clovastudio.stream.ntruss.com/v1/openai",
+        )
+        return api_key, base_url
+    api_key = os.getenv("OPENAI_API_KEY")
+    if not api_key:
+        raise RuntimeError("OPENAI_API_KEY is required for OpenAI chat models.")
+    return api_key, os.getenv("OPENAI_BASE_URL")
+
+
+def _build_openai_llms(
+    provider: str,
+    chat_model: str,
+    detect_model: str,
+) -> tuple["ChatOpenAI", "ChatOpenAI"]:
+    from langchain_openai import ChatOpenAI
+
+    api_key, base_url = _openai_config(provider)
+
+    def _make(model: str, streaming: bool) -> ChatOpenAI:
+        kwargs = {
+            "model": model,
+            "streaming": streaming,
+            "temperature": 0.0,
+        }
+        if api_key:
+            kwargs["api_key"] = api_key
+        if base_url:
+            kwargs["base_url"] = base_url
+        try:
+            return ChatOpenAI(**kwargs)
+        except TypeError:
+            if api_key:
+                os.environ["OPENAI_API_KEY"] = api_key
+            if base_url:
+                os.environ["OPENAI_BASE_URL"] = base_url
+                os.environ["OPENAI_API_BASE"] = base_url
+            return ChatOpenAI(model=model, streaming=streaming, temperature=0.0)
+
+    return _make(chat_model, True), _make(detect_model, False)
 
 
 provider = _provider()
@@ -68,7 +122,7 @@ if provider == "gemini":
     api_key = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
     if not api_key:
         raise RuntimeError("GEMINI_API_KEY (or GOOGLE_API_KEY) is required for Gemini chat models.")
-    chat_model, detect_model = _gemini_models()
+    chat_model, detect_model = _models()
     llm = ChatGoogleGenerativeAI(
         model=chat_model,
         temperature=0.0,
@@ -85,10 +139,5 @@ if provider == "gemini":
         convert_system_message_to_human=True,
     )
 else:
-    from langchain_openai import ChatOpenAI
-
-    chat_model = os.getenv("CHAT_MODEL", "gpt-4o-mini")
-    detect_model = os.getenv("DETECT_MODEL", chat_model)
-    llm = ChatOpenAI(model=chat_model, streaming=True, temperature=0.0)
-    # 모드 감지/리랭크용은 스트리밍 없이 호출
-    detect_llm = ChatOpenAI(model=detect_model, streaming=False, temperature=0.0)
+    chat_model, detect_model = _models()
+    llm, detect_llm = _build_openai_llms(provider, chat_model, detect_model)

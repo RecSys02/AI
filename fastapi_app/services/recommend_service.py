@@ -60,12 +60,10 @@ class RecommendService:
                 "popularity_weight": 0.1,
             },
         }
-        # OpenAI 클라이언트 초기화 (없으면 지연 생성)
-        openai_key = os.getenv("CLOVA_KEY")
-        self.openai_client = OpenAI(
-            api_key=openai_key,  # CLOVA Studio API 키
-            base_url="https://clovastudio.stream.ntruss.com/v1/openai"  # CLOVA Studio 오픈AI 호환 API URL 
-        )
+        self.rerank_provider = self._get_rerank_provider()
+        self.rerank_model = self._get_rerank_model()
+        self._openai_client = None
+        self._openai_client_provider = None
 
         self.default_anchor_coords = (
             float(os.getenv("DEFAULT_ANCHOR_LAT", "37.4979")),
@@ -158,6 +156,51 @@ class RecommendService:
             return float(value)
         except (TypeError, ValueError):
             return default
+
+    @staticmethod
+    def _normalize_provider(value: str) -> str:
+        normalized = value.strip().lower().replace("-", "_")
+        if normalized in {"openai", "open_ai"}:
+            return "openai"
+        if normalized == "clova":
+            return "clova"
+        if normalized == "gemini":
+            return "gemini"
+        return ""
+
+    def _get_rerank_provider(self) -> str:
+        provider = self._normalize_provider(os.getenv("RERANK_PROVIDER") or "")
+        if not provider:
+            raise RuntimeError("RERANK_PROVIDER must be set to one of: openai, clova, gemini")
+        return provider
+
+    def _get_rerank_model(self) -> str:
+        model = os.getenv("RERANK_MODEL")
+        if not model:
+            raise RuntimeError("RERANK_MODEL must be set.")
+        return model
+
+    def _get_openai_client(self, provider: str) -> OpenAI:
+        if self._openai_client and self._openai_client_provider == provider:
+            return self._openai_client
+        if provider == "clova":
+            api_key = os.getenv("CLOVA_KEY")
+            if not api_key:
+                raise RuntimeError("CLOVA_KEY is required for Clova rerank.")
+            base_url = os.getenv(
+                "CLOVA_BASE_URL",
+                "https://clovastudio.stream.ntruss.com/v1/openai",
+            )
+            client = OpenAI(api_key=api_key, base_url=base_url)
+        else:
+            api_key = os.getenv("OPENAI_API_KEY")
+            if not api_key:
+                raise RuntimeError("OPENAI_API_KEY is required for OpenAI rerank.")
+            base_url = os.getenv("OPENAI_BASE_URL")
+            client = OpenAI(api_key=api_key, base_url=base_url) if base_url else OpenAI(api_key=api_key)
+        self._openai_client = client
+        self._openai_client_provider = provider
+        return client
 
     @staticmethod
     def _as_utc_naive(value: datetime | None) -> datetime | None:
@@ -488,8 +531,8 @@ class RecommendService:
 ranked_indices는 위 후보 목록의 index 값들을 재정렬한 배열입니다."""
 
         try:
-            model_name = "HCX-DASH-002"
-            provider="openai"
+            provider = self.rerank_provider
+            model_name = self.rerank_model
             start_time = time.perf_counter()
             ranked_indices, usage = self._request_ranked_indices(prompt)
             latency_ms = (time.perf_counter() - start_time) * 1000.0
@@ -551,7 +594,8 @@ ranked_indices는 위 후보 목록의 index 값들을 재정렬한 배열입니
         except Exception as e:
             # LLM 호출 실패 시 원본 순서 유지 (내부 메타데이터 제거)
             print(f"[RERANK] LLM reranking failed for {category}: {e}")
-            model_name = "HCX-DASH-002"
+            provider = self.rerank_provider
+            model_name = self.rerank_model
             start_time = locals().get("start_time")
             latency_ms = 0.0
             if isinstance(start_time, float):
@@ -576,16 +620,16 @@ ranked_indices는 위 후보 목록의 index 값들을 재정렬한 배열입니
             return result
 
     def _request_ranked_indices(self, prompt: str) -> tuple[list[int], dict]:
-        provider = "openai"
+        provider = self.rerank_provider
         if provider == "gemini":
             return self._request_ranked_indices_gemini(prompt)
         return self._request_ranked_indices_openai(prompt)
 
     def _request_ranked_indices_openai(self, prompt: str) -> tuple[list[int], dict]:
-        if not self.openai_client:
-            raise RuntimeError("OPENAI_API_KEY is required for OpenAI rerank.")
-        response = self.openai_client.chat.completions.create(
-            model="HCX-DASH-002",
+        provider = self.rerank_provider
+        client = self._get_openai_client(provider)
+        response = client.chat.completions.create(
+            model=self.rerank_model,
             messages=[
                 {"role": "system", "content": "당신은 여행 POI 추천 전문가입니다. 사용자의 선호도를 분석하여 최적의 장소를 추천합니다."},
                 {"role": "user", "content": prompt},
@@ -612,8 +656,7 @@ ranked_indices는 위 후보 목록의 index 값들을 재정렬한 배열입니
             raise RuntimeError("google.generativeai is not installed.") from exc
 
         genai.configure(api_key=api_key)
-        model_name = os.getenv("GEMINI_RERANK_MODEL", "gemini-3-flash-preview")
-        model = genai.GenerativeModel(model_name)
+        model = genai.GenerativeModel(self.rerank_model)
         response = model.generate_content(prompt)
         text = (response.text or "").strip()
         usage = {}
