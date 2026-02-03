@@ -330,11 +330,11 @@ def update_langfuse_trace(callbacks: List[object] | None, input_state: Dict | No
     if input_state:
         slim_input = build_langfuse_state(input_state)
         if slim_input:
-            update_payload["input"] = {"query": slim_input.get("query")} if slim_input.get("query") else slim_input
+            update_payload["input"] = slim_input
     if output:
         slim_output = build_langfuse_output(output)
         if slim_output:
-            update_payload["output"] = {"final": slim_output.get("final")} if slim_output.get("final") else slim_output
+            update_payload["output"] = slim_output
     if not update_payload:
         return
 
