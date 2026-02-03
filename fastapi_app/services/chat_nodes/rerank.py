@@ -4,6 +4,7 @@ from services.chat_nodes.callbacks import build_callbacks_config
 from services.chat_nodes.config import RERANK_K
 from services.chat_nodes.intent import is_date_query
 from services.chat_nodes.llm_clients import detect_llm, max_tokens_kwargs, parse_json_response
+from services.chat_nodes.message_utils import normalize_messages
 from services.chat_nodes.state import GraphState, slim_retrievals
 from utils.geo import append_node_trace_result
 
@@ -80,6 +81,7 @@ async def rerank_node(state: GraphState) -> Dict:
             ("user", target_query), # 정제된 쿼리 전달
         ]
     )
+    messages = normalize_messages(messages)
 
     raw = None
     try:

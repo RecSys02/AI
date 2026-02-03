@@ -3,6 +3,7 @@ from typing import List
 from services.chat_nodes.callbacks import build_callbacks_config
 from services.chat_nodes.config import GENERAL_K
 from services.chat_nodes.llm_clients import llm
+from services.chat_nodes.message_utils import normalize_messages
 from services.chat_nodes.mode import detect_mode, llm_detect_mode
 from services.chat_nodes.state import GraphState, build_context
 from services.retriever import retrieve
@@ -11,7 +12,7 @@ from utils.geo import append_node_trace_result
 
 async def general_answer_node(state: GraphState):
     """Answer non-recommendation questions using lightweight retrieval + LLM."""
-    query = state.get("query", "")
+    query = str(state.get("query") or "").strip()
     callbacks = state.get("callbacks")
     config = build_callbacks_config(callbacks)
     # Detect category (tourspot/cafe/restaurant) to pick the right index.
@@ -92,6 +93,7 @@ async def general_answer_node(state: GraphState):
             )
         )
     messages.append(("user", query))
+    messages = normalize_messages(messages)
 
     parts: List[str] = []
     async for chunk in llm.astream(messages, config=config):

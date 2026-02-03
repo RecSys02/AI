@@ -3,6 +3,7 @@ from typing import List
 from services.chat_nodes.callbacks import build_callbacks_config
 from services.chat_nodes.intent import is_date_query, is_nearby_query
 from services.chat_nodes.llm_clients import llm
+from services.chat_nodes.message_utils import normalize_messages
 from services.chat_nodes.state import GraphState, build_context
 from utils.geo import append_node_trace_result
 
@@ -11,9 +12,10 @@ async def answer_node(state: GraphState):
     """Generate the final response or clarification based on retrieval results."""
     
     # 1. 원본 쿼리와 정제된 쿼리 설정
-    raw_query = state.get("query", "")
+    raw_query = str(state.get("query") or "")
     normalized_query = state.get("normalized_query")
-    target_query = normalized_query if normalized_query else raw_query
+    normalized_query = str(normalized_query).strip() if normalized_query else ""
+    target_query = normalized_query or raw_query
     
     # 2. 예외 케이스 처리 (위치 검색 실패 등)
     if state.get("expand_failed"):
@@ -133,6 +135,7 @@ async def answer_node(state: GraphState):
         )),
         ("user", target_query) # LLM에게 정제된 쿼리 전달
     ]
+    messages = normalize_messages(messages)
 
     parts: List[str] = []
     async for chunk in llm.astream(messages, config=config):
