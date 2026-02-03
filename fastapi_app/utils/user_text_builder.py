@@ -9,8 +9,6 @@ def _base_profile_lines(user) -> list[str]:
         lines.append(f"활동강도: {user.activity_level}")
     if user.budget:
         lines.append(f"예산: {user.budget}")
-    if user.avoid:
-        lines.append("피하고 싶은 것: " + ", ".join(user.avoid))
     return lines
 
 

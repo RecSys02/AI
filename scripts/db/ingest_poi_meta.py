@@ -57,41 +57,59 @@ def join_list(values: List[Any]) -> str:
 
 def build_embedding_text_tourspot(poi: Dict[str, Any]) -> str:
     parts = []
+
+    header = []
     if poi.get("name"):
-        parts.append(f"장소명: {poi['name']}")
+        header.append(f"{poi['name']} (카테고리: 관광지)")
     if poi.get("summary_one_sentence"):
-        parts.append(poi["summary_one_sentence"])
+        header.append(poi["summary_one_sentence"])
+    if header:
+        parts.append(". ".join(header))
+
     themes = join_list(poi.get("themes", []))
-    if themes:
-        parts.append(f"테마: {themes}")
     mood = join_list(poi.get("mood", []))
+    indoor_outdoor = poi.get("indoor_outdoor")
+    line = []
+    if themes:
+        line.append(f"테마: {themes}")
     if mood:
-        parts.append(f"분위기: {mood}")
+        line.append(f"분위기: {mood}")
+    if indoor_outdoor:
+        line.append(f"실내/실외: {indoor_outdoor}")
+    if line:
+        parts.append(". ".join(line))
+
     visitor_type = join_list(poi.get("visitor_type", []))
-    if visitor_type:
-        parts.append(f"방문객 유형: {visitor_type}")
-    best_time = join_list(poi.get("best_time", []))
-    if best_time:
-        parts.append(f"추천 방문 시간: {best_time}")
-    if poi.get("duration"):
-        parts.append(f"체류 시간: {poi['duration']}")
-    activity = poi.get("activity") or {}
-    if isinstance(activity, dict) and activity.get("level") is not None:
-        parts.append(f"활동 강도: {activity['level']}")
-    if poi.get("indoor_outdoor"):
-        parts.append(f"실내/실외: {poi['indoor_outdoor']}")
-    if poi.get("photospot") is True:
-        parts.append("포토스팟이 있는 장소")
-    elif poi.get("photospot") is False:
-        parts.append("포토스팟 위주의 장소는 아님")
     keywords = join_list(poi.get("keywords", []))
+    line = []
+    if visitor_type:
+        line.append(f"대상: {visitor_type}")
     if keywords:
-        parts.append(f"키워드: {keywords}")
-    avoid_for = join_list(poi.get("avoid_for", []))
-    if avoid_for:
-        parts.append(f"비추천 대상: {avoid_for}")
-    if poi.get("ideal_schedule_position"):
-        parts.append(f"일정 추천 위치: {poi['ideal_schedule_position']}")
+        line.append(f"키워드: {keywords}")
+    if line:
+        parts.append(". ".join(line))
+
+    activity = poi.get("activity") or {}
+    activity_label = None
+    if isinstance(activity, dict):
+        activity_label = activity.get("label")
+    if not activity_label and isinstance(activity, dict) and activity.get("level") is not None:
+        activity_label = activity.get("level")
+    best_time = join_list(poi.get("best_time", []))
+    ideal_schedule = poi.get("ideal_schedule_position")
+    line = []
+    if activity_label:
+        line.append(f"활동 강도: {activity_label}")
+    if best_time:
+        line.append(f"추천 시간: {best_time}")
+    if ideal_schedule:
+        line.append(str(ideal_schedule))
+    if line:
+        parts.append(". ".join(line))
+
+    if poi.get("photospot") is True:
+        parts.append("포토스팟: 있음")
+
     if not parts:
         pid = poi.get("poi_id", "unknown")
         return f"관광지 {pid}"
