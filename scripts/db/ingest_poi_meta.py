@@ -7,6 +7,7 @@ Load embedding JSON into Cloud SQL (Postgres) with FTS.
 import argparse
 import json
 import os
+from functools import lru_cache
 from pathlib import Path
 from typing import Any, Dict, List, Tuple
 
@@ -16,6 +17,36 @@ ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_TOUR_PATH = ROOT / "data" / "embedding_json" / "embedding_tourspot.json"
 DEFAULT_RESTAURANT_PATH = ROOT / "data" / "embedding_json" / "embedding_restaurant.json"
 DEFAULT_CAFE_PATH = ROOT / "data" / "embedding_json" / "embedding_cafe.json"
+
+FTS_POS_TAGS = {
+    "NNG",
+    "NNP",
+    "NNB",
+    "NR",
+    "NP",
+    "SL",
+    "SH",
+    "SN",
+    "XR",
+    "VV",
+    "VA",
+    "MAG",
+}
+
+
+@lru_cache(maxsize=1)
+def _get_kiwi() -> "Kiwi":
+    from kiwipiepy import Kiwi
+
+    return Kiwi()
+
+
+def tokenize_ko(text: str) -> str:
+    if not text:
+        return ""
+    kiwi = _get_kiwi()
+    tokens = [token.form for token in kiwi.tokenize(text) if token.tag in FTS_POS_TAGS]
+    return " ".join(tokens)
 
 
 def join_list(values: List[Any]) -> str:
@@ -177,7 +208,8 @@ def main() -> None:
         description = poi.get("description")
         lat, lng = get_lat_lng(poi)
         popularity = poi.get("popularity_score")
-        search_text = builder(poi)
+        search_text_raw = builder(poi)
+        search_text = tokenize_ko(search_text_raw) or search_text_raw
         rows.append(
             (
                 place_id,

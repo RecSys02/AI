@@ -1,21 +1,151 @@
 import os
+import re
+import time
 from functools import lru_cache
 from typing import Iterable, Optional
 
 import psycopg
+from psycopg import errors as pg_errors
 from psycopg.rows import dict_row
+
+FTS_POS_TAGS = {
+    "NNG",
+    "NNP",
+    "NNB",
+    "NR",
+    "NP",
+    "SL",
+    "SH",
+    "SN",
+    "XR",
+    "VV",
+    "VA",
+    "MAG",
+}
+
+SYNONYM_CACHE_TTL_SEC = 300
+MAX_SYNONYMS_PER_TOKEN = 8
+
+
+@lru_cache(maxsize=1)
+def _get_kiwi() -> "Kiwi":
+    from kiwipiepy import Kiwi
+
+    return Kiwi()
+
+
+def _tokenize_ko(text: str) -> str:
+    if not text:
+        return ""
+    kiwi = _get_kiwi()
+    tokens = [token.form for token in kiwi.tokenize(text) if token.tag in FTS_POS_TAGS]
+    return " ".join(tokens)
+
+
+def _normalize_token(token: str) -> str:
+    if not token:
+        return ""
+    cleaned = re.sub(r"[^0-9a-zA-Z가-힣_]", "", token.strip().lower())
+    return cleaned
+
+
+def _split_tokens(text: str) -> list[str]:
+    tokenized = _tokenize_ko(text)
+    raw_tokens = tokenized.split() if tokenized else re.split(r"\s+", text.strip())
+    tokens = []
+    for raw in raw_tokens:
+        normalized = _normalize_token(raw)
+        if normalized:
+            tokens.append(normalized)
+    return tokens
 
 
 class PostgresStore:
     def __init__(self, dsn: str):
         self._dsn = dsn
         self._conn: Optional[psycopg.Connection] = None
+        self._synonym_cache: dict[Optional[str], dict[str, list[str]]] = {}
+        self._synonym_cache_at = 0.0
 
     def _connect(self) -> psycopg.Connection:
         if self._conn is None or self._conn.closed:
             self._conn = psycopg.connect(self._dsn, row_factory=dict_row)
             self._conn.autocommit = True
         return self._conn
+
+    def _load_synonyms(self) -> dict[Optional[str], dict[str, list[str]]]:
+        now = time.monotonic()
+        if self._synonym_cache and (now - self._synonym_cache_at) < SYNONYM_CACHE_TTL_SEC:
+            return self._synonym_cache
+        conn = self._connect()
+        try:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    SELECT mode, group_key, term
+                    FROM fts_synonym
+                    WHERE enabled = TRUE
+                    """
+                )
+                rows = cur.fetchall()
+        except pg_errors.UndefinedTable:
+            self._synonym_cache = {}
+            self._synonym_cache_at = now
+            return self._synonym_cache
+        groups: dict[tuple[Optional[str], str], set[str]] = {}
+        for row in rows:
+            mode = row.get("mode")
+            group_key = row.get("group_key")
+            term = _normalize_token(row.get("term") or "")
+            if not term or not group_key:
+                continue
+            key = (mode, group_key)
+            groups.setdefault(key, set()).add(term)
+        term_map_by_mode: dict[Optional[str], dict[str, list[str]]] = {}
+        for (mode, _group_key), terms in groups.items():
+            term_list = sorted(terms)
+            mode_key = mode if mode else None
+            term_map = term_map_by_mode.setdefault(mode_key, {})
+            for term in term_list:
+                term_map[term] = term_list
+        self._synonym_cache = term_map_by_mode
+        self._synonym_cache_at = now
+        return term_map_by_mode
+
+    def _synonym_map_for_mode(self, mode: str) -> dict[str, list[str]]:
+        term_map_by_mode = self._load_synonyms()
+        merged: dict[str, list[str]] = {}
+        global_map = term_map_by_mode.get(None) or {}
+        merged.update(global_map)
+        mode_map = term_map_by_mode.get(mode) or {}
+        merged.update(mode_map)
+        return merged
+
+    def _build_tsquery(self, query_text: str, mode: str) -> str:
+        tokens = _split_tokens(query_text)
+        if not tokens:
+            return ""
+        synonym_map = self._synonym_map_for_mode(mode)
+        groups = []
+        for token in tokens:
+            terms = synonym_map.get(token)
+            if terms:
+                clean_terms = []
+                for term in terms:
+                    normalized = _normalize_token(term)
+                    if normalized and normalized not in clean_terms:
+                        clean_terms.append(normalized)
+                    if len(clean_terms) >= MAX_SYNONYMS_PER_TOKEN:
+                        break
+                if token not in clean_terms:
+                    clean_terms.insert(0, token)
+            else:
+                clean_terms = [token]
+            if len(clean_terms) == 1:
+                groups.append(clean_terms[0])
+            else:
+                groups.append("(" + " | ".join(clean_terms) + ")")
+        return " & ".join(groups)
 
     def fetch_meta(self, place_ids: Iterable[int], category: str) -> dict[int, dict]:
         ids = [int(pid) for pid in place_ids]
@@ -61,15 +191,18 @@ class PostgresStore:
     ) -> dict[int, float]:
         if not query_text:
             return {}
+        tsquery = self._build_tsquery(query_text, category)
+        if not tsquery:
+            return {}
         conn = self._connect()
         ids = [int(pid) for pid in place_ids] if place_ids else []
-        params = [query_text, category]
+        params = [tsquery, category]
         where = ["category = %s", "search_vector @@ query.q"]
         if ids:
             where.append("place_id = ANY(%s)")
             params.append(ids)
         sql = f"""
-            WITH query AS (SELECT plainto_tsquery('simple', %s) AS q)
+            WITH query AS (SELECT to_tsquery('simple', %s) AS q)
             SELECT place_id, ts_rank_cd(search_vector, query.q) AS score
             FROM poi_meta, query
             WHERE {" AND ".join(where)}
