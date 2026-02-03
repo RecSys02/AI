@@ -55,7 +55,6 @@ jobs:
             MILVUS_HOST=${{ secrets.MILVUS_HOST }}
             MILVUS_PORT=19530
             USE_MILVUS=true
-            DETECT_MODEL=gemini-2.0-flash
             GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }}
             GOOGLE_GEOCODE_KEY=${{ secrets.GOOGLE_GEOCODE_KEY }}
             GOOGLE_PLACES_KEY=${{ secrets.GOOGLE_PLACES_KEY }}
