@@ -10,7 +10,41 @@ from utils.geo import append_node_trace_result, normalize_text
 
 async def rewrite_query_node(state: GraphState) -> Dict:
     """Rewrite the user query with conversational context for better intent and retrieval."""
-    query = str(state.get("query", "")).strip()
+    raw_query = str(state.get("query", "")).strip()
+
+    def _strip_prompt_leak(text: str) -> str:
+        if not text:
+            return ""
+        markers = (
+            "핵심 규칙",
+            "반환 형식",
+            "결과는 반드시 JSON",
+            "normalized_query",
+            "의미 없는 입력 처리",
+            "생략된 맥락 복원",
+            "의도 명확화",
+            "검색 최적화",
+            "고유명사 보존",
+            "너는 사용자의 질문을",
+        )
+        first_idx = None
+        for marker in markers:
+            idx = text.find(marker)
+            if idx != -1 and (first_idx is None or idx < first_idx):
+                first_idx = idx
+        if first_idx is not None:
+            prefix = text[:first_idx].strip()
+            if prefix:
+                return prefix
+        hit_count = sum(1 for marker in markers if marker in text)
+        if hit_count >= 2:
+            return ""
+        if re.search(r'\{\s*"normalized_query"\s*:', text):
+            return ""
+        return text
+
+    query = _strip_prompt_leak(raw_query)
+    trace_query = raw_query or query
 
     def _is_meaningless(text: str) -> bool:
         stripped = re.sub(r"\s+", "", text)
@@ -26,7 +60,7 @@ async def rewrite_query_node(state: GraphState) -> Dict:
 
     if _is_meaningless(query):
         result = {"normalized_query": ""}
-        append_node_trace_result(query, "rewrite_query", result)
+        append_node_trace_result(trace_query, "rewrite_query", result)
         return result
     context = state.get("context") or {}
     callbacks = state.get("callbacks")
@@ -38,7 +72,7 @@ async def rewrite_query_node(state: GraphState) -> Dict:
     history = []
     for msg in state.get("messages") or []:
         role = str(msg.get("role") or "").strip()
-        content = str(msg.get("content") or "").strip()
+        content = _strip_prompt_leak(str(msg.get("content") or "").strip())
         if not content:
             continue
         if role != "user":
@@ -187,5 +221,5 @@ async def rewrite_query_node(state: GraphState) -> Dict:
         normalized = ""
 
     result = {"normalized_query": normalized}
-    append_node_trace_result(query, "rewrite_query", result)
+    append_node_trace_result(trace_query, "rewrite_query", result)
     return result
