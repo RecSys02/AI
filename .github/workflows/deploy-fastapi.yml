@@ -66,8 +66,8 @@ jobs:
             LANGFUSE_DEBUG=1
             RERANK_PROVIDER=clova
             RERANK_MODEL=HCX-DASH-002
-            CHAT_PROVIDER=clova
-            CHAT_MODEL=HCX-007
+            CHAT_PROVIDER=gemini
+            CHAT_MODEL=gemini-2.0-flash
       
             PYTHONUNBUFFERED=1
             PYTHONDONTWRITEBYTECODE=1
