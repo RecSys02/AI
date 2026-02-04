@@ -160,6 +160,15 @@ class MilvusScorer:
 
         meta_map = self._pg.fetch_meta(candidate_ids, category=self.name)
 
+        dist = None
+        if anchor_coords is not None:
+            dist = self._distance_from_anchor(anchor_coords[0], anchor_coords[1], candidate_ids, meta_map)
+        if dist is None:
+            dist_ids = distance_place_ids if distance_place_ids is not None else recent_place_ids
+            dist = self._distance_from_recent_centroid(dist_ids or [], candidate_ids, meta_map)
+        if dist is not None:
+            distance_km = dist
+
         recent_vec = None
         if recent_place_weights:
             recent_vec = self._recent_vector_weighted(recent_place_weights)
@@ -177,19 +186,11 @@ class MilvusScorer:
             recent_component *= recent_weight
             scores += recent_component
 
-        dist = None
-        if anchor_coords is not None:
-            dist = self._distance_from_anchor(anchor_coords[0], anchor_coords[1], candidate_ids, meta_map)
-        if dist is None:
-            dist_ids = distance_place_ids if distance_place_ids is not None else recent_place_ids
-            dist = self._distance_from_recent_centroid(dist_ids or [], candidate_ids, meta_map)
-        if dist is not None:
-            distance_km = dist
-            if distance_weight != 0:
-                dist_bonus = np.exp(-dist / distance_scale_km)
-                dist_bonus = np.where(np.isnan(dist_bonus), 0.0, dist_bonus)
-                distance_component = distance_weight * dist_bonus
-                scores += distance_component
+        if distance_km is not None and distance_weight != 0:
+            dist_bonus = np.exp(-distance_km / distance_scale_km)
+            dist_bonus = np.where(np.isnan(dist_bonus), 0.0, dist_bonus)
+            distance_component = distance_weight * dist_bonus
+            scores += distance_component
 
         if popularity_weight != 0:
             popularity_component = np.array(

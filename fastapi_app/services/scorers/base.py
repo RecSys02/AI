@@ -326,6 +326,20 @@ class EmbeddingScorer:
         popularity_component = np.zeros_like(scores)
         distance_km = None
 
+        # distance calc + pre-filter by distance
+        dist = None
+        valid_idxs = None
+        if anchor_coords is not None:
+            dist = self._distance_from_anchor(anchor_coords[0], anchor_coords[1])
+        if dist is None:
+            dist_ids = distance_place_ids if distance_place_ids is not None else recent_place_ids
+            dist = self._distance_from_recent_centroid(dist_ids or [])
+        if dist is not None:
+            distance_km = dist
+            if distance_max_km is not None:
+                valid_mask = (distance_km <= distance_max_km) & ~np.isnan(distance_km)
+                valid_idxs = np.flatnonzero(valid_mask)
+
         # recency by embedding
         recent_vec = None
         if recent_place_weights:
@@ -336,30 +350,18 @@ class EmbeddingScorer:
             recent_component = recent_weight * np.dot(self._embeddings, recent_vec)
             scores += recent_component
 
-        # distance bonus + pre-filter by distance
-        dist = None
-        if anchor_coords is not None:
-            dist = self._distance_from_anchor(anchor_coords[0], anchor_coords[1])
-        if dist is None:
-            dist_ids = distance_place_ids if distance_place_ids is not None else recent_place_ids
-            dist = self._distance_from_recent_centroid(dist_ids or [])
-        if dist is not None:
-            distance_km = dist
-            if distance_weight != 0:
-                dist_bonus = np.exp(-dist / distance_scale_km)
-                dist_bonus = np.where(np.isnan(dist_bonus), 0.0, dist_bonus)
-                distance_component = distance_weight * dist_bonus
-                scores += distance_component
+        if distance_km is not None and distance_weight != 0:
+            dist_bonus = np.exp(-distance_km / distance_scale_km)
+            dist_bonus = np.where(np.isnan(dist_bonus), 0.0, dist_bonus)
+            distance_component = distance_weight * dist_bonus
+            scores += distance_component
 
         if popularity_weight != 0 and self._popularity is not None:
             popularity_component = popularity_weight * self._popularity
             scores += popularity_component
 
-        # 거리 필터를 먼저 적용한 뒤 정렬
         if distance_km is not None and distance_max_km is not None:
-            valid_mask = (distance_km <= distance_max_km) & ~np.isnan(distance_km)
-            valid_idxs = np.flatnonzero(valid_mask)
-            if valid_idxs.size:
+            if valid_idxs is not None and valid_idxs.size:
                 sorted_local = scores[valid_idxs].argsort()[::-1]
                 sorted_idxs = valid_idxs[sorted_local]
             else:

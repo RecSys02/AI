@@ -62,8 +62,8 @@
 
 | 카테고리 | 포함 필드 |
 | :--- | :--- |
-| **관광지** | `name`, `summary_one_sentence`, `themes`, `mood`, `visitor_type`, `best_time`, `duration`, `activity.level`, `indoor_outdoor`, `photospot`, `keywords`, `avoid_for`, `ideal_schedule_position` |
-| **음식/카페** | `name/title`, `category`, `content`, `description`, `keywords` |
+| **관광지** | `name`, `summary_one_sentence`, `themes`, `mood`, `indoor_outdoor`, `visitor_type`, `keywords`, `activity.label`(없으면 `activity.level`), `best_time`, `ideal_schedule_position`, `photospot`(true일 때만) |
+| **음식/카페** | `title`(없으면 `name`), `category`, `content`, `description`, `keywords` |
 
 ---
 
@@ -86,11 +86,19 @@
 모든 최종 JSON(`embedding_{category}.json`)은 아래 구조를 따릅니다.
 
 ### 공통 필드
-- `place_id` (파일 내 연속 ID), `category`, `province`
-- `name`, `address`
-- `latitude/longitude` (또는 `location.lat/lng`)
+- `place_id`, `poi_id`, `category`, `province`
+- `name`
+- `city`, `district`, `road`
 - `google` (외부 평점), `popularity_score` (계산된 인기도)
 
 ### 카테고리별 상세 필드
-- **관광지**: TourAPI 원본(`overview`, `media` 등) + AI 보강(`themes`, `mood`, `activity` 등) + 주소 분해(`city`, `district`)
-- **식당/카페**: 식신 원본(`imglinks`, `stats` 등) + AI 보강(`keywords` 5개) + 주소 분해
+- **관광지**
+  - 위치/주소: `location` (`addr1`, `addr2`, `zipcode`, `lat`, `lng`)
+  - TourAPI 원본: `overview`, `intro`, `media`, `contenttypeid`, `poi_type`, `type`, `gu_name`
+  - AI 보강: `summary_one_sentence`, `themes`, `mood`, `visitor_type`, `activity`, `best_time`, `best_time_flags`, `keywords`, `indoor_outdoor`, `photospot`, `duration`, `avoid_for`, `ideal_schedule_position`
+  - 외부/매칭: `naver`, `naver_match`
+- **식당/카페**
+  - 위치/주소: `address`, `latitude`, `longitude`
+  - 원천/메타: `content`, `description`, `categories`, `links`, `counts`, `likes`, `views`, `bookmarks`, `starts`
+  - 이미지: `imglinks` (restaurant는 `images`도 포함)
+  - 추가 키워드: `keywords` (AI 보강), `sicksin_keywords` (카페에만 존재)

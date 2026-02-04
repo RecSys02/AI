@@ -22,9 +22,9 @@ sequenceDiagram
         MV-->>SC: candidate_ids + dense_scores
         SC->>DB: fetch_meta (lat/lng/meta/popularity)
 
+        SC->>SC: distance_km calc + distance_max_km filter
         SC->>SC: recency_vec = normalize(history_vec + behavior_vec (time decay))
-        SC->>SC: score=base+recency+distance+popularity
-        SC->>SC: distance filter + meta validation
+        SC->>SC: score=base+recency+distance+popularity + meta validation
         SC-->>RS: candidates
 
         RS->>RS: filter invalid scores (NaN/inf)
@@ -35,27 +35,30 @@ sequenceDiagram
     RS-->>API: final recommendations
     API-->>S: response
 
-## Stage 1: 후보 생성 (1-6)
-- (1) 카테고리별 사용자 텍스트는 기본 프로필(지역/동행/예산/활동/회피), 선호(테마/분위기/음식·카페 타입), 방문 이력/마지막 선택을 조합해 생성한다.
-- (2) `SentenceTransformer` 모델(`dragonkue/multilingual-e5-small-ko`)에 `query: {user_text}` 형식으로 전달하고 정규화 임베딩(`user_vec`)을 받는다.
-- (3) `topk(initial_k=max(top_k*2,15))`로 후보 추출을 요청한다(현재 top_k는 10으로 고정 사용, 수식은 디버깅용으로 유지; 방문 이력 place_id는 `exclude_place_ids`로 전달).
-- (4) Milvus에서 user_vec 기준 IP 유사도 검색으로 candidate_k개(현재 400개) 후보를 가져온다.
-- (5) Milvus가 후보 ID와 dense(임베딩 기반 점수) 점수를 반환한다.
-- (6) Postgres에서 후보 메타/좌표/인기도를 조회한다.
+## Stage 1: 후보 생성 (1-8)
+- (1) Spring이 FastAPI에 `POST /recommend`를 호출한다.
+- (2) FastAPI가 RecommendService에 `recommend(user, top_k, ...)`를 호출한다.
+- (3) 카테고리별 사용자 텍스트를 생성하고 `SentenceTransformer`에 `query: {user_text}`로 인코딩한다.
+- (4) 정규화 임베딩(`user_vec`)을 수신한다.
+- (5) `topk(initial_k=max(top_k*2,15))`로 후보 추출을 요청한다(방문 이력 place_id는 `exclude_place_ids`로 전달).
+- (6) Milvus에서 user_vec 기준 IP 유사도 검색으로 candidate_k개(현재 400개) 후보를 가져온다.
+- (7) Milvus가 후보 ID와 dense(임베딩 기반 점수) 점수를 반환한다.
+- (8) Postgres에서 후보 메타/좌표/인기도를 조회한다.
 
-## Stage 2: 점수 계산/필터링 (7-10)
-- (7) `recency_vec = normalize(history_vec + behavior_vec(time decay))`를 계산한다.
-방문 이력과 행동 로그의 POI 임베딩을 시간감쇠 가중치로 합산한 뒤 정규화해 recency_vec을 만든다(현재는 행동 로그는 없으므로 history만 사용).
-- (8) `score = base + recency + distance + popularity`로 합산한다(base= user_vec와 후보 임베딩 유사도, recency= recency_vec 유사도, distance= 거리 보너스, popularity= 인기도 보정값).
-- (9) 거리 필터(`distance_max_km`)를 먼저 적용한 뒤, 정렬된 후보 중 최대 `top_k*3`개만 메타 유효성 검증(이름/금칙어/content 등)을 수행한다.
-- (10) scorer가 후보 리스트를 RecommendService에 반환한다.
+## Stage 2: 점수 계산/필터링 (9-12)
+- (9) 거리 계산 직후 `distance_max_km` 필터로 후보 집합을 제한한다.
+- (10) `recency_vec = normalize(history_vec + behavior_vec(time decay))`를 계산한다.
+  방문 이력과 행동 로그의 POI 임베딩을 시간감쇠 가중치로 합산한 뒤 정규화해 recency_vec을 만든다(행동 로그가 없으면 history만 사용).
+- (11) `score = base + recency + distance + popularity`로 합산한 뒤 정렬하고, 최대 `top_k*3`개만 메타 유효성 검증(이름/금칙어/content 등)을 수행한다.
+- (12) scorer가 후보 리스트를 RecommendService에 반환한다.
 
-## Stage 3: 최종 재정렬 (11-12)
-- (11) RecommendService에서 `_filter_candidates`로 비정상 점수(NaN/inf)를 제거한다.
-- (12) LLM이 사용자 프로필/후보 요약을 입력으로 받아 JSON(`ranked_indices`)을 반환하고, 해당 순서대로 top_k를 재정렬한다(응답이 비정상이면 원래 순서 유지).
+## Stage 3: 최종 재정렬 (13-15)
+- (13) RecommendService에서 `_filter_candidates`로 비정상 점수(NaN/inf)를 제거한다.
+- (14) LLM이 사용자 프로필/후보 요약을 입력으로 받아 JSON(`ranked_indices`)을 반환한다.
+- (15) RecommendService가 해당 순서대로 top_k를 재정렬한다(응답이 비정상이면 원래 순서 유지).
 
-## Stage 4: 응답 반환 (13-14)
-- (13) RecommendService가 최종 추천을 FastAPI에 반환한다.
-- (14) FastAPI가 Spring에 응답을 반환한다.
+## Stage 4: 응답 반환 (16-17)
+- (16) RecommendService가 최종 추천을 FastAPI에 반환한다.
+- (17) FastAPI가 Spring에 응답을 반환한다.
 
-- (1~12)은 카테고리(tourspot/cafe/restaurant)별로 반복된다.
+- (3~15)은 카테고리(tourspot/cafe/restaurant)별로 반복된다.

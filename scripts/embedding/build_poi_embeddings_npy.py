@@ -41,10 +41,14 @@ def build_embedding_text_tourspot(poi: Dict[str, Any]) -> str:
 
     # 1. 이름 + 요약
     header = []
-    if poi.get("name"):
-        header.append(f"{poi['name']} (카테고리: 관광지)")
-    if poi.get("summary_one_sentence"):
-        header.append(poi["summary_one_sentence"])
+    name = poi.get("name")
+    summary = poi.get("summary_one_sentence")
+    if name:
+        header.append(f"이름: {name}")
+    if name or summary:
+        header.append("카테고리: 관광지")
+    if summary:
+        header.append(summary)
     if header:
         parts.append(". ".join(header))
 
