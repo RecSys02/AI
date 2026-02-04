@@ -3,6 +3,7 @@ from typing import Dict
 
 from services.chat_nodes.callbacks import build_callbacks_config
 from services.chat_nodes.llm_clients import detect_llm, max_tokens_kwargs, parse_json_response
+from services.chat_nodes.place_llm import llm_extract_place
 from services.chat_nodes.state import GraphState
 from utils.geo import append_node_trace_result, normalize_text
 
@@ -76,13 +77,65 @@ async def rewrite_query_node(state: GraphState) -> Dict:
         )
         return any(hint in norm for hint in region_hints)
 
-    has_location = _has_explicit_location(query)
+    def _has_category_hint(text: str) -> bool:
+        norm = normalize_text(text)
+        category_terms = (
+            "카페",
+            "커피",
+            "디저트",
+            "브런치",
+            "맛집",
+            "식당",
+            "레스토랑",
+            "밥",
+            "점심",
+            "저녁",
+            "놀거리",
+            "명소",
+            "관광지",
+            "볼거리",
+            "핫플",
+        )
+        return any(term in norm for term in category_terms)
+
+    def _has_intent_hint(text: str) -> bool:
+        norm = normalize_text(text)
+        intent_terms = ("추천", "어디", "가볼", "뭐가", "top", "best", "몇개", "몇곳")
+        return any(term in norm for term in intent_terms)
+
+    current_has_category = _has_category_hint(query)
+    current_has_intent = _has_intent_hint(query)
+
+    async def _has_llm_location(text: str) -> bool:
+        try:
+            place = await llm_extract_place(text, callbacks=callbacks)
+        except Exception:
+            return False
+        if not place:
+            return False
+        return bool(place.get("area") or place.get("point"))
+
+    has_location = await _has_llm_location(query)
+    if not has_location:
+        has_location = _has_explicit_location(query)
     if has_location:
         # Current query already includes a location; ignore previous context to avoid mixing.
         last_place = None
         last_mode = None
         last_normalized_query = None
         history_hint = ""
+    else:
+        if current_has_category:
+            last_mode = None
+        if current_has_category or current_has_intent:
+            last_normalized_query = None
+        need_history = False
+        if not last_place:
+            need_history = True
+        if not current_has_category and not last_mode:
+            need_history = True
+        if not need_history:
+            history_hint = ""
 
     context_hint = (
         "문맥 정보: "
@@ -97,6 +150,7 @@ async def rewrite_query_node(state: GraphState) -> Dict:
             "너는 사용자의 질문을 검색 엔진과 의도 분류기가 이해하기 쉽게 '완결된 문장'으로 재구성하는 전문가야.\n"
             f"{context_hint}\n"
             f"{history_hint}\n"
+            "우선순위: 현재 입력이 1순위이며, 문맥/대화 기록은 누락된 정보만 최소로 보완하는 참고용이다.\n"
             "핵심 규칙:\n"
             "0. **의미 없는 입력 처리**: 입력이 장소/카테고리/의도를 전혀 포함하지 않으면 정규화하지 말고 "
             "normalized_query를 빈 문자열로 반환하라.\n"
