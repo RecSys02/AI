@@ -12,9 +12,17 @@ from utils.geo import append_node_trace_result
 
 async def general_answer_node(state: GraphState):
     """Answer non-recommendation questions using lightweight retrieval + LLM."""
-    query = str(state.get("query") or "").strip()
+    raw_query = str(state.get("query") or "").strip()
+    normalized_query = state.get("normalized_query")
+    normalized_query = None if normalized_query is None else str(normalized_query).strip()
+    query = raw_query if normalized_query is None else normalized_query
     callbacks = state.get("callbacks")
     config = build_callbacks_config(callbacks)
+    if not query:
+        yield {"final": "질문이 너무 짧거나 불명확합니다. 원하는 지역/카테고리/취향을 조금만 더 알려주세요."}
+        yield {"context": build_context(state)}
+        return
+
     # Detect category (tourspot/cafe/restaurant) to pick the right index.
     mode_raw = detect_mode(state.get("mode"), query)
     if mode_raw == "unknown":

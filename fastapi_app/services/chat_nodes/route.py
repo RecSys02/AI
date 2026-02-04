@@ -10,9 +10,16 @@ from utils.geo import append_node_trace_result
 async def route_node(state: GraphState) -> Dict:
     """Decide the high-level intent and whether the user asked to expand the radius."""
     query = state.get("query", "")
-    normalized_query = state.get("normalized_query") or query
+    normalized_query = state.get("normalized_query")
+    normalized_query = query if normalized_query is None else str(normalized_query).strip()
+    query = str(query).strip()
     callbacks = state.get("callbacks")
     config = build_callbacks_config(callbacks)
+
+    if not normalized_query:
+        result = {"intent": "general", "expand_request": False, "empty_query": True}
+        append_node_trace_result(query, "route", result)
+        return result
 
     # Fallback to rule-based detection if the LLM response is missing or malformed.
     intent = detect_intent(normalized_query)

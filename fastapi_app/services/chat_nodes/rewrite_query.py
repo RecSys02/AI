@@ -46,8 +46,12 @@ async def rewrite_query_node(state: GraphState) -> Dict:
             f"{context_hint}\n"
             f"{history_hint}\n"
             "핵심 규칙:\n"
-            "1. **생략된 맥락 복원**: 사용자가 '카페는?', '맛집은?'처럼 장소 없이 묻는다면 문맥 정보의 '이전 장소'를 결합해 '강남역 근처 카페 추천'처럼 바꿔라.\n"
-            "2. **의도 명확화**: 단순히 '장소+맛집' 형식(예: 도봉구 맛집)으로 질문하면, '도봉구 맛집 추천해줘'처럼 추천 의도가 명확히 드러나게 문장을 완성하라.\n"
+            "0. **의미 없는 입력 처리**: 입력이 장소/카테고리/의도를 전혀 포함하지 않으면 정규화하지 말고 "
+            "normalized_query를 빈 문자열로 반환하라.\n"
+            "1. **생략된 맥락 복원**: 사용자가 '카페는?', '맛집은?'처럼 장소 없이 묻는다면 문맥 정보의 '이전 장소'를 결합해 "
+            "'강남역 근처 카페 추천'처럼 바꿔라.\n"
+            "2. **의도 명확화**: 단순히 '장소+맛집' 형식(예: 도봉구 맛집)으로 질문하면, "
+            "'도봉구 맛집 추천해줘'처럼 추천 의도가 명확히 드러나게 문장을 완성하라.\n"
             "3. **검색 최적화**: '놀거리/명소', '맛집/식당' 등 검색 시스템이 사용하는 단어를 활용하라.\n"
             "4. **고유명사 보존**: 지명, 상호명은 절대 수정하거나 축소하지 마라.\n"
             "결과는 반드시 JSON 형식으로만 반환하라: {\"normalized_query\": \"...\"}",
@@ -60,8 +64,12 @@ async def rewrite_query_node(state: GraphState) -> Dict:
         resp = await detect_llm.ainvoke(messages, **max_tokens_kwargs(80), config=config)
         raw = (resp.content or "").strip()
         data = parse_json_response(raw)
-        if isinstance(data, dict) and data.get("normalized_query"):
-            normalized = str(data["normalized_query"]).strip()
+        if isinstance(data, dict) and "normalized_query" in data:
+            value = data.get("normalized_query")
+            if value is None:
+                normalized = ""
+            else:
+                normalized = str(value).strip()
     except Exception:
         pass
 
