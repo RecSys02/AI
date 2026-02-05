@@ -140,7 +140,8 @@ class MilvusScorer:
         include_meta: bool = False,
     ):
         recent_place_ids = recent_place_ids or []
-        candidate_k = min(max(top_k * 20, 100), 1000)
+        # Reduce Milvus candidate pool size (default to 30, but never below top_k)
+        candidate_k = max(top_k, 30)
         dense_hits = self._milvus.search(self.name, user_vec, top_k=candidate_k)
         if not dense_hits:
             return []

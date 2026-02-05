@@ -1,5 +1,6 @@
 import json
 import math
+import os
 import re
 from pathlib import Path
 from typing import Dict, Iterable, Optional
@@ -14,6 +15,7 @@ GEO_CENTERS_PATH = LOCATIONS_DIR / "geo_centers.json"
 PLACE_DEBUG_PATH = LOCATIONS_DIR / "place_debug.jsonl"
 NODE_TRACE_PATH = LOCATIONS_DIR / "node_trace.txt"
 NODE_TRACE_JSONL_PATH = LOCATIONS_DIR / "node_trace.jsonl"
+NODE_TRACE_ENABLED = os.getenv("NODE_TRACE_ENABLED", "false").strip().lower() in {"1", "true", "yes"}
 
 
 def normalize_text(text: str) -> str:
@@ -101,12 +103,16 @@ def append_place_debug(entry: dict) -> None:
 
 
 def append_node_trace(query: str, node: str) -> None:
+    if not NODE_TRACE_ENABLED:
+        return
     NODE_TRACE_PATH.parent.mkdir(parents=True, exist_ok=True)
     with NODE_TRACE_PATH.open("a", encoding="utf-8") as f:
         f.write(f"query={query}\tnode={node}\n")
 
 
 def append_node_trace_result(query: str, node: str, data: dict) -> None:
+    if not NODE_TRACE_ENABLED:
+        return
     NODE_TRACE_JSONL_PATH.parent.mkdir(parents=True, exist_ok=True)
     with NODE_TRACE_JSONL_PATH.open("a", encoding="utf-8") as f:
         f.write(json.dumps({"query": query, "node": node, "data": data}, ensure_ascii=False) + "\n")
