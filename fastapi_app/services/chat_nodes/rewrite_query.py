@@ -137,6 +137,140 @@ async def rewrite_query_node(state: GraphState) -> Dict:
         intent_terms = ("추천", "어디", "가볼", "뭐가", "top", "best", "몇개", "몇곳")
         return any(term in norm for term in intent_terms)
 
+    def _strip_korean_particle(token: str) -> str:
+        if not token:
+            return ""
+        particles = (
+            "근처",
+            "주변",
+            "여기",
+            "거기",
+            "저기",
+            "에게서",
+            "에게",
+            "께서",
+            "께",
+            "에서",
+            "으로",
+            "로",
+            "까지",
+            "부터",
+            "처럼",
+            "같이",
+            "보다",
+            "밖에",
+            "만큼",
+            "만",
+            "도",
+            "와",
+            "과",
+            "랑",
+            "하고",
+            "의",
+            "에",
+            "은",
+            "는",
+            "이",
+            "가",
+            "을",
+            "를",
+            "요",
+        )
+        for suffix in particles:
+            if len(token) > len(suffix) + 1 and token.endswith(suffix):
+                return token[: -len(suffix)]
+        return token
+
+    def _extract_korean_proper_noun(text: str) -> str | None:
+        if not text:
+            return None
+        tokens = re.findall(r"[가-힣]{2,}", text)
+        if not tokens:
+            return None
+        stopwords = {
+            "카페",
+            "커피",
+            "디저트",
+            "브런치",
+            "맛집",
+            "식당",
+            "레스토랑",
+            "밥",
+            "점심",
+            "저녁",
+            "놀거리",
+            "명소",
+            "관광지",
+            "볼거리",
+            "핫플",
+            "추천",
+            "어디",
+            "가볼",
+            "뭐가",
+            "몇개",
+            "몇곳",
+            "여기",
+            "거기",
+            "저기",
+            "근처",
+            "주변",
+            "정보",
+        }
+        cleaned = []
+        for token in tokens:
+            token = _strip_korean_particle(token)
+            if not token or token in stopwords:
+                continue
+            cleaned.append(token)
+        if not cleaned:
+            return None
+        return max(cleaned, key=len)
+
+    def _extract_category_term(text: str) -> str | None:
+        norm = normalize_text(text)
+        category_terms = (
+            "카페",
+            "커피",
+            "디저트",
+            "브런치",
+            "맛집",
+            "식당",
+            "레스토랑",
+            "밥",
+            "점심",
+            "저녁",
+            "놀거리",
+            "명소",
+            "관광지",
+            "볼거리",
+            "핫플",
+        )
+        for term in category_terms:
+            if normalize_text(term) in norm:
+                return term
+        return None
+
+    def _build_fallback_query(text: str, proper_noun: str, has_category: bool, has_intent: bool) -> str:
+        cleaned = re.sub(r"[?!.]+$", "", text or "").strip()
+        if has_category:
+            category_term = _extract_category_term(cleaned) or ""
+            if has_intent:
+                if proper_noun and normalize_text(proper_noun) not in normalize_text(cleaned):
+                    return f"{proper_noun} {cleaned}".strip()
+                return cleaned or f"{proper_noun} {category_term}".strip()
+            if proper_noun and category_term:
+                base = f"{proper_noun} {category_term}".strip()
+            elif category_term:
+                base = category_term
+            else:
+                base = proper_noun or cleaned
+            return f"{base} 추천해줘".strip()
+        if not has_intent:
+            return f"{proper_noun} 정보 자세히 알려줘".strip() if proper_noun else cleaned
+        if proper_noun and normalize_text(proper_noun) not in normalize_text(cleaned):
+            return f"{proper_noun} {cleaned}".strip()
+        return cleaned
+
     current_has_category = _has_category_hint(query)
     current_has_intent = _has_intent_hint(query)
 
@@ -216,6 +350,18 @@ async def rewrite_query_node(state: GraphState) -> Dict:
                 normalized = str(value).strip()
     except Exception:
         pass
+
+    proper_noun = _extract_korean_proper_noun(query)
+    if proper_noun:
+        normalized_norm = normalize_text(normalized)
+        proper_norm = normalize_text(proper_noun)
+        if proper_norm and proper_norm not in normalized_norm:
+            normalized = _build_fallback_query(
+                query,
+                proper_noun,
+                current_has_category,
+                current_has_intent,
+            )
 
     if _is_meaningless(normalized):
         normalized = ""
