@@ -3,7 +3,7 @@ name: Build and Deploy to Cloud Run
 on:
   push:
     # park_research 브랜치에 푸시될 때 실행되도록 설정합니다.
-    branches: [ "park_research" ]
+    branches: [ "park_research","chore/load-testing"]
     paths:
         - "fastapi_app/**"
         - ".github/workflows/deploy-fastapi.yml"

@@ -46,6 +46,43 @@ async def add_process_time_header(request, call_next):
     response.headers["X-Process-Time-ms"] = f"{(time.perf_counter() - start) * 1000:.1f}"
     return response
 
+# 테스트용으로 비활성화
+# @app.post("/recommend")
+# def recommend(
+#     user: UserInput,
+#     top_k_per_category: int = Query(10, ge=1),
+#     distance_max_km: float = Query(3.0, ge=0.0, description="최근 선택 좌표 기준 최대 허용 거리(km). 0이면 필터 비활성."),
+#     debug: bool = Query(False, description="점수 구성요소(debug) 포함 여부"),
+#     svc: RecommendService = Depends(lambda: service),
+# ):
+#     # distance_max_km=0 은 필터 비활성화
+#     max_km = None if distance_max_km == 0 else distance_max_km
+#     if debug:
+#         recommendations, debug_info = svc.recommend(
+#             user,
+#             top_k_per_category=top_k_per_category,
+#             distance_max_km=max_km,
+#             debug=debug,
+#             return_debug=True,
+#         )
+#     else:
+#         recommendations = svc.recommend(
+#             user,
+#             top_k_per_category=top_k_per_category,
+#             distance_max_km=max_km,
+#             debug=debug,
+#         )
+#     # 성공 요청 요약 로그
+#     logger.info(
+#         "200 /recommend user=%s top_k=%s distance_max_km=%s debug=%s",
+#         user.user_id,
+#         top_k_per_category,
+#         max_km,
+#         debug,
+#     )
+#     if debug:
+#         return {"recommendations": recommendations, "debug": debug_info}
+#     return {"recommendations": recommendations}
 
 @app.post("/recommend")
 def recommend(
@@ -55,23 +92,27 @@ def recommend(
     debug: bool = Query(False, description="점수 구성요소(debug) 포함 여부"),
     svc: RecommendService = Depends(lambda: service),
 ):
+    time.sleep(2)
     # distance_max_km=0 은 필터 비활성화
     max_km = None if distance_max_km == 0 else distance_max_km
-    if debug:
-        recommendations, debug_info = svc.recommend(
-            user,
-            top_k_per_category=top_k_per_category,
-            distance_max_km=max_km,
-            debug=debug,
-            return_debug=True,
-        )
-    else:
-        recommendations = svc.recommend(
-            user,
-            top_k_per_category=top_k_per_category,
-            distance_max_km=max_km,
-            debug=debug,
-        )
+    province = (user.region or "").strip() or "unknown"
+    categories = ["tourspot", "cafe", "restaurant"]
+    recommendations = []
+    base_place_id = int(user.user_id) * 10000
+    for cat_idx, category in enumerate(categories):
+        items = []
+        cat_base = base_place_id + (cat_idx + 1) * 1000
+        for i in range(top_k_per_category):
+            score = max(0.0, 1.0 - (i * 0.01))
+            items.append(
+                {
+                    "category": category,
+                    "province": "seoul",
+                    "place_id": cat_base + i,
+                    "score": float(score),
+                }
+            )
+        recommendations.append({"category": category, "items": items})
     # 성공 요청 요약 로그
     logger.info(
         "200 /recommend user=%s top_k=%s distance_max_km=%s debug=%s",
@@ -81,5 +122,5 @@ def recommend(
         debug,
     )
     if debug:
-        return {"recommendations": recommendations, "debug": debug_info}
+        return {"recommendations": recommendations, "debug": {}}
     return {"recommendations": recommendations}
