@@ -137,6 +137,61 @@ async def rewrite_query_node(state: GraphState) -> Dict:
         intent_terms = ("추천", "어디", "가볼", "뭐가", "top", "best", "몇개", "몇곳")
         return any(term in norm for term in intent_terms)
 
+    def _has_next_place_signal(text: str) -> bool:
+        norm = normalize_text(text)
+        terms = (
+            "갈만한",
+            "갈곳",
+            "갈만한곳",
+            "갈만한장소",
+            "가볼만한",
+            "다음",
+            "다음으로",
+            "다음에",
+            "이후",
+            "뒤에",
+            "다른",
+            "이어서",
+            "근처",
+            "주변",
+            "장소",
+            "곳",
+            "명소",
+            "놀거리",
+            "스팟",
+            "코스",
+            "일정",
+            "플랜",
+        )
+        return any(term in norm for term in terms)
+
+    def _has_sequence_marker(text: str) -> bool:
+        norm = normalize_text(text)
+        markers = (
+            "갔다가",
+            "갔다온",
+            "다녀와서",
+            "다녀온",
+            "들렀다가",
+            "끝나고",
+            "하고나서",
+            "하고나면",
+            "가고나서",
+            "가고나면",
+            "먹고나서",
+            "먹고나면",
+            "식사후",
+            "식사뒤",
+            "이후",
+            "뒤에",
+            "이어서",
+        )
+        if any(marker in norm for marker in markers):
+            return True
+        if "먹고" in norm and _has_next_place_signal(text):
+            return True
+        return False
+
     def _strip_korean_particle(token: str) -> str:
         if not token:
             return ""
@@ -273,6 +328,15 @@ async def rewrite_query_node(state: GraphState) -> Dict:
 
     current_has_category = _has_category_hint(query)
     current_has_intent = _has_intent_hint(query)
+    sequence_request = _has_sequence_marker(query) and (
+        current_has_intent or _has_next_place_signal(query)
+    )
+    sequence_hint = ""
+    if sequence_request:
+        sequence_hint = (
+            "추가 힌트: 현재 입력에는 '갔다가/이후/끝나고/먹고' 등 이전 활동 표현이 있다. "
+            "앞선 활동은 추천 대상이 아니라 다음 장소 요청의 맥락이다.\n"
+        )
 
     async def _has_llm_location(text: str) -> bool:
         try:
@@ -318,6 +382,7 @@ async def rewrite_query_node(state: GraphState) -> Dict:
             "너는 사용자의 질문을 검색 엔진과 의도 분류기가 이해하기 쉽게 '완결된 문장'으로 재구성하는 전문가야.\n"
             f"{context_hint}\n"
             f"{history_hint}\n"
+            f"{sequence_hint}"
             "우선순위: 현재 입력이 1순위이며, 문맥/대화 기록은 누락된 정보만 최소로 보완하는 참고용이다.\n"
             "핵심 규칙:\n"
             "0. **의미 없는 입력 처리**: 입력이 장소/카테고리/의도를 전혀 포함하지 않으면 정규화하지 말고 "
@@ -326,11 +391,18 @@ async def rewrite_query_node(state: GraphState) -> Dict:
             "'강남역 근처 카페 추천'처럼 바꿔라.\n"
             "1-1. **현재 장소 우선**: 사용자의 입력에 장소/지명이 포함되어 있으면 이전 장소/이전 정규화 쿼리는 사용하지 말고 "
             "현재 입력만 기반으로 정규화하라.\n"
+            "1-2. **이전 활동 표현**: '갔다가/이후/끝나고/먹고' 등이 있으면 앞선 활동은 추천 대상이 아니다. "
+            "'카페 추천'처럼 축소하지 말고 '카페 이후 갈만한 장소/놀거리'처럼 다음 장소 요청을 유지하라. "
+            "단, '또/다시 카페'처럼 동일 카테고리를 명시하면 그대로 반영하라.\n"
             "2. **의도 명확화**: 단순히 '장소+맛집' 형식(예: 도봉구 맛집)으로 질문하면, "
-            "'도봉구 맛집 추천해줘'처럼 추천 의도가 명확히 드러나게 문장을 완성하라.\n"
-            "3. **검색 최적화**: '놀거리/명소', '맛집/식당' 등 검색 시스템이 사용하는 단어를 활용하라.\n"
-            "4. **고유명사 보존**: 지명, 상호명은 절대 수정하거나 축소하지 마라.\n"
+            "'도봉구 맛집 추천해줘'처럼 추천 의도가 명확히 드러나게 문장을 완성하라. "
+            "단, 1-2 규칙이 있는 경우 이를 우선한다.\n"
+            "3. **범주 과잉추론 금지**: 입력에 '장소/곳/스팟/코스' 등 일반 표현이 있으면 특정 카테고리로 바꾸지 마라.\n"
+            "4. **검색 최적화**: '놀거리/명소', '맛집/식당' 등 검색 시스템이 사용하는 단어를 활용하라.\n"
+            "5. **고유명사 보존**: 지명, 상호명은 절대 수정하거나 축소하지 마라.\n"
             "예시: 입력이 \"a\", \"음\", \"ㅋㅋ\", \"?\"라면 {\"normalized_query\": \"\"}를 반환한다.\n"
+            "예시: 입력이 \"카페 갔다가 갈만한 장소 추천해줘\"라면 "
+            "{\"normalized_query\": \"카페 이후 갈만한 장소 추천해줘\"}처럼 다음 장소 요청을 유지한다.\n"
             "결과는 반드시 JSON 형식으로만 반환하라. 다른 텍스트/설명/코드블록 금지.\n"
             "반환 형식: {\"normalized_query\": \"...\"}",
         ),
@@ -350,6 +422,10 @@ async def rewrite_query_node(state: GraphState) -> Dict:
                 normalized = str(value).strip()
     except Exception:
         pass
+
+    if sequence_request:
+        if not _has_sequence_marker(normalized) and not _has_next_place_signal(normalized):
+            normalized = query
 
     proper_noun = _extract_korean_proper_noun(query)
     if proper_noun:
