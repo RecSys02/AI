@@ -1,3 +1,4 @@
+import re
 from typing import List
 
 from services.chat_nodes.callbacks import build_callbacks_config
@@ -73,6 +74,50 @@ async def answer_node(state: GraphState):
     if state.get("debug"):
         yield {"debug": retrievals}
 
+    def _extract_requested_count(text: str) -> int | None:
+        if not text:
+            return None
+        compact = re.sub(r"\s+", "", str(text).lower())
+        match = re.search(r"(top|best)(\d{1,2})", compact)
+        if match:
+            try:
+                return max(1, int(match.group(2)))
+            except (TypeError, ValueError):
+                return None
+        match = re.search(r"(\d{1,2})(개|곳|군데)", compact)
+        if match:
+            try:
+                return max(1, int(match.group(1)))
+            except (TypeError, ValueError):
+                return None
+        korean_counts = [
+            ("열두", 12),
+            ("열한", 11),
+            ("열", 10),
+            ("아홉", 9),
+            ("여덟", 8),
+            ("일곱", 7),
+            ("여섯", 6),
+            ("다섯", 5),
+            ("넷", 4),
+            ("네", 4),
+            ("셋", 3),
+            ("세", 3),
+            ("둘", 2),
+            ("두", 2),
+            ("하나", 1),
+            ("한", 1),
+        ]
+        for token, value in korean_counts:
+            if re.search(rf"{token}(개|곳|군데)", compact):
+                return value
+        return None
+
+    requested_k = _extract_requested_count(target_query)
+    desired_k = requested_k if requested_k is not None else 5
+    desired_k = min(max(1, desired_k), len(retrievals))
+    display_retrievals = retrievals[:desired_k]
+
     # 3. 컨텍스트 구성 방식 (태그 기반 구조화)
     def _build_ctx(r: dict) -> str:
         meta = r.get("meta") or {}
@@ -91,7 +136,7 @@ async def answer_node(state: GraphState):
         
         return " | ".join(ctx_parts)
 
-    context_str = "\n".join([f"- {_build_ctx(r)}" for r in retrievals])
+    context_str = "\n".join([f"- {_build_ctx(r)}" for r in display_retrievals])
 
     # 4. 출력 형식 및 기본 지침 정의
     resolved_name = state.get("resolved_name") if bool(state.get("anchor")) else "서울"
