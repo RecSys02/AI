@@ -863,13 +863,13 @@ ranked_indices는 위 후보 목록의 index 값들을 재정렬한 배열입니
 
             # LLM reranking으로 최종 top-10 선택
             # TEMP: rerank 비활성화 (원본 순서 + 메타 제거만 적용)
-            # per_category[scorer.name] = self._llm_rerank(
-            #     user=user,
-            #     category=scorer.name,
-            #     candidates=candidates,
-            #     top_k=top_k_per_category,
-            #     debug=debug
-            # )
+            per_category[scorer.name] = self._llm_rerank(
+                user=user,
+                category=scorer.name,
+                candidates=candidates,
+                top_k=top_k_per_category,
+                debug=debug
+            )
             per_category[scorer.name] = [
                 {k: v for k, v in item.items() if k != "_meta"}
                 for item in candidates[:top_k_per_category]
