@@ -94,6 +94,7 @@ def recommend(
 ):
     time.sleep(2)
     # distance_max_km=0 은 필터 비활성화
+    ##
     max_km = None if distance_max_km == 0 else distance_max_km
     province = (user.region or "").strip() or "unknown"
     categories = ["tourspot", "cafe", "restaurant"]
