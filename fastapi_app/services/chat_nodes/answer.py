@@ -117,6 +117,13 @@ async def answer_node(state: GraphState):
     desired_k = requested_k if requested_k is not None else 5
     desired_k = min(max(1, desired_k), len(retrievals))
     display_retrievals = retrievals[:desired_k]
+    recommended_names = []
+    for item in display_retrievals:
+        meta = item.get("meta") or {}
+        name = meta.get("name") or meta.get("title")
+        if name:
+            recommended_names.append(str(name))
+    state["last_recommended_names"] = recommended_names
 
     # 3. 컨텍스트 구성 방식 (태그 기반 구조화)
     def _build_ctx(r: dict) -> str:

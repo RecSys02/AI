@@ -26,6 +26,7 @@ class GraphState(TypedDict):
     debug: bool | None
     context: Dict | None
     callbacks: List[object] | None
+    last_recommended_names: List[str] | None
 
 
 def slim_retrievals(items: List[dict]) -> List[dict]:
@@ -54,5 +55,6 @@ def build_context(state: GraphState) -> Dict:
         "last_normalized_query": state.get("normalized_query"),
         "last_resolved_name": state.get("resolved_name"),
         "last_place": state.get("place"),
+        "last_recommended_names": state.get("last_recommended_names"),
         "last_filter_applied": bool(anchor),
     }

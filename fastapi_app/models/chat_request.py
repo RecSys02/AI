@@ -34,6 +34,7 @@ class ChatContext(BaseModel):
     last_normalized_query: Optional[str] = None
     last_resolved_name: Optional[str] = None
     last_place: Optional[PlaceRef] = None
+    last_recommended_names: Optional[List[str]] = None
     last_filter_applied: Optional[bool] = None
 
 
