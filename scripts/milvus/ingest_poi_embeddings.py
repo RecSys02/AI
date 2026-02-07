@@ -2,17 +2,19 @@
 """
 Load embeddings into Milvus collections.
 """
-# 실행법 : python ingest_poi_embeddings.py --mode tourspot
+# 실행법 : python ingest_poi_embeddings.py
 import argparse
 import os
 from pathlib import Path
 from typing import Tuple
 
 import numpy as np
+from dotenv import load_dotenv
 from pymilvus import Collection, CollectionSchema, DataType, FieldSchema, connections, utility
 
 ROOT = Path(__file__).resolve().parents[2]
 EMBEDDINGS_DIR = ROOT / "data" / "embeddings"
+load_dotenv(dotenv_path=ROOT / ".env")
 
 
 def connect() -> None:
@@ -20,10 +22,7 @@ def connect() -> None:
     if not host:
         raise ValueError("MILVUS_HOST is not set")
     port = int(os.getenv("MILVUS_PORT", "19530"))
-    user = os.getenv("MILVUS_USER")
-    password = os.getenv("MILVUS_PASSWORD")
-    secure = os.getenv("MILVUS_SECURE", "false").lower() == "true"
-    connections.connect(host=host, port=port, user=user, password=password, secure=secure)
+    connections.connect(host=host, port=port)
 
 
 def get_collection(name: str, dim: int, drop: bool = False) -> Collection:
@@ -55,28 +54,28 @@ def load_inputs(mode: str) -> Tuple[np.ndarray, np.ndarray]:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Ingest POI embeddings into Milvus.")
-    parser.add_argument("--mode", choices=["tourspot", "cafe", "restaurant"], default="tourspot")
-    parser.add_argument("--collection-prefix", default="poi_")
-    parser.add_argument("--drop", action="store_true", help="drop and recreate collection")
     parser.add_argument("--batch-size", type=int, default=1000)
     args = parser.parse_args()
 
     connect()
-    embeddings, keys = load_inputs(args.mode)
-    dim = embeddings.shape[1]
-    collection_name = f"{args.collection_prefix}{args.mode}"
-    collection = get_collection(collection_name, dim=dim, drop=args.drop)
+    collection_prefix = "poi_"
+    drop_existing = True
+    for mode in ("tourspot", "cafe", "restaurant"):
+        embeddings, keys = load_inputs(mode)
+        dim = embeddings.shape[1]
+        collection_name = f"{collection_prefix}{mode}"
+        collection = get_collection(collection_name, dim=dim, drop=drop_existing)
 
-    place_ids = [int(k[2]) for k in keys]
-    total = len(place_ids)
-    for start in range(0, total, args.batch_size):
-        end = min(start + args.batch_size, total)
-        batch_ids = place_ids[start:end]
-        batch_emb = embeddings[start:end].tolist()
-        collection.insert([batch_ids, batch_emb])
-    collection.flush()
-    collection.load()
-    print(f"✅ Ingested {total} vectors into {collection_name}")
+        place_ids = [int(k[2]) for k in keys]
+        total = len(place_ids)
+        for start in range(0, total, args.batch_size):
+            end = min(start + args.batch_size, total)
+            batch_ids = place_ids[start:end]
+            batch_emb = embeddings[start:end].tolist()
+            collection.insert([batch_ids, batch_emb])
+        collection.flush()
+        collection.load()
+        print(f"✅ Ingested {total} vectors into {collection_name}")
 
 
 if __name__ == "__main__":

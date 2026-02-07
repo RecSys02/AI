@@ -1,10 +1,19 @@
-# 외부 정적 IP 주소 예약
-resource "google_compute_address" "airflow_static_ip" {
-  name   = "airflow-static-ip"
-  region = "asia-northeast3"
+# 1. 프로젝트 및 Provider 설정
+terraform {
+  required_providers {
+    google = {
+      source  = "hashicorp/google"
+      version = "~> 5.0"
+    }
+  }
 }
 
-# Compute Engine API 활성화 리소스 추가
+provider "google" {
+  project = "gen-lang-client-0492042254"
+  region  = "asia-northeast3"
+}
+
+# 2. 필수 API 활성화
 resource "google_project_service" "compute_engine" {
   service            = "compute.googleapis.com"
   disable_on_destroy = false
@@ -25,20 +34,7 @@ resource "google_project_service" "sqladmin" {
   disable_on_destroy = false
 }
 
-terraform {
-  required_providers {
-    google = {
-      source  = "hashicorp/google"
-      version = "~> 5.0"
-    }
-  }
-}
-
-provider "google" {
-  project = "gen-lang-client-0492042254"
-  region  = "asia-northeast3"
-}
-
+# 3. 변수 설정
 variable "db_user" {
   type    = string
   default = "poi_user"
@@ -54,7 +50,7 @@ variable "db_name" {
   default = "poi_meta"
 }
 
-# 1. Docker 이미지 저장소
+# 4. Artifact Registry
 resource "google_artifact_registry_repository" "ai_repo" {
   location      = "asia-northeast3"
   repository_id = "ai-server"
@@ -62,19 +58,19 @@ resource "google_artifact_registry_repository" "ai_repo" {
   format        = "DOCKER"
 }
 
-# 2. 임베딩 데이터를 저장할 GCS 버킷 생성
+# 5. GCS 버킷
 resource "google_storage_bucket" "data_bucket" {
   name          = "ai-park-embeddings-data"
   location      = "ASIA-NORTHEAST3"
   force_destroy = true
 }
 
-# Cloud SQL (Postgres)
+# 6. Cloud SQL (Postgres)
 resource "google_sql_database_instance" "poi_postgres" {
   name             = "poi-postgres"
   database_version = "POSTGRES_15"
   region           = "asia-northeast3"
-  deletion_protection = false
+  deletion_protection = false # 삭제 가능하도록 설정
 
   settings {
     tier      = "db-custom-1-3840"
@@ -84,7 +80,6 @@ resource "google_sql_database_instance" "poi_postgres" {
       ipv4_enabled = true
     }
   }
-
   depends_on = [google_project_service.sqladmin]
 }
 
@@ -99,7 +94,7 @@ resource "google_sql_user" "poi_user" {
   instance = google_sql_database_instance.poi_postgres.name
 }
 
-# 3. Cloud Run 서비스 정의
+# 7. Cloud Run 서비스 (비용 최적화 버전)
 resource "google_cloud_run_v2_service" "ai_service" {
   name     = "ai-server-service"
   location = "asia-northeast3"
@@ -109,7 +104,9 @@ resource "google_cloud_run_v2_service" "ai_service" {
     timeout = "600s"
 
     scaling {
-      min_instance_count = 1
+      # [변경] 1 -> 0: 요청이 없으면 서버를 완전히 꺼서 0원 청구
+      min_instance_count = 0 
+      max_instance_count = 2
     }
 
     containers {
@@ -117,10 +114,12 @@ resource "google_cloud_run_v2_service" "ai_service" {
 
       resources {
         limits = {
-          memory = "8Gi"
-          cpu    = "4"
+          # [변경] 사양 하향: 4 CPU / 8Gi -> 1 CPU / 2Gi
+          memory = "4Gi"
+          cpu    = "2"
         }
-        cpu_idle = false
+        # [변경] false -> true: 유휴 상태일 때 CPU 비용 지불 안 함
+        cpu_idle = true 
       }
 
       ports {
@@ -152,9 +151,8 @@ resource "google_cloud_run_v2_service" "ai_service" {
         instances = [google_sql_database_instance.poi_postgres.connection_name]
       }
     }
-  } # template 블록 끝
+  }
 
-  # GitHub Actions에서 주입하는 환경변수와 라벨이 삭제되지 않도록 보호
   lifecycle {
     ignore_changes = [
       template[0].containers[0].env,
@@ -164,26 +162,6 @@ resource "google_cloud_run_v2_service" "ai_service" {
   }
 }
 
-output "repository_url" {
-  value = "${google_artifact_registry_repository.ai_repo.location}-docker.pkg.dev/gen-lang-client-0492042254/${google_artifact_registry_repository.ai_repo.repository_id}"
-}
-
-output "bucket_name" {
-  value = google_storage_bucket.data_bucket.name
-}
-
-output "cloudsql_instance_connection_name" {
-  value = google_sql_database_instance.poi_postgres.connection_name
-}
-
-output "cloudsql_db_name" {
-  value = var.db_name
-}
-
-output "cloudsql_db_user" {
-  value = var.db_user
-}
-
 resource "google_cloud_run_v2_service_iam_member" "public_access" {
   location = google_cloud_run_v2_service.ai_service.location
   name     = google_cloud_run_v2_service.ai_service.name
@@ -191,78 +169,18 @@ resource "google_cloud_run_v2_service_iam_member" "public_access" {
   member   = "allUsers"
 }
 
-# Airflow 서버를 위한 VM 인스턴스
-# Airflow 서버를 위한 VM 인스턴스
-resource "google_compute_instance" "airflow_vm" {
-  name         = "airflow-server"
-  machine_type = "e2-standard-2"
-  zone         = "asia-northeast3-a"
-
-  allow_stopping_for_update = true
-  boot_disk {
-    initialize_params {
-      image = "ubuntu-os-cloud/ubuntu-2204-lts"
-      size  = 30
-    }
-  }
-
-  network_interface {
-    network = "default"
-    access_config {
-      nat_ip = google_compute_address.airflow_static_ip.address
-    }
-  }
-
-  service_account {
-    scopes = ["cloud-platform"]
-  }
-    metadata = {
-        "ssh-keys" = "roto9379:${file("./id_rsa_gcp.pub")}"
-    }
-  # [개선된] Docker 공식 저장소 등록 및 최신 패키지 설치 스크립트
-  metadata_startup_script = <<-EOF
-    #!/bin/bash
-    set -e  # 에러 발생 시 즉시 중단
-
-    # 1. 필수 패키지 설치 및 GPG 키 등록 준비
-    sudo apt-get update
-    sudo apt-get install -y ca-certificates curl gnupg
-
-    # 2. Docker 공식 GPG 키 추가
-    sudo install -m 0755 -d /etc/apt/keyrings
-    curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg --yes
-    sudo chmod a+r /etc/apt/keyrings/docker.gpg
-
-    # 3. Docker 저장소 추가
-    echo \
-      "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
-      $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | \
-      sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
-
-    # 4. 최신 Docker 패키지 설치
-    sudo apt-get update
-    sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
-
-    # 5. 사용자 그룹 권한 부여 (VM 접속 계정명 확인 필요, 여기서는 roto9379를 예시로 추가)
-    sudo groupadd docker || true
-    sudo usermod -aG docker roto9379
-  EOF
-
-  tags = ["airflow-web"]
-  depends_on = [google_project_service.compute_engine]
-}
-
-# Milvus 서버 VM
+# 8. Milvus 서버 VM (사양 하향 조정)
 resource "google_compute_instance" "milvus_vm" {
   name         = "milvus-server"
-  machine_type = "e2-standard-4"
+  # [변경] e2-standard-4 -> e2-standard-2 (비용 약 50% 절감)
+  machine_type = "e2-standard-2" 
   zone         = "asia-northeast3-a"
 
   allow_stopping_for_update = true
   boot_disk {
     initialize_params {
       image = "ubuntu-os-cloud/ubuntu-2204-lts"
-      size  = 200
+      size  = 200 # 용량 축소는 데이터 유실 위험이 있어 유지
     }
   }
 
@@ -277,7 +195,6 @@ resource "google_compute_instance" "milvus_vm" {
 
   metadata_startup_script = <<-EOF
     #!/bin/bash
-    set -e
     sudo apt-get update
     sudo apt-get install -y ca-certificates curl gnupg
     sudo install -m 0755 -d /etc/apt/keyrings
@@ -295,22 +212,7 @@ resource "google_compute_instance" "milvus_vm" {
   depends_on = [google_project_service.compute_engine]
 }
 
-# 방화벽 설정 (8080 포트 개방)
-resource "google_compute_firewall" "airflow_firewall" {
-  name    = "allow-airflow-web"
-  network = "default"
-
-  allow {
-    protocol = "tcp"
-    ports    = ["8080"]
-  }
-
-  source_ranges = ["0.0.0.0/0"] # 실제 운영 시에는 본인 IP만 허용하는 것이 안전합니다.
-  target_tags   = ["airflow-web"]
-  depends_on = [google_project_service.compute_engine]
-}
-
-# Milvus 포트 개방 (19530/9091)
+# 9. Milvus 방화벽 설정
 resource "google_compute_firewall" "milvus_firewall" {
   name    = "allow-milvus"
   network = "default"
@@ -323,4 +225,9 @@ resource "google_compute_firewall" "milvus_firewall" {
   source_ranges = ["0.0.0.0/0"]
   target_tags   = ["milvus"]
   depends_on = [google_project_service.compute_engine]
+}
+
+# Outputs
+output "cloudsql_instance_connection_name" {
+  value = google_sql_database_instance.poi_postgres.connection_name
 }
