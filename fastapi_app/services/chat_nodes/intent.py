@@ -1,4 +1,39 @@
+import re
+
 from utils.geo import normalize_text
+
+REGION_SUFFIXES = ("도", "시", "군", "구", "읍", "면", "동", "리", "가", "역", "로", "길")
+REGION_TOPIC_HINTS = ("여행", "일정", "계획", "코스", "맛집", "식당", "카페", "관광", "놀거리", "명소", "장소")
+
+
+def _has_region_token(query: str) -> bool:
+    q = str(query or "").strip()
+    if not q:
+        return False
+
+    words = re.findall(r"[0-9A-Za-z가-힣]+", q)
+    for word in words:
+        if len(word) >= 2 and any(word.endswith(suffix) for suffix in REGION_SUFFIXES):
+            return True
+
+    if re.search(r"[0-9A-Za-z가-힣]{2,}\s*(?:에서|으로|쪽|근처|주변|인근)", q):
+        return True
+    if re.search(r"[0-9A-Za-z가-힣]{2,}\s*(?:->|→|⇒|➡)\s*[0-9A-Za-z가-힣]{2,}", q):
+        return True
+
+    for topic in REGION_TOPIC_HINTS:
+        if re.search(rf"[0-9A-Za-z가-힣]{{2,}}\s*{topic}", q):
+            return True
+    return False
+
+
+def is_region_non_recommend_query(query: str) -> bool:
+    q = str(query or "").strip()
+    if not q:
+        return False
+    if "추천" in q:
+        return False
+    return _has_region_token(q)
 
 
 def detect_intent(query: str) -> str:
@@ -7,6 +42,8 @@ def detect_intent(query: str) -> str:
     recommend_terms = ["추천", "어디", "가볼", "뭐가 있어", "top", "best", "3개", "5곳"]
     if is_expand_query(query):
         return "recommend"
+    if is_region_non_recommend_query(query):
+        return "general"
     return "recommend" if any(t in q for t in recommend_terms) else "general"
 
 

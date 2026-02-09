@@ -28,19 +28,33 @@ jobs:
         with:
           credentials_json: '${{ secrets.GCP_SA_KEY }}'
 
+      # gcloud CLI를 명시적으로 설치/설정합니다.
+      - name: Set up Google Cloud SDK
+        uses: 'google-github-actions/setup-gcloud@v2'
+        with:
+          project_id: ${{ env.PROJECT_ID }}
+
       # 2. Docker 설정 및 Artifact Registry 인증
       - name: Docker Auth
         run: |-
-          gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev
+          gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev --quiet
 
-      # 3. Docker 이미지 빌드 및 푸시
-      # fastapi_app 폴더를 빌드 컨텍스트로 사용합니다.
+      # 3. BuildKit 캐시를 사용하기 위해 buildx를 설정합니다.
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # 4. Docker 이미지 빌드 및 푸시 (GitHub Actions 캐시 사용)
       - name: Build and Push Container
-        run: |-
-          docker build -t ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPO_NAME }}/${{ env.IMAGE_NAME }}:latest ./fastapi_app
-          docker push ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPO_NAME }}/${{ env.IMAGE_NAME }}:latest
+        uses: docker/build-push-action@v6
+        with:
+          context: ./fastapi_app
+          file: ./fastapi_app/Dockerfile
+          push: true
+          tags: ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPO_NAME }}/${{ env.IMAGE_NAME }}:latest
+          cache-from: type=gha,scope=fastapi-app
+          cache-to: type=gha,mode=max,scope=fastapi-app
 
-      # 4. Cloud Run에 배포
+      # 5. Cloud Run에 배포
       - name: Deploy to Cloud Run
         id: deploy
         uses: 'google-github-actions/deploy-cloudrun@v2'
@@ -73,6 +87,6 @@ jobs:
             PYTHONDONTWRITEBYTECODE=1
 
 
-      # 5. 배포된 서비스 URL 출력
+      # 6. 배포된 서비스 URL 출력
       - name: Show Output
         run: echo ${{ steps.deploy.outputs.url }}

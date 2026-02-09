@@ -2,6 +2,7 @@ from typing import List
 
 from services.chat_nodes.callbacks import build_callbacks_config
 from services.chat_nodes.config import GENERAL_K
+from services.chat_nodes.intent import is_region_non_recommend_query
 from services.chat_nodes.llm_clients import llm
 from services.chat_nodes.message_utils import normalize_messages
 from services.chat_nodes.mode import detect_mode, llm_detect_mode
@@ -20,6 +21,17 @@ async def general_answer_node(state: GraphState):
     config = build_callbacks_config(callbacks)
     if not query:
         yield {"final": "질문이 너무 짧거나 불명확합니다. 원하는 지역/카테고리/취향을 조금만 더 알려주세요."}
+        yield {"context": build_context(state)}
+        return
+
+    if is_region_non_recommend_query(query):
+        final_text = (
+            "현재는 지역 기반 추천만 지원합니다. "
+            "카페, 식당, 여행지 중 하나만 선택해서 추천해 달라고 요청해 주세요. "
+            "예: '강남 카페 추천해줘', '강남 식당 추천해줘', '강남 여행지 추천해줘'"
+        )
+        append_node_trace_result(state.get("query", ""), "general_answer", {"final": final_text})
+        yield {"final": final_text}
         yield {"context": build_context(state)}
         return
 

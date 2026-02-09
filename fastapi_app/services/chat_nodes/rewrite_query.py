@@ -1,66 +1,230 @@
 import re
-from typing import Dict
+from typing import Dict, Iterable, List
 
 from services.chat_nodes.callbacks import build_callbacks_config
 from services.chat_nodes.llm_clients import detect_llm, max_tokens_kwargs, parse_json_response
 from services.chat_nodes.state import GraphState
 from utils.geo import append_node_trace_result
 
+PROMPT_LEAK_MARKERS = (
+    "핵심 규칙",
+    "반환 형식",
+    "결과는 반드시 JSON",
+    "normalized_query",
+    "의미 없는 입력 처리",
+    "생략된 맥락 복원",
+    "의도 명확화",
+    "검색 최적화",
+    "고유명사 보존",
+    "너는 사용자의 질문을",
+    "우선순위:",
+    "문맥 정보:",
+    "최근 대화 기록:",
+)
+
+PROMPT_LEAK_PREFIXES = (
+    "너는 사용자의 질문을",
+    "문맥 정보:",
+    "최근 대화 기록:",
+    "우선순위:",
+    "핵심 규칙:",
+)
+
+LOCATION_SUFFIXES = (
+    "도",
+    "시",
+    "군",
+    "구",
+    "읍",
+    "면",
+    "동",
+    "리",
+    "가",
+    "역",
+    "로",
+    "길",
+)
+
+INTENT_KEYWORDS = (
+    "추천",
+    "알려",
+    "어디",
+    "코스",
+    "계획",
+    "일정",
+    "여행",
+    "관광",
+    "놀거리",
+    "명소",
+    "맛집",
+    "식당",
+    "카페",
+)
+
+CATEGORY_HINT_WORDS = (
+    "카페",
+    "맛집",
+    "식당",
+    "관광지",
+    "명소",
+    "놀거리",
+    "여행지",
+    "코스",
+    "장소",
+)
+
+
+def _has_prompt_leak(text: str) -> bool:
+    stripped = text.strip()
+    if not stripped:
+        return False
+    if stripped.startswith(PROMPT_LEAK_PREFIXES):
+        return True
+    hit_count = sum(1 for marker in PROMPT_LEAK_MARKERS if marker in stripped)
+    return hit_count >= 2
+
+
+def _strip_prompt_leak(text: str) -> str:
+    if not text:
+        return ""
+    stripped = text.strip()
+    if stripped.startswith(PROMPT_LEAK_PREFIXES):
+        return ""
+
+    first_idx = None
+    for marker in PROMPT_LEAK_MARKERS:
+        idx = stripped.find(marker)
+        if idx != -1 and (first_idx is None or idx < first_idx):
+            first_idx = idx
+
+    if first_idx is not None:
+        prefix = stripped[:first_idx].strip()
+        if prefix.lower().startswith("user:"):
+            prefix = prefix.split(":", 1)[-1].strip()
+        if prefix:
+            return prefix
+
+    if _has_prompt_leak(stripped):
+        return ""
+    if re.search(r'\{\s*"normalized_query"\s*:', stripped):
+        return ""
+    return stripped
+
+
+def _is_meaningless(text: str) -> bool:
+    stripped = re.sub(r"\s+", "", text)
+    if not stripped:
+        return True
+    if len(stripped) <= 1:
+        return True
+    if re.fullmatch(r"[ㅋㅎㅠㅜㅇ]+", stripped):
+        return True
+    if not re.search(r"[0-9A-Za-z가-힣]", stripped):
+        return True
+    return False
+
+
+def _extract_route_segments(text: str) -> List[str]:
+    if "->" not in text and "→" not in text and "⇒" not in text and "➡" not in text:
+        return []
+    segments = re.split(r"\s*(?:->|→|⇒|➡)\s*", text)
+    cleaned = []
+    for segment in segments:
+        part = re.sub(r"[\"'`.,!?]", "", segment).strip()
+        if len(part) >= 2:
+            cleaned.append(part)
+    return cleaned
+
+
+def _extract_location_tokens(text: str) -> List[str]:
+    tokens = set()
+    words = re.findall(r"[0-9A-Za-z가-힣]+", text)
+    for word in words:
+        if len(word) < 2:
+            continue
+        if any(word.endswith(suffix) for suffix in LOCATION_SUFFIXES):
+            tokens.add(word)
+
+    for match in re.finditer(
+        r"([0-9A-Za-z가-힣]{2,})\s*(?:에서|으로|쪽|근처|부근|인근)",
+        text,
+    ):
+        tokens.add(match.group(1))
+
+    for match in re.finditer(
+        r"([0-9A-Za-z가-힣]{2,})\s*(?:근처\s*)?(?:맛집|식당|카페|관광지|명소|놀거리|여행|코스)",
+        text,
+    ):
+        tokens.add(match.group(1))
+
+    return sorted(tokens)
+
+
+def _has_intent_signal(text: str) -> bool:
+    return any(keyword in text for keyword in INTENT_KEYWORDS)
+
+
+def _should_use_history(query: str) -> bool:
+    if _extract_route_segments(query):
+        return False
+    if _extract_location_tokens(query):
+        return False
+    if len(query) > 20:
+        return False
+    return any(word in query for word in CATEGORY_HINT_WORDS)
+
+
+def _should_fallback_to_query(query: str, normalized: str) -> bool:
+    if _is_meaningless(query):
+        return False
+    if not normalized:
+        return True
+
+    route_segments = _extract_route_segments(query)
+    if route_segments and not all(segment in normalized for segment in route_segments):
+        return True
+
+    location_tokens = _extract_location_tokens(query)
+    if location_tokens and not any(token in normalized for token in location_tokens):
+        return True
+
+    if _has_intent_signal(query) and not _has_intent_signal(normalized):
+        return True
+    return False
+
+
+def _collect_history(messages: Iterable[dict], query: str) -> List[dict]:
+    history: List[dict] = []
+    for msg in messages:
+        role = str(msg.get("role") or "").strip()
+        if role != "user":
+            continue
+
+        raw_content = str(msg.get("content") or "").strip()
+        if not raw_content or _has_prompt_leak(raw_content):
+            continue
+
+        content = _strip_prompt_leak(raw_content)
+        if not content or _is_meaningless(content):
+            continue
+        history.append({"role": role, "content": content})
+
+    if history and history[-1]["content"] == query:
+        history = history[:-1]
+    return history
+
 
 async def rewrite_query_node(state: GraphState) -> Dict:
     """Rewrite the user query with conversational context for better intent and retrieval."""
     raw_query = str(state.get("query", "")).strip()
-
-    def _strip_prompt_leak(text: str) -> str:
-        if not text:
-            return ""
-        markers = (
-            "핵심 규칙",
-            "반환 형식",
-            "결과는 반드시 JSON",
-            "normalized_query",
-            "의미 없는 입력 처리",
-            "생략된 맥락 복원",
-            "의도 명확화",
-            "검색 최적화",
-            "고유명사 보존",
-            "너는 사용자의 질문을",
-        )
-        first_idx = None
-        for marker in markers:
-            idx = text.find(marker)
-            if idx != -1 and (first_idx is None or idx < first_idx):
-                first_idx = idx
-        if first_idx is not None:
-            prefix = text[:first_idx].strip()
-            if prefix:
-                return prefix
-        hit_count = sum(1 for marker in markers if marker in text)
-        if hit_count >= 2:
-            return ""
-        if re.search(r'\{\s*"normalized_query"\s*:', text):
-            return ""
-        return text
-
     query = _strip_prompt_leak(raw_query)
     trace_query = raw_query or query
-
-    def _is_meaningless(text: str) -> bool:
-        stripped = re.sub(r"\s+", "", text)
-        if not stripped:
-            return True
-        if len(stripped) <= 1:
-            return True
-        if re.fullmatch(r"[ㅋㅎㅠㅜㅇ]+", stripped):
-            return True
-        if not re.search(r"[0-9A-Za-z가-힣]", stripped):
-            return True
-        return False
 
     if _is_meaningless(query):
         result = {"normalized_query": ""}
         append_node_trace_result(trace_query, "rewrite_query", result)
         return result
+
     context = state.get("context") or {}
     callbacks = state.get("callbacks")
     config = build_callbacks_config(callbacks)
@@ -70,18 +234,12 @@ async def rewrite_query_node(state: GraphState) -> Dict:
     last_normalized_query = context.get("last_normalized_query")
     if context.get("last_recommended_names") is not None:
         state["last_recommended_names"] = context.get("last_recommended_names")
-    history = []
-    for msg in state.get("messages") or []:
-        role = str(msg.get("role") or "").strip()
-        content = _strip_prompt_leak(str(msg.get("content") or "").strip())
-        if not content:
-            continue
-        if role != "user":
-            continue
-        history.append({"role": role, "content": content})
-    if history and history[-1]["role"] == "user" and history[-1]["content"] == query:
-        history = history[:-1]
+
+    history = _collect_history(state.get("messages") or [], query)
+    if not _should_use_history(query):
+        history = []
     history = history[-3:]
+
     history_hint = ""
     if history:
         history_lines = [f"- {item['role']}: {item['content']}" for item in history]
@@ -139,6 +297,10 @@ async def rewrite_query_node(state: GraphState) -> Dict:
                 normalized = str(value).strip()
     except Exception:
         pass
+
+    normalized = _strip_prompt_leak(normalized)
+    if _should_fallback_to_query(query, normalized):
+        normalized = query
 
     if _is_meaningless(normalized):
         normalized = ""
