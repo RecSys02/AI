@@ -93,3 +93,5 @@ id_rsa_gcp.pub
 erd/
 *.pdf
 *.pptx
+*.png
+*.gif
