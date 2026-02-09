@@ -12,7 +12,7 @@ from services.chat_nodes.route import route_node
 from services.chat_nodes.state import GraphState
 
 
-# 그래프 구성
+## 그래프 구성
 workflow = StateGraph(GraphState)
 workflow.add_node("rewrite_query", rewrite_query_node)
 workflow.add_node("route", route_node)
