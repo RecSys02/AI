@@ -95,3 +95,4 @@ erd/
 *.pptx
 *.png
 *.gif
+.DS_Store
