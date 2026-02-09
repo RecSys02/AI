@@ -1,0 +1,26 @@
+# terraform 관련 (이미지 포함 불필요)
+terraform/
+.terraform/
+*.tfstate
+*.tfstate.backup
+.terraform.lock.hcl
+
+# 파이썬 캐시 및 가상환경
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+ENV/
+
+# 환경 변수 (보안상 이미지 포함 금지)
+.env
+.env.example
+
+# Git 설정
+.git
+.gitignore
+
+# 테스트 및 문서
+tests/
+README.md

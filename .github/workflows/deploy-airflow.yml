@@ -1,0 +1,51 @@
+name: Sync Airflow DAGs to VM
+
+on:
+  push:
+    branches: [ "park_research" ]
+    # dags 폴더가 수정될 때만 실행
+    paths:
+      - "scripts/airflow/dags/**"
+      - "scripts/airflow/docker-compose.yml"
+      - ".github/workflows/deploy-airflow.yml"
+  workflow_dispatch:
+jobs:
+  deploy-dags:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Copy Files to VM
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.VM_HOST }}
+          username: ${{ secrets.VM_USER }}
+          key: ${{ secrets.VM_SSH_KEY }}
+          # dags와 docker-compose.yml을 모두 복사해야 합니다.
+          source: "scripts/airflow/**"
+          target: "~/airflow"
+          strip_components: 2 # 'scripts/airflow' 경로를 떼고 파일 전송
+
+      - name: Post Deploy Task (Start Airflow)
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VM_HOST }}
+          username: ${{ secrets.VM_USER }}
+          key: ${{ secrets.VM_SSH_KEY }}
+          script: |
+            cd ~/airflow
+            
+            # 1. 환경 변수 설정
+            if [ ! -f .env ]; then
+              echo "AIRFLOW_UID=$(id -u)" > .env
+            fi
+            
+            # 2. sudo를 사용하여 도커 명령어 실행
+            # sg 대신 sudo를 쓰면 비밀번호 입력 단계 없이 바로 실행됩니다.
+            sudo docker compose up airflow-init
+            sudo docker compose up -d
+            
+            # 3. 배포 결과 최종 확인
+            echo "Checking Airflow container status..."
+            sudo docker ps

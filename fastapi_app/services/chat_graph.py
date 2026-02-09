@@ -1,0 +1,53 @@
+from langgraph.graph import END, StateGraph
+
+from services.chat_nodes.answer import answer_node
+from services.chat_nodes.apply_location_filter import apply_location_filter_node
+from services.chat_nodes.expand_radius import expand_radius_node
+from services.chat_nodes.extract_place import extract_place_node
+from services.chat_nodes.general_answer import general_answer_node
+from services.chat_nodes.rewrite_query import rewrite_query_node
+from services.chat_nodes.resolve_anchor import resolve_anchor_node
+from services.chat_nodes.retrieve import retrieve_node
+from services.chat_nodes.route import route_node
+from services.chat_nodes.state import GraphState
+
+
+## 그래프 구성
+workflow = StateGraph(GraphState)
+workflow.add_node("rewrite_query", rewrite_query_node)
+workflow.add_node("route", route_node)
+workflow.add_node("extract_place", extract_place_node)
+workflow.add_node("expand_radius", expand_radius_node)
+workflow.add_node("resolve_anchor", resolve_anchor_node)
+workflow.add_node("retrieve", retrieve_node)
+workflow.add_node("apply_location_filter", apply_location_filter_node)
+workflow.add_node("answer", answer_node)
+workflow.add_node("general_answer", general_answer_node)
+workflow.set_entry_point("rewrite_query")
+
+workflow.add_edge("rewrite_query", "route")
+
+# 조건부 엣지
+workflow.add_conditional_edges(
+    "route",
+    lambda state: "extract_place" if state["intent"] == "recommend" else "general_answer",
+    {"extract_place": "extract_place", "general_answer": "general_answer"},
+)
+
+workflow.add_conditional_edges(
+    "extract_place",
+    lambda state: "expand_radius" if state.get("expand_request") else "resolve_anchor",
+    {"expand_radius": "expand_radius", "resolve_anchor": "resolve_anchor"},
+)
+workflow.add_conditional_edges(
+    "expand_radius",
+    lambda state: "answer" if state.get("expand_failed") else "retrieve",
+    {"answer": "answer", "retrieve": "retrieve"},
+)
+workflow.add_edge("resolve_anchor", "retrieve")
+workflow.add_edge("retrieve", "apply_location_filter")
+workflow.add_edge("apply_location_filter", "answer")
+workflow.add_edge("answer", END)
+workflow.add_edge("general_answer", END)
+
+chat_app = workflow.compile()

@@ -1,0 +1,43 @@
+name: Build and Push (ECR)
+
+on:
+  workflow_run:
+    workflows: ["CI"]      # .github/workflows/ci.yml
+    types:
+      - completed
+
+permissions:
+  contents: read
+  id-token: write # required for OIDC -> AWS
+
+env:
+  AWS_REGION: ap-northeast-2            # 변경 가능
+  ECR_REPOSITORY: myapp                 # ECR 리포지토리 이름으로 변경
+  DOCKERFILE: Dockerfile_park
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::<ACCOUNT_ID>:role/<ROLE_NAME> # 교체 필수
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ${{ env.DOCKERFILE }}
+          push: true
+          tags: |
+            ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:latest
+            ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ github.sha }}
