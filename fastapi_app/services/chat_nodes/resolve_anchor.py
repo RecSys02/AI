@@ -244,7 +244,8 @@ async def resolve_anchor_node(state: GraphState) -> Dict:
     place = state.get("place") or {}
     raw_point = (place.get("point") or "").strip()
     raw_area = (place.get("area") or "").strip()
-    raw_place = raw_point or raw_area
+    raw_single = (place.get("place") or "").strip()
+    raw_place = raw_point or raw_area or raw_single
     if raw_area and raw_point and raw_area not in raw_point:
         raw_place = f"{raw_area} {raw_point}"
     if not raw_place:

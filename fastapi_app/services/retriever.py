@@ -1,4 +1,7 @@
+import asyncio
+import os
 import time
+from concurrent.futures import ThreadPoolExecutor
 from functools import lru_cache
 from typing import Callable, Dict, List, Optional, Tuple
 
@@ -13,6 +16,22 @@ ALPHA_DENSE = 0.6  # dense vs BM25 가중치
 DENSE_CANDIDATE_MULTIPLIER = 50
 BM25_CANDIDATE_MULTIPLIER = 50
 MAX_CANDIDATES = 1000
+ENCODE_EXECUTOR_WORKERS = max(1, int(os.getenv("RETRIEVER_ENCODE_WORKERS", "1")))
+_ENCODE_EXECUTOR = ThreadPoolExecutor(
+    max_workers=ENCODE_EXECUTOR_WORKERS,
+    thread_name_prefix="retriever-encode",
+)
+_GEOHASH_BASE32 = "0123456789bcdefghjkmnpqrstuvwxyz"
+_GEOHASH_CELL_MAX_KM = {
+    1: 5000.0,
+    2: 1250.0,
+    3: 156.0,
+    4: 39.1,
+    5: 4.9,
+    6: 1.2,
+    7: 0.153,
+    8: 0.038,
+}
 
 SYNONYMS = {
     # 수족관/해양
@@ -50,6 +69,20 @@ SYNONYMS = {
     # 해산물/회
     "seafood": ["해물", "회", "횟집", "참치", "오징어", "조개", "조개구이", "해산물"],
     "duck": ["오리", "오리구이", "오리 로스", "오리로스", "훈제오리", "유황오리", "오리백숙", "오리탕"],
+    # 서양식/양식
+    "western": [
+        "양식",
+        "양식집",
+        "서양식",
+        "서양음식",
+        "레스토랑",
+        "이탈리안",
+        "파스타",
+        "피자",
+        "스테이크",
+        "프렌치",
+        "비스트로",
+    ],
     # 프렌치/양식
     "french": ["프렌치", "프랑스", "비스토로", "비스트로"],
     # 기타 이국/퓨전
@@ -86,6 +119,7 @@ KEYWORD_GROUPS_BY_MODE = {
         "korean_set",
         "seafood",
         "duck",
+        "western",
         "french",
         "fusion",
     ],
@@ -254,6 +288,115 @@ def _distance_to_centers_km(lat: float, lng: float, centers: List[List[float]]) 
     return min_km
 
 
+def _geohash_encode(lat: float, lng: float, precision: int = 6) -> str:
+    lat_interval = [-90.0, 90.0]
+    lng_interval = [-180.0, 180.0]
+    is_even = True
+    bit = 0
+    ch = 0
+    geohash: List[str] = []
+    bits = (16, 8, 4, 2, 1)
+
+    while len(geohash) < precision:
+        if is_even:
+            mid = (lng_interval[0] + lng_interval[1]) / 2
+            if lng > mid:
+                ch |= bits[bit]
+                lng_interval[0] = mid
+            else:
+                lng_interval[1] = mid
+        else:
+            mid = (lat_interval[0] + lat_interval[1]) / 2
+            if lat > mid:
+                ch |= bits[bit]
+                lat_interval[0] = mid
+            else:
+                lat_interval[1] = mid
+        is_even = not is_even
+        if bit < 4:
+            bit += 1
+        else:
+            geohash.append(_GEOHASH_BASE32[ch])
+            bit = 0
+            ch = 0
+    return "".join(geohash)
+
+
+def _geohash_precision_for_radius(radius_km: float) -> int:
+    if radius_km <= 0:
+        return 8
+    if radius_km <= 0.3:
+        return 7
+    if radius_km <= 1.5:
+        return 6
+    if radius_km <= 8.0:
+        return 5
+    if radius_km <= 30.0:
+        return 4
+    return 3
+
+
+def _offset_lat_lng(lat: float, lng: float, north_km: float, east_km: float) -> tuple[float, float]:
+    lat_delta = north_km / 110.574
+    cos_lat = np.cos(np.deg2rad(lat))
+    safe_cos = max(abs(float(cos_lat)), 1e-6)
+    lng_delta = east_km / (111.320 * safe_cos)
+    lat_out = max(min(lat + lat_delta, 90.0), -90.0)
+    lng_out = lng + lng_delta
+    if lng_out > 180.0:
+        lng_out -= 360.0
+    elif lng_out < -180.0:
+        lng_out += 360.0
+    return lat_out, lng_out
+
+
+def _build_geohash_prefixes(
+    centers: List[List[float]],
+    radius_km: float,
+) -> tuple[int, set[str]]:
+    precision = _geohash_precision_for_radius(radius_km)
+    cell_km = _GEOHASH_CELL_MAX_KM.get(precision, 1.2)
+    # Sample a small grid around the anchor so boundary-adjacent cells are included.
+    step_km = max(min(radius_km, cell_km / 2.0), 0.1)
+    prefixes: set[str] = set()
+    offsets = np.arange(-radius_km, radius_km + step_km, step_km)
+    if offsets.size == 0:
+        offsets = np.array([0.0], dtype=float)
+    for center in centers:
+        if not center or len(center) != 2:
+            continue
+        center_lat = float(center[0])
+        center_lng = float(center[1])
+        for north_km in offsets:
+            for east_km in offsets:
+                sample_lat, sample_lng = _offset_lat_lng(center_lat, center_lng, float(north_km), float(east_km))
+                prefixes.add(_geohash_encode(sample_lat, sample_lng, precision=precision))
+        prefixes.add(_geohash_encode(center_lat, center_lng, precision=precision))
+    return precision, prefixes
+
+
+def _apply_geohash_prefilter(
+    candidate_ids: List[int],
+    meta_map: Dict[int, dict],
+    centers: List[List[float]],
+    radius_km: float,
+) -> tuple[List[int], int, int]:
+    if not centers or radius_km <= 0:
+        return candidate_ids, 0, 0
+    precision, prefixes = _build_geohash_prefixes(centers, radius_km)
+    if not prefixes:
+        return candidate_ids, precision, 0
+    filtered_ids: List[int] = []
+    for pid in candidate_ids:
+        row = meta_map.get(pid, {})
+        lat, lng = _get_lat_lng(row or {})
+        if lat is None or lng is None:
+            continue
+        if _geohash_encode(lat, lng, precision=precision) in prefixes:
+            filtered_ids.append(pid)
+    return filtered_ids, precision, len(prefixes)
+
+
 def _needs_keyword_filter(query_text: str, mode: str) -> Tuple[bool, List[str]]:
     q_lower = query_text.lower()
     matched_terms: List[str] = []
@@ -284,7 +427,31 @@ def _build_query_text(query: str, history_names: List[str]) -> str:
     return query
 
 
-def retrieve(
+def _encode_query_sync(query_text_embed: str) -> tuple[np.ndarray, Dict[str, float]]:
+    t0 = time.perf_counter()
+    model = _load_model()
+    t1 = time.perf_counter()
+    qvec = model.encode([query_text_embed], normalize_embeddings=True)[0]
+    t2 = time.perf_counter()
+    return qvec, {
+        "load_model_ms": round((t1 - t0) * 1000, 2),
+        "encode_ms": round((t2 - t1) * 1000, 2),
+    }
+
+
+async def _encode_query_async(query_text_embed: str) -> tuple[np.ndarray, Dict[str, float]]:
+    loop = asyncio.get_running_loop()
+    return await loop.run_in_executor(_ENCODE_EXECUTOR, _encode_query_sync, query_text_embed)
+
+
+async def _timed(awaitable):
+    t0 = time.perf_counter()
+    result = await awaitable
+    t1 = time.perf_counter()
+    return result, round((t1 - t0) * 1000, 2)
+
+
+async def retrieve(
     query: str,
     mode: str = "tourspot",
     top_k: int = 1,
@@ -303,50 +470,68 @@ def retrieve(
     t1 = time.perf_counter()
     if timings is not None:
         timings["load_store_ms"] = round((t1 - t0) * 1000, 2)
-    t0 = time.perf_counter()
-    model = _load_model()
-    t1 = time.perf_counter()
-    if timings is not None:
-        timings["load_model_ms"] = round((t1 - t0) * 1000, 2)
 
     # 쿼리 텍스트를 history 정보로 강화
     history_place_ids = history_place_ids or []
-    history_names = pg.fetch_names(history_place_ids, category=mode)
-    qtext = _build_query_text(query, history_names)
-    qtext_embed = f"{E5_QUERY_PREFIX}{qtext}"
-    t0 = time.perf_counter()
-    qvec = model.encode([qtext_embed], normalize_embeddings=True)[0]
-    t1 = time.perf_counter()
-    if timings is not None:
-        timings["encode_ms"] = round((t1 - t0) * 1000, 2)
-    t0 = time.perf_counter()
     dense_k = min(max(top_k * DENSE_CANDIDATE_MULTIPLIER, top_k), MAX_CANDIDATES)
-    dense_hits = milvus.search(mode, qvec, top_k=dense_k)
-    t1 = time.perf_counter()
-    if timings is not None:
-        timings["dense_search_ms"] = round((t1 - t0) * 1000, 2)
-    if not dense_hits:
-        if timings is not None:
-            timings["total_ms"] = round((time.perf_counter() - t_start) * 1000, 2)
-        return []
-    dense_score_by_id = {pid: score for pid, score in dense_hits}
-
-    t0 = time.perf_counter()
     bm25_k = min(max(top_k * BM25_CANDIDATE_MULTIPLIER, top_k), MAX_CANDIDATES)
-    bm25_score_by_id = pg.fts_scores(qtext, mode, limit=bm25_k)
-    t1 = time.perf_counter()
-    if timings is not None:
-        timings["bm25_ms"] = round((t1 - t0) * 1000, 2)
 
-    t0 = time.perf_counter()
-    candidate_ids = list(dict.fromkeys(list(dense_score_by_id.keys()) + list(bm25_score_by_id.keys())))
-    if not candidate_ids:
+    async with pg.async_connection() as conn:
+        t0 = time.perf_counter()
+        history_names = await pg.fetch_names_async(history_place_ids, category=mode, conn=conn)
+        t1 = time.perf_counter()
         if timings is not None:
-            timings["total_ms"] = round((time.perf_counter() - t_start) * 1000, 2)
-        return []
-    meta_map = pg.fetch_meta(candidate_ids, category=mode)
+            timings["history_names_ms"] = round((t1 - t0) * 1000, 2)
+        qtext = _build_query_text(query, history_names)
+        qtext_embed = f"{E5_QUERY_PREFIX}{qtext}"
+
+        (qvec, encode_timings), (bm25_score_by_id, bm25_ms) = await asyncio.gather(
+            _encode_query_async(qtext_embed),
+            _timed(pg.fts_scores_async(qtext, mode, limit=bm25_k, conn=conn)),
+        )
+        if timings is not None:
+            timings.update(encode_timings)
+            timings["bm25_ms"] = bm25_ms
+
+        dense_hits, dense_search_ms = await _timed(milvus.search_async(mode, qvec, top_k=dense_k))
+        if timings is not None:
+            timings["dense_search_ms"] = dense_search_ms
+        if not dense_hits:
+            if timings is not None:
+                timings["total_ms"] = round((time.perf_counter() - t_start) * 1000, 2)
+            return []
+        dense_score_by_id = {pid: score for pid, score in dense_hits}
+
+        t0 = time.perf_counter()
+        candidate_ids = list(dict.fromkeys(list(dense_score_by_id.keys()) + list(bm25_score_by_id.keys())))
+        if not candidate_ids:
+            if timings is not None:
+                timings["total_ms"] = round((time.perf_counter() - t_start) * 1000, 2)
+            return []
+        meta_map = await pg.fetch_meta_async(candidate_ids, category=mode, conn=conn)
+        t1 = time.perf_counter()
+        if timings is not None:
+            timings["fetch_meta_ms"] = round((t1 - t0) * 1000, 2)
+
     distance_by_id = {}
     if anchor_centers and anchor_radius_km is not None:
+        t0 = time.perf_counter()
+        candidate_ids, geohash_precision, geohash_prefix_count = _apply_geohash_prefilter(
+            candidate_ids,
+            meta_map,
+            anchor_centers,
+            anchor_radius_km,
+        )
+        t1 = time.perf_counter()
+        if timings is not None:
+            timings["geohash_prefilter_ms"] = round((t1 - t0) * 1000, 2)
+            timings["geohash_precision"] = geohash_precision
+            timings["geohash_prefix_count"] = geohash_prefix_count
+            timings["geohash_candidates"] = len(candidate_ids)
+        if not candidate_ids:
+            if timings is not None:
+                timings["total_ms"] = round((time.perf_counter() - t_start) * 1000, 2)
+            return []
         filtered_ids = []
         for pid in candidate_ids:
             row = meta_map.get(pid, {})
@@ -364,6 +549,7 @@ def retrieve(
             if timings is not None:
                 timings["total_ms"] = round((time.perf_counter() - t_start) * 1000, 2)
             return []
+    t0 = time.perf_counter()
     dense_scores = np.array([dense_score_by_id.get(pid, 0.0) for pid in candidate_ids], dtype=float)
     dense_norm = (dense_scores + 1.0) / 2.0
     bm25_scores = np.array([bm25_score_by_id.get(pid, 0.0) for pid in candidate_ids], dtype=float)

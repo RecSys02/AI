@@ -3,7 +3,7 @@ from typing import List
 
 from services.chat_nodes.callbacks import build_callbacks_config
 from services.chat_nodes.intent import is_date_query, is_nearby_query
-from services.chat_nodes.llm_clients import llm
+from services.chat_nodes.llm_clients import LLMRateLimitError, llm, rate_limit_fallback_text
 from services.chat_nodes.message_utils import normalize_messages
 from services.chat_nodes.state import GraphState, build_context
 from utils.geo import append_node_trace_result
@@ -30,7 +30,7 @@ async def answer_node(state: GraphState):
         place = state.get("resolved_name") or state.get("input_place")
         if not place:
             place_info = state.get("place") or {}
-            place = place_info.get("point") or place_info.get("area")
+            place = place_info.get("point") or place_info.get("area") or place_info.get("place")
         
         final_text = f"'{place}' 위치를 찾지 못했어요. 지점/역/건물명을 알려주세요." if place else "위치를 찾지 못했어요. 기준이 될 지점/역/건물명을 알려주세요."
         append_node_trace_result(raw_query, "answer", {"final": final_text})
@@ -46,7 +46,7 @@ async def answer_node(state: GraphState):
         place = state.get("resolved_name") or state.get("input_place")
         if not place:
             place_info = state.get("place") or {}
-            place = place_info.get("point") or place_info.get("area")
+            place = place_info.get("point") or place_info.get("area") or place_info.get("place")
         
         final_text = f"'{place}'가 어느 지점을 말하는지 알려주세요. 기준 위치를 알려주시면 그 근처로 추천할게요." if place else "근처/주변 추천을 하려면 기준 위치가 필요해요. 지점/역/건물명을 알려주세요."
         append_node_trace_result(raw_query, "answer", {"final": final_text})
@@ -191,14 +191,16 @@ async def answer_node(state: GraphState):
     messages = normalize_messages(messages)
 
     parts: List[str] = []
-    async for chunk in llm.astream(messages, config=config):
-        content = chunk.content
-        if not content:
-            continue
-        parts.append(content)
-        yield {"token": content}
-
-    final_text = "".join(parts)
+    try:
+        async for chunk in llm.astream(messages, config=config):
+            content = chunk.content
+            if not content:
+                continue
+            parts.append(content)
+            yield {"token": content}
+        final_text = "".join(parts)
+    except LLMRateLimitError:
+        final_text = "".join(parts) if parts else rate_limit_fallback_text()
     append_node_trace_result(raw_query, "answer", {"final": final_text})
     yield {"final": final_text}
     yield {"context": build_context(state)}

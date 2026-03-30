@@ -2,7 +2,9 @@ import re
 from typing import Dict, Iterable, List
 
 from services.chat_nodes.callbacks import build_callbacks_config
+from services.chat_nodes.intent import is_expand_query
 from services.chat_nodes.llm_clients import detect_llm, max_tokens_kwargs, parse_json_response
+from services.chat_nodes.mode import detect_mode
 from services.chat_nodes.state import GraphState
 from utils.geo import append_node_trace_result
 
@@ -71,6 +73,66 @@ CATEGORY_HINT_WORDS = (
     "여행지",
     "코스",
     "장소",
+)
+
+WESTERN_CUISINE_HINTS = (
+    "양식",
+    "양식집",
+    "서양식",
+    "서양음식",
+    "이탈리안",
+    "파스타",
+    "피자",
+    "스테이크",
+    "프렌치",
+    "비스트로",
+    "레스토랑",
+)
+
+MODE_KEYWORDS = {
+    "restaurant": (
+        "맛집",
+        "식당",
+        "레스토랑",
+        "밥",
+        "점심",
+        "저녁",
+        "한식",
+        "중식",
+        "일식",
+        "양식",
+        "파스타",
+        "피자",
+        "스테이크",
+    ),
+    "cafe": ("카페", "커피", "디저트", "브런치", "베이커리"),
+    "tourspot": ("관광지", "명소", "놀거리", "여행지", "코스", "장소"),
+}
+
+MODE_LABELS = {
+    "restaurant": "식당",
+    "cafe": "카페",
+    "tourspot": "관광지",
+}
+
+RECOMMEND_LIKE_HINTS = (
+    "갈만",
+    "뭐할",
+    "뭐 하지",
+    "뭐하지",
+    "어디 갈",
+    "데이트",
+    "아이랑",
+    "가볼",
+)
+
+RECOMMEND_PHRASES = (
+    "추천",
+    "어디",
+    "가볼",
+    "뭐가 있어",
+    "top",
+    "best",
 )
 
 
@@ -164,7 +226,16 @@ def _has_intent_signal(text: str) -> bool:
     return any(keyword in text for keyword in INTENT_KEYWORDS)
 
 
-def _should_use_history(query: str) -> bool:
+def _has_recommend_phrase(text: str) -> bool:
+    lowered = str(text or "").lower()
+    if any(token in lowered for token in RECOMMEND_PHRASES):
+        return True
+    return bool(re.search(r"(\d{1,2})(개|곳|군데)", lowered))
+
+
+def _should_use_history(query: str, anaphora_detected: bool = False) -> bool:
+    if anaphora_detected:
+        return True
     if _extract_route_segments(query):
         return False
     if _extract_location_tokens(query):
@@ -190,7 +261,155 @@ def _should_fallback_to_query(query: str, normalized: str) -> bool:
 
     if _has_intent_signal(query) and not _has_intent_signal(normalized):
         return True
+    if any(token in query for token in WESTERN_CUISINE_HINTS) and not any(
+        token in normalized for token in WESTERN_CUISINE_HINTS
+    ):
+        return True
     return False
+
+
+def _contains_mode_keyword(text: str, mode: str | None) -> bool:
+    if not text or not mode:
+        return False
+    return any(token in text for token in MODE_KEYWORDS.get(mode, ()))
+
+
+def _place_to_label(place: dict | None) -> str:
+    if not isinstance(place, dict):
+        return ""
+    point = str(place.get("point") or "").strip()
+    area = str(place.get("area") or "").strip()
+    single = str(place.get("place") or "").strip()
+    if area and point and area not in point:
+        return f"{area} {point}"
+    if point:
+        return point
+    if area:
+        return area
+    return single
+
+
+def _place_tokens(place: dict | None) -> List[str]:
+    if not isinstance(place, dict):
+        return []
+    tokens = []
+    for key in ("place", "point", "area"):
+        value = str(place.get(key) or "").strip()
+        if value and value not in tokens:
+            tokens.append(value)
+    return tokens
+
+
+def _remove_place_mentions(text: str, *places: dict | None) -> str:
+    cleaned = str(text or "")
+    for place in places:
+        for token in _place_tokens(place):
+            cleaned = cleaned.replace(token, " ")
+    cleaned = re.sub(r"\s+", " ", cleaned).strip()
+    return cleaned
+
+
+def _build_safe_rewrite(
+    raw_query: str,
+    place_label: str,
+    place_original: dict | None,
+    explicit_mode: str | None,
+    context_action: str | None,
+) -> str:
+    stripped = _strip_prompt_leak(raw_query).strip()
+    stripped = re.sub(r"[?!.,]+$", "", stripped).strip()
+    base = _remove_place_mentions(stripped, {"place": place_label}, place_original)
+    category_label = MODE_LABELS.get(explicit_mode or "", "")
+    if explicit_mode and _is_short_category_followup(stripped, explicit_mode):
+        return f"{place_label} 근처 {category_label} 추천해줘"
+    if context_action == "keep" and explicit_mode:
+        return f"{place_label} 근처 {category_label} 추천해줘"
+    if not base:
+        if explicit_mode:
+            return f"{place_label} 근처 {category_label} 추천해줘"
+        return f"{place_label} 정보 알려줘"
+    if explicit_mode and not _contains_mode_keyword(base, explicit_mode):
+        base = f"{category_label} {base}".strip()
+    if (
+        not _has_recommend_phrase(base)
+        and (
+            explicit_mode
+            or any(token in base for token in MODE_KEYWORDS.get("tourspot", ()))
+            or any(hint in base for hint in RECOMMEND_LIKE_HINTS)
+        )
+    ):
+        base = f"{base} 추천해줘"
+    return f"{place_label} {base}".strip()
+
+
+def _is_short_category_followup(query: str, explicit_mode: str | None) -> bool:
+    if not explicit_mode:
+        return False
+    compact = re.sub(r"\s+", "", re.sub(r"[?!.,]+$", "", query))
+    if len(compact) > 8:
+        return False
+    words = re.findall(r"[0-9A-Za-z가-힣]+", query)
+    return len(words) <= 2 and detect_mode(None, query) == explicit_mode
+
+
+def _extract_context_topic(context: dict) -> str | None:
+    for key in ("last_query", "last_normalized_query"):
+        raw = _strip_prompt_leak(str(context.get(key) or "")).strip()
+        if not raw:
+            continue
+        text = re.sub(r"[?!.,]+$", "", raw).strip()
+        match = re.search(r"(.+?)\s*뭐\s*할까", text)
+        if match:
+            prefix = match.group(1).strip()
+            if prefix:
+                return f"{prefix} 갈만한"
+        match = re.search(r"(.+?)\s*어디\s*갈까", text)
+        if match:
+            prefix = match.group(1).strip()
+            if prefix:
+                return f"{prefix} 갈만한"
+        if len(re.sub(r"\s+", "", text)) <= 16 and any(
+            token in text for token in ("같이", "데이트", "엄마", "아빠", "친구", "아이", "연인")
+        ):
+            return text
+    return None
+
+
+def _build_recommend_seed(
+    query: str,
+    explicit_mode: str | None,
+    context: dict,
+    anaphora_detected: bool = False,
+    has_explicit_place: bool = False,
+) -> str | None:
+    cleaned = re.sub(r"\s+", " ", _strip_prompt_leak(query)).strip()
+    cleaned = re.sub(r"[?!.,]+$", "", cleaned).strip()
+    if not cleaned:
+        return None
+
+    last_place = str(context.get("last_resolved_name") or "").strip()
+    category_label = MODE_LABELS.get(explicit_mode or "", cleaned)
+
+    if anaphora_detected and last_place:
+        if explicit_mode:
+            return f"{last_place} 근처 {category_label} 추천해줘"
+        return f"{last_place} 근처 추천해줘"
+
+    if explicit_mode and _is_short_category_followup(cleaned, explicit_mode):
+        topic = _extract_context_topic(context)
+        if topic:
+            return f"{topic} {category_label} 추천해줘"
+        if last_place and not has_explicit_place:
+            return f"{last_place} 근처 {category_label} 추천해줘"
+        return f"{category_label} 추천해줘"
+
+    if explicit_mode and not _has_intent_signal(cleaned):
+        if has_explicit_place:
+            return f"{cleaned} 추천해줘"
+        if last_place and cleaned == category_label:
+            return f"{last_place} 근처 {category_label} 추천해줘"
+        return f"{cleaned} 추천해줘"
+    return None
 
 
 def _collect_history(messages: Iterable[dict], query: str) -> List[dict]:
@@ -215,7 +434,7 @@ def _collect_history(messages: Iterable[dict], query: str) -> List[dict]:
 
 
 async def rewrite_query_node(state: GraphState) -> Dict:
-    """Rewrite the user query with conversational context for better intent and retrieval."""
+    """Rewrite the user query using the already-decided place context."""
     raw_query = str(state.get("query", "")).strip()
     query = _strip_prompt_leak(raw_query)
     trace_query = raw_query or query
@@ -228,15 +447,31 @@ async def rewrite_query_node(state: GraphState) -> Dict:
     context = state.get("context") or {}
     callbacks = state.get("callbacks")
     config = build_callbacks_config(callbacks)
+    explicit_mode = state.get("explicit_mode")
+    context_action = state.get("context_action")
+    confirmed_place = state.get("place") or {}
+    place_label = _place_to_label(confirmed_place)
+    current_place = state.get("has_explicit_place")
 
-    last_place = context.get("last_resolved_name")
-    last_mode = context.get("last_mode")
-    last_normalized_query = context.get("last_normalized_query")
-    if context.get("last_recommended_names") is not None:
-        state["last_recommended_names"] = context.get("last_recommended_names")
+    if is_expand_query(query):
+        result = {"normalized_query": query}
+        append_node_trace_result(trace_query, "rewrite_query", result)
+        return result
+
+    seed_rewrite = _build_safe_rewrite(
+        raw_query=query,
+        place_label=place_label,
+        place_original=state.get("place_original"),
+        explicit_mode=explicit_mode,
+        context_action=context_action,
+    )
+    if place_label and (context_action == "keep" or _is_short_category_followup(query, explicit_mode)):
+        result = {"normalized_query": seed_rewrite}
+        append_node_trace_result(trace_query, "rewrite_query", result)
+        return result
 
     history = _collect_history(state.get("messages") or [], query)
-    if not _should_use_history(query):
+    if not _should_use_history(query, anaphora_detected=bool(state.get("anaphora_detected"))):
         history = []
     history = history[-3:]
 
@@ -245,39 +480,28 @@ async def rewrite_query_node(state: GraphState) -> Dict:
         history_lines = [f"- {item['role']}: {item['content']}" for item in history]
         history_hint = "최근 대화 기록:\n" + "\n".join(history_lines)
 
+    last_mode = context.get("last_mode")
     context_hint = (
         "문맥 정보: "
-        f"이전 장소={last_place or '없음'}, "
-        f"이전 카테고리={last_mode or '없음'}, "
-        f"이전 정규화 쿼리={last_normalized_query or '없음'}"
+        f"확정된 기준 장소={place_label or '없음'}, "
+        f"컨텍스트 결정={context_action or '없음'}, "
+        f"현재 감지 카테고리={explicit_mode or '없음'}, "
+        f"직전 카테고리={last_mode or '없음'}, "
+        f"현재 턴에 새 장소 발견 여부={'예' if current_place else '아니오'}"
     )
 
     messages = [
         (
             "system",
-            "너는 사용자의 질문을 검색 엔진과 의도 분류기가 이해하기 쉽게 '완결된 문장'으로 재구성하는 전문가야.\n"
+            "너는 검색 질의를 정제하는 전문가야. 장소는 이미 앞 단계에서 확정되었다.\n"
             f"{context_hint}\n"
             f"{history_hint}\n"
-            "우선순위: 현재 입력이 1순위이며, 문맥/대화 기록은 누락된 정보만 최소로 보완하는 참고용이다.\n"
             "핵심 규칙:\n"
-            "0. **의미 없는 입력 처리**: 입력이 장소/카테고리/의도를 전혀 포함하지 않으면 정규화하지 말고 "
-            "normalized_query를 빈 문자열로 반환하라.\n"
-            "1. **생략된 맥락 복원**: 사용자가 '카페는?', '맛집은?'처럼 장소 없이 묻는다면 문맥 정보의 '이전 장소'를 결합해 "
-            "'강남역 근처 카페 추천'처럼 바꿔라.\n"
-            "1-1. **현재 장소 우선**: 사용자의 입력에 장소/지명이 포함되어 있으면 이전 장소/이전 정규화 쿼리는 사용하지 말고 "
-            "현재 입력만 기반으로 정규화하라.\n"
-            "1-2. **이전 활동 표현**: '갔다가/이후/끝나고/먹고' 등이 있으면 앞선 활동은 추천 대상이 아니다. "
-            "'카페 추천'처럼 축소하지 말고 '카페 이후 갈만한 장소/놀거리'처럼 다음 장소 요청을 유지하라. "
-            "단, '또/다시 카페'처럼 동일 카테고리를 명시하면 그대로 반영하라.\n"
-            "2. **의도 명확화**: 단순히 '장소+맛집' 형식(예: 도봉구 맛집)으로 질문하면, "
-            "'도봉구 맛집 추천해줘'처럼 추천 의도가 명확히 드러나게 문장을 완성하라. "
-            "단, 1-2 규칙이 있는 경우 이를 우선한다.\n"
-            "3. **범주 과잉추론 금지**: 입력에 '장소/곳/스팟/코스' 등 일반 표현이 있으면 특정 카테고리로 바꾸지 마라.\n"
-            "4. **검색 최적화**: '놀거리/명소', '맛집/식당' 등 검색 시스템이 사용하는 단어를 활용하라.\n"
-            "5. **고유명사 보존**: 지명, 상호명은 절대 수정하거나 축소하지 마라.\n"
-            "예시: 입력이 \"a\", \"음\", \"ㅋㅋ\", \"?\"라면 {\"normalized_query\": \"\"}를 반환한다.\n"
-            "예시: 입력이 \"카페 갔다가 갈만한 장소 추천해줘\"라면 "
-            "{\"normalized_query\": \"카페 이후 갈만한 장소 추천해줘\"}처럼 다음 장소 요청을 유지한다.\n"
+            "1. 확정된 기준 장소를 반드시 그대로 사용하라. 다른 장소를 추가하거나 섞지 마라.\n"
+            "2. 사용자의 의도와 카테고리만 정리하라. 장소 결정은 하지 마라.\n"
+            "3. 현재 입력에 식당/맛집/카페/관광지 같은 카테고리 단어가 있으면 절대 삭제하지 마라.\n"
+            "4. 짧은 후속 발화라면 추천 의도가 드러나는 완결 문장으로 보강하라.\n"
+            "5. 기준 장소와 다른 이전 장소명이 응답에 들어가면 안 된다.\n"
             "결과는 반드시 JSON 형식으로만 반환하라. 다른 텍스트/설명/코드블록 금지.\n"
             "반환 형식: {\"normalized_query\": \"...\"}",
         ),
@@ -299,11 +523,24 @@ async def rewrite_query_node(state: GraphState) -> Dict:
         pass
 
     normalized = _strip_prompt_leak(normalized)
+    previous_place = str(context.get("last_resolved_name") or "").strip()
+    if place_label and place_label not in normalized:
+        normalized = seed_rewrite
+    if (
+        place_label
+        and current_place
+        and previous_place
+        and previous_place != place_label
+        and previous_place in normalized
+    ):
+        normalized = seed_rewrite
+    if explicit_mode and normalized and not _contains_mode_keyword(normalized, explicit_mode):
+        normalized = seed_rewrite or query
     if _should_fallback_to_query(query, normalized):
-        normalized = query
+        normalized = seed_rewrite or query
 
     if _is_meaningless(normalized):
-        normalized = ""
+        normalized = seed_rewrite or ""
 
     result = {"normalized_query": normalized}
     append_node_trace_result(trace_query, "rewrite_query", result)

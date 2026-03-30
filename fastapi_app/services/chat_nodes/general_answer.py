@@ -3,7 +3,7 @@ from typing import List
 from services.chat_nodes.callbacks import build_callbacks_config
 from services.chat_nodes.config import GENERAL_K
 from services.chat_nodes.intent import is_region_non_recommend_query
-from services.chat_nodes.llm_clients import llm
+from services.chat_nodes.llm_clients import LLMRateLimitError, llm, rate_limit_fallback_text
 from services.chat_nodes.message_utils import normalize_messages
 from services.chat_nodes.mode import detect_mode, llm_detect_mode
 from services.chat_nodes.state import GraphState, build_context
@@ -47,7 +47,7 @@ async def general_answer_node(state: GraphState):
         pass
 
     # 일반 질의도 데이터 기반으로 답하도록 간단히 검색 사용
-    hits = retrieve(
+    hits = await retrieve(
         query=query,
         mode=mode_used,
         top_k=GENERAL_K,
@@ -117,14 +117,16 @@ async def general_answer_node(state: GraphState):
     messages = normalize_messages(messages)
 
     parts: List[str] = []
-    async for chunk in llm.astream(messages, config=config):
-        content = chunk.content
-        if not content:
-            continue
-        parts.append(content)
-        yield {"token": content}
-
-    final_text = "".join(parts)
+    try:
+        async for chunk in llm.astream(messages, config=config):
+            content = chunk.content
+            if not content:
+                continue
+            parts.append(content)
+            yield {"token": content}
+        final_text = "".join(parts)
+    except LLMRateLimitError:
+        final_text = "".join(parts) if parts else rate_limit_fallback_text()
     append_node_trace_result(state.get("query", ""), "general_answer", {"final": final_text})
     yield {"final": final_text}
     yield {"context": build_context(state)}

@@ -3,12 +3,11 @@ import json
 import logging
 import os
 from typing import List, Optional
-
 from fastapi import APIRouter, Query, Request
 from sse_starlette.sse import EventSourceResponse
-
 from services.chat_graph import chat_app
 from services.chat_nodes.callbacks import update_langfuse_trace, wrap_langfuse_callback
+from services.chat_nodes.llm_clients import LLMRateLimitError, rate_limit_fallback_text
 from utils.geo import append_node_trace
 from models.chat_request import ChatRequest
 
@@ -22,7 +21,6 @@ except Exception:
         from langfuse.langchain import CallbackHandler
     except Exception:
         CallbackHandler = None
-
 
 def _build_langfuse_callbacks(session_id: Optional[str] = None) -> List[object] | None:
     if CallbackHandler is None:
@@ -68,7 +66,6 @@ def _parse_history(raw: Optional[str]) -> List[int]:
             continue
     return ids
 
-
 def _preview_text(value: Optional[str], limit: int = 200) -> str:
     if not value:
         return ""
@@ -77,12 +74,10 @@ def _preview_text(value: Optional[str], limit: int = 200) -> str:
         return cleaned
     return cleaned[:limit] + "...(truncated)"
 
-
 def _is_langgraph_node_event(event: dict) -> bool:
     metadata = event.get("metadata") or {}
     node_name = metadata.get("langgraph_node")
     return bool(node_name and node_name == event.get("name"))
-
 
 @router.get("/chat/stream")
 async def chat_stream(
@@ -160,7 +155,7 @@ async def chat_stream(
                         final_text = str(data["final"])
                         yield {"event": "final", "data": str(data["final"])}
             if not any_event:
-                final_state = chat_app.invoke(initial_state, config=config)
+                final_state = await chat_app.ainvoke(initial_state, config=config)
                 final_text = None
                 if isinstance(final_state, dict):
                     final_text = final_state.get("final") or final_state.get("answer")
@@ -175,6 +170,14 @@ async def chat_stream(
         except asyncio.CancelledError:
             cancelled = True
             return
+        except LLMRateLimitError:
+            error = "rate_limited"
+            final_text = rate_limit_fallback_text()
+            if not final_sent:
+                final_sent = True
+                yield {"event": "token", "data": final_text}
+                yield {"event": "final", "data": final_text}
+            yield {"event": "done", "data": "ok"}
         except Exception as exc:
             error = repr(exc)
             logger.exception("chat_stream error req_id=%s", req_id)
@@ -269,7 +272,7 @@ async def chat_stream_post(req: ChatRequest, request: Request):
                         final_text = str(data["final"])
                         yield {"event": "final", "data": str(data["final"])}
             if not any_event:
-                final_state = chat_app.invoke(initial_state, config=config, version="v2")
+                final_state = await chat_app.ainvoke(initial_state, config=config)
                 final_text = None
                 if isinstance(final_state, dict):
                     final_text = final_state.get("final") or final_state.get("answer")
@@ -284,6 +287,14 @@ async def chat_stream_post(req: ChatRequest, request: Request):
         except asyncio.CancelledError:
             cancelled = True
             return
+        except LLMRateLimitError:
+            error = "rate_limited"
+            final_text = rate_limit_fallback_text()
+            if not final_sent:
+                final_sent = True
+                yield {"event": "token", "data": final_text}
+                yield {"event": "final", "data": final_text}
+            yield {"event": "done", "data": "ok"}
         except Exception as exc:
             error = repr(exc)
             logger.exception("chat_stream_post error req_id=%s", req_id)
